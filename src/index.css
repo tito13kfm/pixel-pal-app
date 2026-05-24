@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes ai-setup-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(168,85,247,0.5), 0 0 20px rgba(168,85,247,0.2); }
+  50% { box-shadow: 0 0 18px rgba(168,85,247,1), 0 0 40px rgba(168,85,247,0.5); }
+}
+.ai-setup-pulse {
+  animation: ai-setup-pulse 1.8s ease-in-out infinite;
+}
