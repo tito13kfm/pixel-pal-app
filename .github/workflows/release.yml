@@ -36,12 +36,11 @@ jobs:
 
       - name: Build and package
         run: npm run dist
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
         with:
+          draft: false
           files: |
             release/*.exe
             release/*.dmg
