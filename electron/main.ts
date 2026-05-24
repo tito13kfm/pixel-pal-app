@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, safeStorage, shell } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import Store from 'electron-store'
-import { autoUpdater } from 'electron-updater'
+import pkg from 'electron-updater'
+const { autoUpdater } = pkg
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
