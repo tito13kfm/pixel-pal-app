@@ -906,6 +906,7 @@ export default function PixelPalGenerator() {
   const [harmonyOpen, setHarmonyOpen] = useState(true);
   const [tipsOpen, setTipsOpen] = useState(false);
   const [hwPickerOpen, setHwPickerOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(true);
   // Per-ramp export style. Independent of vizStyle (which controls the
   // Visualization panel near the bottom of the page) and of gplStyle
   // (which controls the full-palette .gpl Download button in the bottom
@@ -5301,6 +5302,7 @@ export default function PixelPalGenerator() {
         <div className="text-center mb-6 relative">
           <h1 className="text-5xl font-bold mb-2" style={{ color: t.titleColor, textShadow: t.titleGlow, letterSpacing: '0.15em' }}>PIXEL.PAL</h1>
           <p className="text-sm tracking-widest" style={{ color: t.subtitleColor, textShadow: t.subtitleGlow }}>▓▒░ PIXEL ART PALETTE GENERATOR ░▒▓</p>
+          <p className="text-[10px] mt-1 opacity-40 tracking-widest font-mono" style={{ color: t.subtitleColor }}>v{__APP_VERSION__} &middot; {__BUILD_DATE__}</p>
           {/* Top-right control cluster: CRT toggle on top, three theme
               icon buttons in a horizontal row directly below, sized to
               match the CRT button's overall width.
@@ -7067,69 +7069,79 @@ export default function PixelPalGenerator() {
           )}
         </div>
 
-        {/* Export + Hardware Lock — full-width card */}
-        <div className="rounded-lg p-4 mb-3 border-2 backdrop-blur-sm" style={{ background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.3) }}>
-          <div className="flex gap-3 flex-wrap items-center">
-            <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
-            {hardwareLock ? (
-              <>
-                <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Locked:</span>
-                <span className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-yellow-300 text-purple-900 border-yellow-100" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' }}>
-                  {HARDWARE_PALETTES.find(hw => hw.id === hardwareLock)?.name}
-                </span>
-                <button onClick={bakeHardwareLock} title="Bake the current locked output into permanent pins." className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-500 text-purple-900 border-cyan-100 hover:bg-cyan-400" style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.6)' }}>Bake into pins</button>
-                <button onClick={() => toggleHardwareLock(hardwareLock)} title="Unlock and return to free generation" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-pink-500 text-white border-pink-200 hover:bg-pink-400">Unlock</button>
-              </>
-            ) : (
-              <button
-                onClick={() => setHwPickerOpen(o => !o)}
-                title={hwPickerOpen ? 'Close hardware palette picker' : 'Snap all shades to a hardware color palette'}
-                className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${hwPickerOpen ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
-                style={hwPickerOpen ? { boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' } : {}}
-              >
-                Hardware Lock
-              </button>
-            )}
-            <div className="w-px h-5 bg-white/20 flex-shrink-0" />
-            <button onClick={exportPalette} title="Download the active palette as a Pixel Art .txt file" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Download .txt</button>
-            <button onClick={copyPaletteToClipboard} title="Copy the active palette to the clipboard as plain text" className="px-4 py-1.5 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-100 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ff00ff' }}><Copy size={14} />Copy</button>
-            <button
-              onClick={toggleCompareMode}
-              title={compareMode ? 'Exit WCAG Check' : 'Enter WCAG Check: click any two ramp swatches to see their WCAG contrast ratio'}
-              className={`px-4 py-1.5 rounded font-bold border-2 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs ${compareMode ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-500/50 hover:bg-purple-800/60'}`}
-              style={compareMode ? { boxShadow: '0 0 12px #ffff00' } : {}}
-            >
-              <Contrast size={14} />{compareMode ? 'Checking (click to exit)' : 'WCAG Check'}
-            </button>
-            {exportFeedback && <span className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-xs font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</span>}
-          </div>
-          {!hardwareLock && hwPickerOpen && (
-            <div className="flex gap-2 flex-wrap mt-3 pt-3 border-t border-yellow-500/30">
-              {HARDWARE_PALETTES.map(hw => (
+        {/* Export & Tools — collapsible card matching section card pattern */}
+        <div className="rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.3) }}>
+          <button onClick={() => setExportOpen(o => !o)} title={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Download size={22} />Export &amp; Tools</h2>
+            <span style={{ color: sectionHeadColor('#00ffff') }}>{exportOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+          </button>
+          {exportOpen && (
+            <div className="px-6 pb-6 space-y-4">
+              {/* Hardware Lock row */}
+              <div className="flex gap-3 flex-wrap items-center">
+                <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
+                {hardwareLock ? (
+                  <>
+                    <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Locked:</span>
+                    <span className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-yellow-300 text-purple-900 border-yellow-100" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' }}>
+                      {HARDWARE_PALETTES.find(hw => hw.id === hardwareLock)?.name}
+                    </span>
+                    <button onClick={bakeHardwareLock} title="Bake the current locked output into permanent pins." className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-500 text-purple-900 border-cyan-100 hover:bg-cyan-400" style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.6)' }}>Bake into pins</button>
+                    <button onClick={() => toggleHardwareLock(hardwareLock)} title="Unlock and return to free generation" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-pink-500 text-white border-pink-200 hover:bg-pink-400">Unlock</button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setHwPickerOpen(o => !o)}
+                    title={hwPickerOpen ? 'Close hardware palette picker' : 'Snap all shades to a hardware color palette'}
+                    className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${hwPickerOpen ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
+                    style={hwPickerOpen ? { boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' } : {}}
+                  >
+                    Hardware Lock
+                  </button>
+                )}
+                {!hardwareLock && hwPickerOpen && (
+                  <div className="flex gap-2 flex-wrap">
+                    {HARDWARE_PALETTES.map(hw => (
+                      <button
+                        key={hw.id}
+                        onClick={() => { toggleHardwareLock(hw.id); setHwPickerOpen(false); }}
+                        title={`${hw.description}. While locked, all generated shades snap to ${hw.name}.`}
+                        className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider hover:scale-105 bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40"
+                      >
+                        {hw.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-white/10" />
+              {/* Download / Copy / WCAG row */}
+              <div className="flex gap-3 flex-wrap items-center">
+                <button onClick={exportPalette} title="Download the active palette as a Pixel Art .txt file" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Download .txt</button>
+                <button onClick={copyPaletteToClipboard} title="Copy the active palette to the clipboard as plain text" className="px-4 py-1.5 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-100 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ff00ff' }}><Copy size={14} />Copy</button>
                 <button
-                  key={hw.id}
-                  onClick={() => { toggleHardwareLock(hw.id); setHwPickerOpen(false); }}
-                  title={`${hw.description}. While locked, all generated shades snap to ${hw.name}.`}
-                  className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider hover:scale-105 bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40"
+                  onClick={toggleCompareMode}
+                  title={compareMode ? 'Exit WCAG Check' : 'Enter WCAG Check: click any two ramp swatches to see their WCAG contrast ratio'}
+                  className={`px-4 py-1.5 rounded font-bold border-2 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs ${compareMode ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-500/50 hover:bg-purple-800/60'}`}
+                  style={compareMode ? { boxShadow: '0 0 12px #ffff00' } : {}}
                 >
-                  {hw.name}
+                  <Contrast size={14} />{compareMode ? 'Checking (click to exit)' : 'WCAG Check'}
                 </button>
-              ))}
+                {exportFeedback && <span className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-xs font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</span>}
+              </div>
+              <div className="border-t border-white/10" />
+              {/* GPL row */}
+              <div className="flex gap-2 items-center flex-wrap">
+                <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">.gpl style:</span>
+                <button onClick={() => setGplStyle('punchy')} title="Export the .gpl using high-contrast Punchy ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
+                <button onClick={() => setGplStyle('balanced')} title="Export the .gpl using mid-contrast Balanced ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={gplStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
+                <button onClick={() => setGplStyle('muted')} title="Export the .gpl using low-contrast Muted ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
+                <button onClick={exportPaletteGpl} title="GIMP Palette format. Compatible with Piskel, Aseprite, GIMP, Krita, Inkscape, and other pixel art tools." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Download size={14} />.gpl (Piskel/Aseprite/GIMP)</button>
+                <button onClick={() => gplFileInputRef.current?.click()} title="Import a .gpl palette file from Piskel, Aseprite, GIMP, Krita, or any GIMP-compatible tool. Replaces the current palette." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Upload size={14} />Import .gpl</button>
+                <input ref={gplFileInputRef} type="file" accept=".gpl,text/plain" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGplFile(f); e.target.value = ''; }} className="hidden" />
+              </div>
             </div>
           )}
-        </div>
-
-        {/* GPL import/export — full-width card */}
-        <div className="rounded-lg p-4 mb-4 border-2 backdrop-blur-sm" style={{ background: t.cardBgViz, borderColor: themedAccentBorder('#ffff00'), boxShadow: accentGlow('#ffff00', 0.3) }}>
-          <div className="flex gap-2 items-center flex-wrap">
-            <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">.gpl style:</span>
-            <button onClick={() => setGplStyle('punchy')} title="Export the .gpl using high-contrast Punchy ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
-            <button onClick={() => setGplStyle('balanced')} title="Export the .gpl using mid-contrast Balanced ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={gplStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
-            <button onClick={() => setGplStyle('muted')} title="Export the .gpl using low-contrast Muted ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
-            <button onClick={exportPaletteGpl} title="GIMP Palette format. Compatible with Piskel, Aseprite, GIMP, Krita, Inkscape, and other pixel art tools." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Download size={14} />.gpl (Piskel/Aseprite/GIMP)</button>
-            <button onClick={() => gplFileInputRef.current?.click()} title="Import a .gpl palette file from Piskel, Aseprite, GIMP, Krita, or any GIMP-compatible tool. Replaces the current palette." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Upload size={14} />Import .gpl</button>
-            <input ref={gplFileInputRef} type="file" accept=".gpl,text/plain" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGplFile(f); e.target.value = ''; }} className="hidden" />
-          </div>
         </div>
 
         <div className="rounded-lg overflow-hidden" style={{ background: t.tipPanelBg, border: `2px solid ${t.tipPanelBorder}` }}>
