@@ -903,6 +903,9 @@ export default function PixelPalGenerator() {
   const [gplStyle, setGplStyle] = useState('punchy');
   const [vizOpen, setVizOpen] = useState(false);
   const [vizStyle, setVizStyle] = useState('punchy');
+  const [harmonyOpen, setHarmonyOpen] = useState(true);
+  const [tipsOpen, setTipsOpen] = useState(false);
+  const [hwPickerOpen, setHwPickerOpen] = useState(false);
   // Per-ramp export style. Independent of vizStyle (which controls the
   // Visualization panel near the bottom of the page) and of gplStyle
   // (which controls the full-palette .gpl Download button in the bottom
@@ -2156,6 +2159,7 @@ export default function PixelPalGenerator() {
     }
     const newLen = baseColors.length + 1;
     pendingLabelRef.current = 'Add base color';
+    setRampSizeOverrides(prev => ({ ...prev, [baseColors.length]: rampSize }));
     setBaseColors(prev => [...prev, norm]);
     setAiColorNames(prev => {
       const padded = [...prev];
@@ -6084,8 +6088,12 @@ export default function PixelPalGenerator() {
           })}
         </div>
 
-        <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" style={{ background: t.cardBgPink, borderColor: themedAccentBorder('#ff00ff'), boxShadow: accentGlow('#ff00ff', 0.4) }}>
-          <h2 className="text-xl font-bold mb-2 flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ff00ff'), textShadow: accentTextGlow('#ff00ff') }}><Sparkles size={22} />Harmony Colors</h2>
+        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgPink, borderColor: themedAccentBorder('#ff00ff'), boxShadow: accentGlow('#ff00ff', 0.4) }}>
+          <button onClick={() => setHarmonyOpen(o => !o)} title={harmonyOpen ? 'Collapse Harmony Colors' : 'Expand Harmony Colors'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ff00ff'), textShadow: accentTextGlow('#ff00ff') }}><Sparkles size={22} />Harmony Colors</h2>
+            <span style={{ color: sectionHeadColor('#ff00ff') }}>{harmonyOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+          </button>
+          {harmonyOpen && <div className="px-6 pb-6">
           <p className="text-xs text-pink-100/80 mb-4 italic">▸ Click any swatch to add a ramp, or "Add All" / "Add Both" for sets ◂ Hover a category name for tips ◂</p>
           {/* Anchor selector: pick which ramp the harmony palette is derived
               from. Only shown when there's more than one ramp; with a single
@@ -6246,6 +6254,7 @@ export default function PixelPalGenerator() {
               </div>
             );
           })()}
+          </div>}
         </div>
 
         {/* ---------- Palette Visualization (collapsible) ---------- */}
@@ -7065,43 +7074,42 @@ export default function PixelPalGenerator() {
               is shown with a distinct highlighted state; clicking the active
               button again unlocks. Non-destructive: baseColors and overrides
               are preserved, the lock just filters output at render time. */}
-          <div className="flex gap-2 items-center flex-wrap justify-center rounded border-2 border-yellow-500/40 px-3 py-2" style={{ background: t.panelBgStrong }}>
-            <Cpu size={14} className="text-yellow-200" />
-            <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">{hardwareLock ? 'Locked to:' : 'Lock to hardware:'}</span>
-            {HARDWARE_PALETTES.map(hw => {
-              const isActive = hardwareLock === hw.id;
-              return (
+          <div className="flex flex-col items-center gap-2 rounded border-2 border-yellow-500/40 px-3 py-2" style={{ background: t.panelBgStrong }}>
+            <div className="flex gap-2 items-center flex-wrap justify-center">
+              <Cpu size={14} className="text-yellow-200" />
+              {hardwareLock ? (
+                <>
+                  <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Locked:</span>
+                  <span className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-yellow-300 text-purple-900 border-yellow-100" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' }}>
+                    {HARDWARE_PALETTES.find(hw => hw.id === hardwareLock)?.name}
+                  </span>
+                  <button onClick={bakeHardwareLock} title="Bake the current locked output into permanent pins." className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-500 text-purple-900 border-cyan-100 hover:bg-cyan-400" style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.6)' }}>Bake into pins</button>
+                  <button onClick={() => toggleHardwareLock(hardwareLock)} title="Unlock and return to free generation" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-pink-500 text-white border-pink-200 hover:bg-pink-400">Unlock</button>
+                </>
+              ) : (
                 <button
-                  key={hw.id}
-                  onClick={() => toggleHardwareLock(hw.id)}
-                  title={isActive
-                    ? `Click to unlock. While locked, all generated shades and harmony colors snap to ${hw.name}.`
-                    : `${hw.description}. While locked, all generated shades snap to ${hw.name}. Click again to unlock.`}
-                  className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider hover:scale-105 ${isActive ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
-                  style={isActive ? { boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' } : {}}
+                  onClick={() => setHwPickerOpen(o => !o)}
+                  title={hwPickerOpen ? 'Close hardware palette picker' : 'Snap all shades to a hardware color palette'}
+                  className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${hwPickerOpen ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
+                  style={hwPickerOpen ? { boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' } : {}}
                 >
-                  {hw.name}
+                  Hardware Lock
                 </button>
-              );
-            })}
-            {hardwareLock && (
-              <button
-                onClick={bakeHardwareLock}
-                title="Bake the current locked output into permanent pins. Only shades the lock actually changed get pinned; shades the lock would have left alone stay procedural. After baking, the lock turns off but the visible colors stay the same. Future edits to base color, saturation, or shade count will only affect shades the lock didn't bake."
-                className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-500 text-purple-900 border-cyan-100 hover:bg-cyan-400"
-                style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.6)' }}
-              >
-                Bake into pins
-              </button>
-            )}
-            {hardwareLock && (
-              <button
-                onClick={() => toggleHardwareLock(hardwareLock)}
-                title="Unlock and return to free generation"
-                className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-pink-500 text-white border-pink-200 hover:bg-pink-400"
-              >
-                Unlock
-              </button>
+              )}
+            </div>
+            {!hardwareLock && hwPickerOpen && (
+              <div className="flex gap-2 flex-wrap justify-center">
+                {HARDWARE_PALETTES.map(hw => (
+                  <button
+                    key={hw.id}
+                    onClick={() => { toggleHardwareLock(hw.id); setHwPickerOpen(false); }}
+                    title={`${hw.description}. While locked, all generated shades snap to ${hw.name}.`}
+                    className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider hover:scale-105 bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40"
+                  >
+                    {hw.name}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           <div className="flex gap-3 flex-wrap justify-center">
@@ -7128,7 +7136,12 @@ export default function PixelPalGenerator() {
           {exportFeedback && <div className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-sm font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</div>}
         </div>
 
-        <div className={`rounded-lg p-4 text-xs ${t.tipPanelText}`} style={{ background: t.tipPanelBg, border: `2px solid ${t.tipPanelBorder}` }}>
+        <div className="rounded-lg overflow-hidden" style={{ background: t.tipPanelBg, border: `2px solid ${t.tipPanelBorder}` }}>
+          <button onClick={() => setTipsOpen(o => !o)} title={tipsOpen ? 'Collapse Tips' : 'Expand Tips'} className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+            <span className={`text-xs font-bold uppercase tracking-widest ${t.tipPanelStrong}`}>Tips</span>
+            <span className={t.tipPanelText}>{tipsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+          </button>
+          {tipsOpen && <div className={`px-4 pb-4 text-xs ${t.tipPanelText}`}>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ TIP:</strong> Click any swatch to copy its hex code.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ DICE:</strong> Rolls a random color (Single Color) or a random description (AI Assist). Free, no API call. Click again to re-roll.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SURPRISE ME:</strong> The AI invents a subject AND generates its palette in one shot. Uses one API call.</p>
@@ -7146,6 +7159,7 @@ export default function PixelPalGenerator() {
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ LOCK:</strong> Click a hardware button (NES, Game Boy, CGA 16, EGA 64, C64) to enter a persistent lock mode. Every generated shade and harmony color snaps to the nearest hardware-legal hex. Click the active button again or "Unlock" to return to free generation. Non-destructive: your base colors and pins are preserved.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ HISTORY:</strong> The History section above the export bar lists your recent actions. Click any entry to jump to that state, or use Cmd/Ctrl+Z and Cmd/Ctrl+Y for sequential undo/redo. Last 20 actions are remembered per browser session; a page reload starts fresh.</p>
           <p><strong className={t.tipPanelStrong}>▸ .GPL:</strong> Standard GIMP palette format, importable into Piskel, Aseprite, GIMP, Krita, and most pixel art tools.</p>
+          </div>}
         </div>
         </div>{/* end CVD filter wrapper */}
 
