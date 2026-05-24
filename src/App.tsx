@@ -4707,7 +4707,7 @@ export default function PixelPalGenerator() {
             style={{ backgroundColor: hex, boxShadow: isAnchor ? '0 0 14px #ffff00' : `0 0 8px ${shadowRgba}` }}
             title={hoverHint}
           >
-            {isCopied && <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded text-cyan-200 text-xs font-bold">Copied!</div>}
+            {isCopied && <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded text-cyan-200 text-[10px] font-bold">Copied!</div>}
             {isFailed && <div className="absolute inset-0 flex items-center justify-center bg-red-900/80 rounded text-red-100 text-[10px] font-bold leading-tight text-center px-1">Copy<br/>failed</div>}
           </button>
           {/* Hover + button: promote this generated shade to a new base
