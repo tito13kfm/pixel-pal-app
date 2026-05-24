@@ -3,7 +3,11 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import Store from 'electron-store'
 import pkg from 'electron-updater'
+import log from 'electron-log'
 const { autoUpdater } = pkg
+
+autoUpdater.logger = log
+log.transports.file.level = 'info'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -106,12 +110,17 @@ ipcMain.handle('ai-config:set', (_event, config: unknown): { encrypted: boolean 
   return { encrypted: true }
 })
 
-autoUpdater.on('error', () => {})
+autoUpdater.on('error', (err) => { log.error('updater error', err) })
+autoUpdater.on('checking-for-update', () => { log.info('checking for update') })
+autoUpdater.on('update-available', (info) => { log.info('update available', info) })
+autoUpdater.on('update-not-available', (info) => { log.info('update not available', info) })
+autoUpdater.on('download-progress', (p) => { log.info('download progress', p.percent) })
+autoUpdater.on('update-downloaded', (info) => { log.info('update downloaded', info) })
 
 app.whenReady().then(() => {
   createWindow()
   if (!process.env.VITE_DEV_SERVER_URL) {
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {})
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => { log.error('checkForUpdatesAndNotify error', err) })
   }
 })
 
