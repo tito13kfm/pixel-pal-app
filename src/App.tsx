@@ -5290,7 +5290,7 @@ export default function PixelPalGenerator() {
           backgrounds it adds visual noise that competes with the swatches. */}
       {t.showVaporwave && (
         <div className="pointer-events-none fixed bottom-0 left-0 right-0 h-1/2 z-0" style={{
-          backgroundImage: `linear-gradient(0deg, transparent 0%, rgba(255, 0, 255, 0.1) 50%, rgba(0, 255, 255, 0.2) 100%), linear-gradient(90deg, transparent 49.5%, rgba(0, 255, 255, 0.4) 49.5%, rgba(0, 255, 255, 0.4) 50.5%, transparent 50.5%), linear-gradient(0deg, transparent 49.5%, rgba(255, 0, 255, 0.3) 49.5%, rgba(255, 0, 255, 0.3) 50.5%, transparent 50.5%)`,
+          backgroundImage: `linear-gradient(0deg, transparent 0%, rgba(255, 0, 255, 0.1) 50%, rgba(0, 255, 255, 0.2) 100%), linear-gradient(90deg, rgba(0, 255, 255, 0.4) 1px, transparent 1px), linear-gradient(0deg, rgba(255, 0, 255, 0.3) 1px, transparent 1px)`,
           backgroundSize: '100% 100%, 60px 60px, 60px 60px',
           transform: 'perspective(500px) rotateX(60deg)',
           transformOrigin: 'center top'
