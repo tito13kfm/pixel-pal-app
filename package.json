@@ -12,22 +12,55 @@
     "directories": {
       "output": "release"
     },
-    "files": ["dist/**/*", "dist-electron/**/*"],
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }]
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
     },
     "linux": {
-      "target": [{ "target": "AppImage", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "tito13kfm",
+      "repo": "pixel-pal-app"
     }
   },
   "scripts": {
@@ -42,6 +75,7 @@
   },
   "dependencies": {
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.3",
     "lucide-react": "^1.16.0",
     "openai": "^6.39.0",
     "react": "^19.2.6",

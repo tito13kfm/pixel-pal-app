@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, safeStorage, shell } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import Store from 'electron-store'
+import { autoUpdater } from 'electron-updater'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -104,7 +105,14 @@ ipcMain.handle('ai-config:set', (_event, config: unknown): { encrypted: boolean 
   return { encrypted: true }
 })
 
-app.whenReady().then(createWindow)
+autoUpdater.on('error', () => {})
+
+app.whenReady().then(() => {
+  createWindow()
+  if (!process.env.VITE_DEV_SERVER_URL) {
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {})
+  }
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
