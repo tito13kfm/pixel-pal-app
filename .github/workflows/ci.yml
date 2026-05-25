@@ -56,4 +56,8 @@ jobs:
         working-directory: src-tauri
         run: cargo check
 
+      - name: Cargo test
+        working-directory: src-tauri
+        run: cargo test
+
       # e2e Playwright tests skipped: tauri-driver wiring is a follow-up task
