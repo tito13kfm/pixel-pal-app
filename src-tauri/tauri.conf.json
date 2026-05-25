@@ -1,0 +1,46 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "PIXEL.PAL",
+  "version": "0.5.0",
+  "identifier": "com.pixelpal.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PIXEL.PAL",
+        "width": 1280,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Tim Kurash"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFCRUUwNkMyQTJGMUQwQTQKUldTazBQR2l3Z2J1RzR2TmRFRTk5RENocU9PeGNGWW9pN3BtbVFUVUlwRWl3b3lPY3FQQ3dsMGsK",
+      "endpoints": [
+        "https://github.com/tito13kfm/pixel-pal-app/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

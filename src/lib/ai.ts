@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions'
 import type { AIConfig } from './palette'
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 
 export interface AIResponse {
   colors: string[]         // array of hex color strings (mapped from colors[].hex)
@@ -111,6 +112,9 @@ export function createAIClient(config: AIConfig): OpenAI {
     baseURL: config.baseUrl,
     apiKey: config.apiKey,
     dangerouslyAllowBrowser: true,
+    fetch: (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+      ? (tauriFetch as unknown as typeof globalThis.fetch)
+      : undefined,
   })
 }
 
