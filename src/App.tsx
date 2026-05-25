@@ -818,6 +818,17 @@ const buildRandomHex = () => {
   return hslToHex({ h: hue, s: sat, l: light });
 };
 
+// ---------- Panel state persistence ----------
+const PANEL_STORAGE_KEY = 'ui:panels'
+const PANEL_DEFAULTS = { vizOpen: false, harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: true, historyOpen: false, savedOpen: false, sbsOpen: false }
+function loadPanelState() {
+  try {
+    const raw = localStorage.getItem(PANEL_STORAGE_KEY)
+    return raw ? { ...PANEL_DEFAULTS, ...JSON.parse(raw) } : PANEL_DEFAULTS
+  } catch { return PANEL_DEFAULTS }
+}
+const _panels = loadPanelState()
+
 // ---------- Main ----------
 export default function PixelPalGenerator() {
   const [mode, setMode] = useState('color');
@@ -906,12 +917,12 @@ export default function PixelPalGenerator() {
   const [compareAnchor, setCompareAnchor] = useState(null); // { baseIndex, shadeIndex, style, hex } | null
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [gplStyle, setGplStyle] = useState('punchy');
-  const [vizOpen, setVizOpen] = useState(false);
+  const [vizOpen, setVizOpen] = useState(_panels.vizOpen);
   const [vizStyle, setVizStyle] = useState('punchy');
-  const [harmonyOpen, setHarmonyOpen] = useState(true);
-  const [tipsOpen, setTipsOpen] = useState(false);
-  const [hwPickerOpen, setHwPickerOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(true);
+  const [harmonyOpen, setHarmonyOpen] = useState(_panels.harmonyOpen);
+  const [tipsOpen, setTipsOpen] = useState(_panels.tipsOpen);
+  const [hwPickerOpen, setHwPickerOpen] = useState(_panels.hwPickerOpen);
+  const [exportOpen, setExportOpen] = useState(_panels.exportOpen);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateReady, setUpdateReady] = useState(false);
   const [updateDownloading, setUpdateDownloading] = useState(false);
@@ -1158,7 +1169,7 @@ export default function PixelPalGenerator() {
     { snapshot: null, label: 'Initial state', timestamp: Date.now() },
   ]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(_panels.historyOpen);
   const isReplayingHistoryRef = useRef(false);
   const historyDebounceRef = useRef(null);
   const pendingLabelRef = useRef(null);
@@ -1169,7 +1180,7 @@ export default function PixelPalGenerator() {
   // render. Loading the full payload happens on demand when the user clicks
   // Load. Storage operations are best-effort; failures show in `savedError`.
   const [savedPalettes, setSavedPalettes] = useState([]);
-  const [savedOpen, setSavedOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   // Side-by-side compare: dedicated section with two slots. Each slot
   // holds either null (empty), the string 'working' (the live working
   // palette, which re-renders live as edits happen), or a saved palette
@@ -1179,7 +1190,7 @@ export default function PixelPalGenerator() {
   // palette's identity, so they reset on every "new palette" path.
   // Named sbsLeft/sbsRight rather than compareLeft/compareRight to avoid
   // confusion with the existing WCAG Check (formerly "Compare Mode") picker.
-  const [sbsOpen, setSbsOpen] = useState(false);
+  const [sbsOpen, setSbsOpen] = useState(_panels.sbsOpen);
   const [sbsLeft, setSbsLeft] = useState(null);
   const [sbsRight, setSbsRight] = useState(null);
   // Per-slot async payload cache. When a slot points at a saved palette
@@ -1662,6 +1673,10 @@ export default function PixelPalGenerator() {
     window.electronAPI?.onUpdateAvailable?.((info) => setUpdateInfo(info));
     window.electronAPI?.onUpdateReady?.((info) => { setUpdateInfo(info); setUpdateReady(true); setUpdateDownloading(false); });
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ vizOpen, harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen }))
+  }, [vizOpen, harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen]);
 
   function handleAISettingsClose() {
     setShowAISettings(false);
