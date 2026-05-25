@@ -37,7 +37,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGMzg3NjEwMjQyOTIzNjUKUldSbEl5a2tFSFk0VHo3cjkyWUJKb2dkcVFhTjNDZW9QYUNwSUl4WmJNSXdoOUliT01LNHpOb1cK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlFM0UwRTJGMzg3NUQ2MzEKUldReDFuVTRMdzQrbm1sWCtvK2hVMEg2cittVjZUbS8wQTJtWTg5dnQyQzlNdVh3WnVCdUU4N3MK",
       "endpoints": [
         "https://github.com/tito13kfm/pixel-pal-app/releases/latest/download/latest.json"
       ]
