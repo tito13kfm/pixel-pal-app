@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
 
+#[allow(dead_code)]
 const SERVICE: &str = "pixel-pal-app";
+#[allow(dead_code)]
 const USERNAME: &str = "ai-config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
