@@ -7396,7 +7396,7 @@ export default function PixelPalGenerator() {
       {showAISettings && <AISettingsPanel onClose={handleAISettingsClose} />}
       <TourPanel
         open={tourOpen}
-        onClose={() => setTourOpen(false)}
+        onClose={() => { handleTourMarkSeen(); setTourOpen(false); }}
         appState={{
           mode,
           showAISettings,
