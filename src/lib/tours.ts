@@ -34,7 +34,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     },
     {
       title: 'Input modes',
-      body: 'Three ways in: type a hex color, describe a palette with AI, or extract colors from an image.',
+      body: 'Single Color: type or pick a hex. AI Assist: describe a subject or mood to generate, or hit Surprise Me to randomize. From Image: drag, paste, or open a photo.',
       target: 'mode-tabs',
     },
     {
@@ -44,7 +44,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     },
     {
       title: 'Export',
-      body: 'Click Export at the bottom to open the export panel. Download as .txt or .gpl for Aseprite, Piskel, GIMP, and Krita.',
+      body: 'Click the Export & Tools header to expand it. Use Download .txt for plain text, or .gpl (Piskel/Aseprite/GIMP) for app-ready palette format.',
       target: 'export-panel',
     },
   ],
@@ -63,7 +63,7 @@ export const TASK_GUIDES: TourGuide[] = [
       },
       {
         title: 'Enter a hex color',
-        body: 'Type any hex color in the input field and press Enter or click Generate.',
+        body: 'Type a hex color or use the color picker, then click New palette to generate ramps.',
         hint: 'e.g. #3b82f6',
         detector: (s) => s.baseColors[0] !== '#ff00ff',
       },
@@ -91,7 +91,7 @@ export const TASK_GUIDES: TourGuide[] = [
       },
       {
         title: 'Generate from a prompt',
-        body: 'Close settings, type a description (e.g. "sunset over ocean"), and click Generate.',
+        body: 'Close settings, type a description (e.g. "sunset over ocean"), then press Enter or click Execute.',
         detector: (s) => s.aiLoading,
       },
       {
@@ -131,13 +131,13 @@ export const TASK_GUIDES: TourGuide[] = [
         detector: (s) => s.baseColors[0] !== '#ff00ff' || s.imageDataUrl !== null,
       },
       {
-        title: 'Right-click a swatch',
-        body: 'Right-click any color swatch in a ramp to open the pin menu.',
-        hint: '→ right-click a swatch',
+        title: 'Click the pin icon',
+        body: 'Click the pushpin icon on any shade (except the base) to pin it. The pin editor opens inline.',
+        hint: '→ click a swatch\'s pushpin icon',
       },
       {
-        title: 'Lock it to a hex',
-        body: 'Click the hex field in the pin menu and type your target color. The shade stays fixed when you adjust the ramp.',
+        title: 'Set the target hex',
+        body: 'Type a hex color in the pin editor. That shade stays fixed when you adjust the ramp or change styles.',
       },
     ],
   },
@@ -147,13 +147,13 @@ export const TASK_GUIDES: TourGuide[] = [
     steps: [
       {
         title: 'Open the Export panel',
-        body: 'The Export panel at the bottom contains the Hardware Lock controls.',
-        hint: '→ click Export at the bottom',
+        body: 'The Export & Tools panel contains the Hardware Lock controls.',
+        hint: '→ click Export & Tools header',
         detector: (s) => s.exportOpen,
       },
       {
-        title: 'Choose a hardware target',
-        body: 'Click a hardware palette: NES, Game Boy DMG, CGA 16, EGA 64, or C64.',
+        title: 'Open the hardware picker',
+        body: 'Click Hardware Lock to reveal the platform buttons: NES, Game Boy, CGA 16, EGA 64, C64.',
         hint: '→ click Hardware Lock',
         detector: (s) => s.hwPickerOpen,
       },
@@ -174,8 +174,8 @@ export const TASK_GUIDES: TourGuide[] = [
       },
       {
         title: 'Click Harmonize',
-        body: 'Click the Harmonize button below the ramps and choose a color theory option: complementary, analogous, triadic, etc.',
-        hint: '→ find Harmonize below the ramps',
+        body: 'Click Harmonize in the Harmony Colors section below the ramps. It auto-assigns color-theory positions: complement, analogous, triadic, etc.',
+        hint: '→ find Harmonize in the Harmony Colors section',
       },
       {
         title: 'Ramps harmonized',
@@ -189,8 +189,8 @@ export const TASK_GUIDES: TourGuide[] = [
     steps: [
       {
         title: 'Open the Export panel',
-        body: 'All export controls live in the collapsible Export panel at the bottom.',
-        hint: '→ click Export at the bottom',
+        body: 'All export controls live in the collapsible Export & Tools panel.',
+        hint: '→ click Export & Tools header',
         detector: (s) => s.exportOpen,
       },
       {
@@ -199,7 +199,7 @@ export const TASK_GUIDES: TourGuide[] = [
       },
       {
         title: 'Download the file',
-        body: 'Click Download .gpl. The file works in Aseprite, Krita, GIMP, and any app that accepts GIMP palette files.',
+        body: 'Click .gpl (Piskel/Aseprite/GIMP). The file is standard GIMP palette format, importable in any compatible app including Krita.',
       },
     ],
   },
@@ -208,9 +208,9 @@ export const TASK_GUIDES: TourGuide[] = [
     label: 'Check contrast (WCAG)',
     steps: [
       {
-        title: 'Enable Compare Mode',
-        body: 'Compare Mode lets you check WCAG contrast between any two swatches in your palette.',
-        hint: '→ click Compare Mode',
+        title: 'Enable WCAG Check',
+        body: 'WCAG Check lets you compare contrast between any two swatches. Find it in the Export & Tools panel.',
+        hint: '→ click WCAG Check',
         detector: (s) => s.compareMode,
       },
       {
