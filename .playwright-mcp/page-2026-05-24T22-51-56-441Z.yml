@@ -1,0 +1,457 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - heading "PIXEL.PAL" [level=1] [ref=e6]
+    - paragraph [ref=e7]: ▓▒░ PIXEL ART PALETTE GENERATOR ░▒▓
+    - generic [ref=e8]:
+      - button "CRT ON" [ref=e9] [cursor=pointer]:
+        - img [ref=e11]
+        - generic [ref=e14]: CRT ON
+      - generic [ref=e15]:
+        - 'button "Dark: original vaporwave look" [ref=e16] [cursor=pointer]':
+          - img [ref=e17]
+        - 'button "18% gray: neutral background for unbiased color judgment" [ref=e19] [cursor=pointer]':
+          - img [ref=e20]
+        - 'button "Light: off-white background" [ref=e23] [cursor=pointer]':
+          - img [ref=e24]
+    - generic [ref=e31]:
+      - button "Normal vision (no simulation)" [ref=e32] [cursor=pointer]:
+        - img [ref=e33]
+      - 'button "Protanopia: simulates red-blindness (~1% of men)" [ref=e36] [cursor=pointer]': Pro
+      - 'button "Deuteranopia: simulates green-blindness (~6% of men, most common CVD)" [ref=e37] [cursor=pointer]': Deu
+      - 'button "Tritanopia: simulates blue-blindness (very rare)" [ref=e38] [cursor=pointer]': Tri
+  - generic [ref=e39]:
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - button "Single Color" [ref=e42] [cursor=pointer]
+        - button "AI Assist" [ref=e43] [cursor=pointer]:
+          - img [ref=e44]
+          - text: AI Assist
+        - button "From Image" [ref=e47] [cursor=pointer]:
+          - img [ref=e48]
+          - text: From Image
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - textbox "Pick a base color from the OS color picker" [ref=e54] [cursor=pointer]: "#b15c0b"
+          - 'textbox "Type a hex color (e.g. #ff6b35)" [ref=e55]': "#b15c0b"
+          - button "Roll a random hex into the input. Does not change the palette. Click Add base to append it, or New palette to replace the palette with it." [ref=e56] [cursor=pointer]:
+            - img [ref=e57]
+          - button "Add base" [ref=e59] [cursor=pointer]:
+            - img [ref=e60]
+            - text: Add base
+        - button "New palette" [ref=e61] [cursor=pointer]:
+          - img [ref=e62]
+          - text: New palette
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - generic [ref=e67]: "Shades:"
+          - button "4" [ref=e68] [cursor=pointer]
+          - button "5" [ref=e69] [cursor=pointer]
+          - button "6" [ref=e70] [cursor=pointer]
+          - button "7" [ref=e71] [cursor=pointer]
+          - button "8" [ref=e72] [cursor=pointer]
+        - generic "Scales the warm/cool hue shifts applied to shadows and highlights. 0% is flat, 100% is the default, 200% is painterly. Affects all styles." [ref=e73]:
+          - generic [ref=e74]: "Hue Shift:"
+          - slider "Hue shift strength" [ref=e75]: "100"
+          - generic [ref=e76]: 100%
+      - generic [ref=e78]:
+        - generic [ref=e79]: "Preview Sprite:"
+        - button "Vase" [ref=e81] [cursor=pointer]:
+          - img [ref=e83]
+          - generic [ref=e578]: Vase
+        - button "Walkman" [ref=e580] [cursor=pointer]:
+          - img [ref=e582]
+          - generic [ref=e1163]: Walkman
+        - button "Cassette" [ref=e1165] [cursor=pointer]:
+          - img [ref=e1167]
+          - generic [ref=e1659]: Cassette
+        - button "Diamond" [ref=e1661] [cursor=pointer]:
+          - img [ref=e1663]
+          - generic [ref=e2024]: Diamond
+        - button "+ Import" [ref=e2025] [cursor=pointer]:
+          - generic [ref=e2026]: +
+          - generic [ref=e2027]: Import
+    - generic [ref=e2028]:
+      - generic [ref=e2029]:
+        - heading "Color Ramps" [level=2] [ref=e2030]:
+          - img [ref=e2031]
+          - text: Color Ramps
+        - generic [ref=e2037]:
+          - generic "Style used by the Copy and Download buttons on each ramp card. Independent of the Visualization panel's style. Hidden shades are always excluded." [ref=e2038]:
+            - generic [ref=e2039]: "Ramp export:"
+            - button "Punchy" [ref=e2040] [cursor=pointer]
+            - button "Balanced" [ref=e2041] [cursor=pointer]
+            - button "Muted" [ref=e2042] [cursor=pointer]
+          - button "Reset to Defaults" [ref=e2043] [cursor=pointer]:
+            - img [ref=e2044]
+            - text: Reset to Defaults
+      - generic [ref=e2047]:
+        - generic [ref=e2048]:
+          - button "Edit base color" [ref=e2049] [cursor=pointer]:
+            - img [ref=e2050]
+          - button "Reshuffle this ramp's jitter (does not affect other ramps)" [ref=e2051] [cursor=pointer]:
+            - img [ref=e2052]
+          - button "Lock this ramp. The Generate/Shuffle buttons will skip it, and Harmonize will use it as a fixed reference. Pins and hidden shades are unaffected (they were per-ramp anyway)." [ref=e2058] [cursor=pointer]:
+            - img [ref=e2059]
+          - button "Duplicate this ramp at the end of the palette. Carries over pins, shade count, saturation multiplier, hidden shades, and shuffle offset. Does not carry over lock state. The duplicate will look similar but not identical to the source (per-ramp shuffle seed depends on ramp index)." [ref=e2062] [cursor=pointer]:
+            - img [ref=e2063]
+          - button "Copy this ramp's hex values to clipboard at the active per-ramp export style (punchy). Change the style via the Punchy/Balanced/Muted toggle in the section header. Hidden shades excluded." [ref=e2066] [cursor=pointer]:
+            - img [ref=e2067]
+          - button "Download this ramp as a single-ramp .gpl file at the active per-ramp export style (punchy). Change the style via the Punchy/Balanced/Muted toggle in the section header. Hidden shades excluded." [ref=e2070] [cursor=pointer]:
+            - img [ref=e2071]
+        - generic [ref=e2074]:
+          - generic "Collapse this ramp card to icons only" [ref=e2075] [cursor=pointer]:
+            - generic [ref=e2076]:
+              - img [ref=e2077]
+              - generic [ref=e2572]: Punchy
+              - generic [ref=e2573]: Color 1
+            - generic [ref=e2574]:
+              - img [ref=e2575]
+              - generic [ref=e3070]: Balanced
+              - generic [ref=e3071]: Color 1
+            - generic [ref=e3072]:
+              - img [ref=e3073]
+              - generic [ref=e3568]: Muted
+              - generic [ref=e3569]: Color 1
+          - generic [ref=e3570]:
+            - generic [ref=e3571]:
+              - generic [ref=e3572]: ▸ Punchy
+              - generic [ref=e3573]:
+                - generic [ref=e3574]:
+                  - generic [ref=e3575]:
+                    - 'button "Click to copy #1d0c02 | Right-click to hide this shade across all 3 styles | Contrast: vs deep shadow: 1.17:1 fail" [ref=e3576] [cursor=pointer]'
+                    - 'button "Add #1D0C02 as a new base color" [ref=e3577] [cursor=pointer]':
+                      - img [ref=e3578]
+                    - button "Pin this punchy shade" [ref=e3579] [cursor=pointer]:
+                      - img [ref=e3580]
+                  - generic [ref=e3582]: "#1D0C02"
+                  - generic [ref=e3583]: outline
+                - generic [ref=e3584]:
+                  - generic [ref=e3585]:
+                    - 'button "Click to copy #420d00 | Right-click to hide this shade across all 3 styles | Contrast: vs outline: 1.17:1 fail, vs shadow: 1.42:1 fail" [ref=e3586] [cursor=pointer]'
+                    - 'button "Add #420D00 as a new base color" [ref=e3587] [cursor=pointer]':
+                      - img [ref=e3588]
+                    - button "Pin this punchy shade" [ref=e3589] [cursor=pointer]:
+                      - img [ref=e3590]
+                  - generic [ref=e3592]: "#420D00"
+                  - generic [ref=e3593]: deep shadow
+                - generic [ref=e3594]:
+                  - generic [ref=e3595]:
+                    - 'button "Click to copy #6e1c01 | Right-click to hide this shade across all 3 styles | Contrast: vs deep shadow: 1.42:1 fail, vs mid shadow: 1.48:1 fail" [ref=e3596] [cursor=pointer]'
+                    - 'button "Add #6E1C01 as a new base color" [ref=e3597] [cursor=pointer]':
+                      - img [ref=e3598]
+                    - button "Pin this punchy shade" [ref=e3599] [cursor=pointer]:
+                      - img [ref=e3600]
+                  - generic [ref=e3602]: "#6E1C01"
+                  - generic [ref=e3603]: shadow
+                - generic [ref=e3604]:
+                  - generic [ref=e3605]:
+                    - 'button "Click to copy #8f3704 | Right-click to hide this shade across all 3 styles | Contrast: vs shadow: 1.48:1 fail, vs base: 1.62:1 fail" [ref=e3606] [cursor=pointer]'
+                    - 'button "Add #8F3704 as a new base color" [ref=e3607] [cursor=pointer]':
+                      - img [ref=e3608]
+                    - button "Pin this punchy shade" [ref=e3609] [cursor=pointer]:
+                      - img [ref=e3610]
+                  - generic [ref=e3612]: "#8F3704"
+                  - generic [ref=e3613]: mid shadow
+                - generic [ref=e3614]:
+                  - 'button "Click to copy #b15c0b | Right-click to hide this shade across all 3 styles | Contrast: vs mid shadow: 1.62:1 fail, vs mid highlight: 2.68:1 fail" [ref=e3616] [cursor=pointer]'
+                  - generic [ref=e3617]: "#B15C0B"
+                  - generic [ref=e3618]: base
+                - generic [ref=e3619]:
+                  - generic [ref=e3620]:
+                    - 'button "Click to copy #fcb537 | Right-click to hide this shade across all 3 styles | Contrast: vs base: 2.68:1 fail, vs highlight: 1.47:1 fail" [ref=e3621] [cursor=pointer]'
+                    - 'button "Add #FCB537 as a new base color" [ref=e3622] [cursor=pointer]':
+                      - img [ref=e3623]
+                    - button "Pin this punchy shade" [ref=e3624] [cursor=pointer]:
+                      - img [ref=e3625]
+                  - generic [ref=e3627]: "#FCB537"
+                  - generic [ref=e3628]: mid highlight
+                - generic [ref=e3629]:
+                  - generic [ref=e3630]:
+                    - 'button "Click to copy #ffe990 | Right-click to hide this shade across all 3 styles | Contrast: vs mid highlight: 1.47:1 fail, vs bright: 1.15:1 fail" [ref=e3631] [cursor=pointer]'
+                    - 'button "Add #FFE990 as a new base color" [ref=e3632] [cursor=pointer]':
+                      - img [ref=e3633]
+                    - button "Pin this punchy shade" [ref=e3634] [cursor=pointer]:
+                      - img [ref=e3635]
+                  - generic [ref=e3637]: "#FFE990"
+                  - generic [ref=e3638]: highlight
+                - generic [ref=e3639]:
+                  - generic [ref=e3640]:
+                    - 'button "Click to copy #fcf9e7 | Right-click to hide this shade across all 3 styles | Contrast: vs highlight: 1.15:1 fail" [ref=e3641] [cursor=pointer]'
+                    - 'button "Add #FCF9E7 as a new base color" [ref=e3642] [cursor=pointer]':
+                      - img [ref=e3643]
+                    - button "Pin this punchy shade" [ref=e3644] [cursor=pointer]:
+                      - img [ref=e3645]
+                  - generic [ref=e3647]: "#FCF9E7"
+                  - generic [ref=e3648]: bright
+            - generic [ref=e3649]:
+              - generic [ref=e3650]: ▸ Balanced
+              - generic [ref=e3651]:
+                - generic [ref=e3652]:
+                  - generic [ref=e3653]:
+                    - 'button "Click to copy #351604 | Right-click to hide this shade across all 3 styles | Contrast: vs deep shadow: 1.17:1 fail" [ref=e3654] [cursor=pointer]'
+                    - 'button "Add #351604 as a new base color" [ref=e3655] [cursor=pointer]':
+                      - img [ref=e3656]
+                    - button "Pin this balanced shade" [ref=e3657] [cursor=pointer]:
+                      - img [ref=e3658]
+                  - generic [ref=e3660]: "#351604"
+                  - generic [ref=e3661]: outline
+                - generic [ref=e3662]:
+                  - generic [ref=e3663]:
+                    - 'button "Click to copy #561302 | Right-click to hide this shade across all 3 styles | Contrast: vs outline: 1.17:1 fail, vs shadow: 1.40:1 fail" [ref=e3664] [cursor=pointer]'
+                    - 'button "Add #561302 as a new base color" [ref=e3665] [cursor=pointer]':
+                      - img [ref=e3666]
+                    - button "Pin this balanced shade" [ref=e3667] [cursor=pointer]:
+                      - img [ref=e3668]
+                  - generic [ref=e3670]: "#561302"
+                  - generic [ref=e3671]: deep shadow
+                - generic [ref=e3672]:
+                  - generic [ref=e3673]:
+                    - 'button "Click to copy #7b2306 | Right-click to hide this shade across all 3 styles | Contrast: vs deep shadow: 1.40:1 fail, vs mid shadow: 1.42:1 fail" [ref=e3674] [cursor=pointer]'
+                    - 'button "Add #7B2306 as a new base color" [ref=e3675] [cursor=pointer]':
+                      - img [ref=e3676]
+                    - button "Pin this balanced shade" [ref=e3677] [cursor=pointer]:
+                      - img [ref=e3678]
+                  - generic [ref=e3680]: "#7B2306"
+                  - generic [ref=e3681]: shadow
+                - generic [ref=e3682]:
+                  - generic [ref=e3683]:
+                    - 'button "Click to copy #983b05 | Right-click to hide this shade across all 3 styles | Contrast: vs shadow: 1.42:1 fail, vs base: 1.49:1 fail" [ref=e3684] [cursor=pointer]'
+                    - 'button "Add #983B05 as a new base color" [ref=e3685] [cursor=pointer]':
+                      - img [ref=e3686]
+                    - button "Pin this balanced shade" [ref=e3687] [cursor=pointer]:
+                      - img [ref=e3688]
+                  - generic [ref=e3690]: "#983B05"
+                  - generic [ref=e3691]: mid shadow
+                - generic [ref=e3692]:
+                  - 'button "Click to copy #b15c0b | Right-click to hide this shade across all 3 styles | Contrast: vs mid shadow: 1.49:1 fail, vs mid highlight: 2.29:1 fail" [ref=e3694] [cursor=pointer]'
+                  - generic [ref=e3695]: "#B15C0B"
+                  - generic [ref=e3696]: base
+                - generic [ref=e3697]:
+                  - generic [ref=e3698]:
+                    - 'button "Click to copy #f8a104 | Right-click to hide this shade across all 3 styles | Contrast: vs base: 2.29:1 fail, vs highlight: 1.46:1 fail" [ref=e3699] [cursor=pointer]'
+                    - 'button "Add #F8A104 as a new base color" [ref=e3700] [cursor=pointer]':
+                      - img [ref=e3701]
+                    - button "Pin this balanced shade" [ref=e3702] [cursor=pointer]:
+                      - img [ref=e3703]
+                  - generic [ref=e3705]: "#F8A104"
+                  - generic [ref=e3706]: mid highlight
+                - generic [ref=e3707]:
+                  - generic [ref=e3708]:
+                    - 'button "Click to copy #fad648 | Right-click to hide this shade across all 3 styles | Contrast: vs mid highlight: 1.46:1 fail, vs bright: 1.12:1 fail" [ref=e3709] [cursor=pointer]'
+                    - 'button "Add #FAD648 as a new base color" [ref=e3710] [cursor=pointer]':
+                      - img [ref=e3711]
+                    - button "Pin this balanced shade" [ref=e3712] [cursor=pointer]:
+                      - img [ref=e3713]
+                  - generic [ref=e3715]: "#FAD648"
+                  - generic [ref=e3716]: highlight
+                - generic [ref=e3717]:
+                  - generic [ref=e3718]:
+                    - 'button "Click to copy #f2e69e | Right-click to hide this shade across all 3 styles | Contrast: vs highlight: 1.12:1 fail" [ref=e3719] [cursor=pointer]'
+                    - 'button "Add #F2E69E as a new base color" [ref=e3720] [cursor=pointer]':
+                      - img [ref=e3721]
+                    - button "Pin this balanced shade" [ref=e3722] [cursor=pointer]:
+                      - img [ref=e3723]
+                  - generic [ref=e3725]: "#F2E69E"
+                  - generic [ref=e3726]: bright
+            - generic [ref=e3727]:
+              - generic [ref=e3728]: ▸ Muted
+              - generic [ref=e3729]:
+                - generic [ref=e3730]:
+                  - generic [ref=e3731]:
+                    - 'button "Click to copy #622807 | Right-click to hide this shade across all 3 styles | Contrast: vs deep shadow: 1.06:1 fail" [ref=e3732] [cursor=pointer]'
+                    - 'button "Add #622807 as a new base color" [ref=e3733] [cursor=pointer]':
+                      - img [ref=e3734]
+                    - button "Pin this muted shade" [ref=e3735] [cursor=pointer]:
+                      - img [ref=e3736]
+                  - generic [ref=e3738]: "#622807"
+                  - generic [ref=e3739]: outline
+                - generic [ref=e3740]:
+                  - generic [ref=e3741]:
+                    - 'button "Click to copy #71220e | Right-click to hide this shade across all 3 styles | Contrast: vs outline: 1.06:1 fail, vs shadow: 1.23:1 fail" [ref=e3742] [cursor=pointer]'
+                    - 'button "Add #71220E as a new base color" [ref=e3743] [cursor=pointer]':
+                      - img [ref=e3744]
+                    - button "Pin this muted shade" [ref=e3745] [cursor=pointer]:
+                      - img [ref=e3746]
+                  - generic [ref=e3748]: "#71220E"
+                  - generic [ref=e3749]: deep shadow
+                - generic [ref=e3750]:
+                  - generic [ref=e3751]:
+                    - 'button "Click to copy #832f14 | Right-click to hide this shade across all 3 styles | Contrast: vs deep shadow: 1.23:1 fail, vs mid shadow: 1.36:1 fail" [ref=e3752] [cursor=pointer]'
+                    - 'button "Add #832F14 as a new base color" [ref=e3753] [cursor=pointer]':
+                      - img [ref=e3754]
+                    - button "Pin this muted shade" [ref=e3755] [cursor=pointer]:
+                      - img [ref=e3756]
+                  - generic [ref=e3758]: "#832F14"
+                  - generic [ref=e3759]: shadow
+                - generic [ref=e3760]:
+                  - generic [ref=e3761]:
+                    - 'button "Click to copy #a13f05 | Right-click to hide this shade across all 3 styles | Contrast: vs shadow: 1.36:1 fail, vs base: 1.36:1 fail" [ref=e3762] [cursor=pointer]'
+                    - 'button "Add #A13F05 as a new base color" [ref=e3763] [cursor=pointer]':
+                      - img [ref=e3764]
+                    - button "Pin this muted shade" [ref=e3765] [cursor=pointer]:
+                      - img [ref=e3766]
+                  - generic [ref=e3768]: "#A13F05"
+                  - generic [ref=e3769]: mid shadow
+                - generic [ref=e3770]:
+                  - 'button "Click to copy #b15c0b | Right-click to hide this shade across all 3 styles | Contrast: vs mid shadow: 1.36:1 fail, vs mid highlight: 1.95:1 fail" [ref=e3772] [cursor=pointer]'
+                  - generic [ref=e3773]: "#B15C0B"
+                  - generic [ref=e3774]: base
+                - generic [ref=e3775]:
+                  - generic [ref=e3776]:
+                    - 'button "Click to copy #e59404 | Right-click to hide this shade across all 3 styles | Contrast: vs base: 1.95:1 fail, vs highlight: 1.38:1 fail" [ref=e3777] [cursor=pointer]'
+                    - 'button "Add #E59404 as a new base color" [ref=e3778] [cursor=pointer]':
+                      - img [ref=e3779]
+                    - button "Pin this muted shade" [ref=e3780] [cursor=pointer]:
+                      - img [ref=e3781]
+                  - generic [ref=e3783]: "#E59404"
+                  - generic [ref=e3784]: mid highlight
+                - generic [ref=e3785]:
+                  - generic [ref=e3786]:
+                    - 'button "Click to copy #e4bf2b | Right-click to hide this shade across all 3 styles | Contrast: vs mid highlight: 1.38:1 fail, vs bright: 1.21:1 fail" [ref=e3787] [cursor=pointer]'
+                    - 'button "Add #E4BF2B as a new base color" [ref=e3788] [cursor=pointer]':
+                      - img [ref=e3789]
+                    - button "Pin this muted shade" [ref=e3790] [cursor=pointer]:
+                      - img [ref=e3791]
+                  - generic [ref=e3793]: "#E4BF2B"
+                  - generic [ref=e3794]: highlight
+                - generic [ref=e3795]:
+                  - generic [ref=e3796]:
+                    - 'button "Click to copy #e9d65f | Right-click to hide this shade across all 3 styles | Contrast: vs highlight: 1.21:1 fail" [ref=e3797] [cursor=pointer]'
+                    - 'button "Add #E9D65F as a new base color" [ref=e3798] [cursor=pointer]':
+                      - img [ref=e3799]
+                    - button "Pin this muted shade" [ref=e3800] [cursor=pointer]:
+                      - img [ref=e3801]
+                  - generic [ref=e3803]: "#E9D65F"
+                  - generic [ref=e3804]: bright
+    - generic [ref=e3805]:
+      - button "Harmony Colors" [ref=e3806] [cursor=pointer]:
+        - heading "Harmony Colors" [level=2] [ref=e3807]:
+          - img [ref=e3808]
+          - text: Harmony Colors
+        - img [ref=e3812]
+      - generic [ref=e3814]:
+        - paragraph [ref=e3815]: ▸ Click any swatch to add a ramp, or "Add All" / "Add Both" for sets ◂ Hover a category name for tips ◂
+        - generic [ref=e3816]:
+          - generic [ref=e3817]:
+            - generic "Opposite hues on the wheel. Maximum contrast and high energy. Use for focal points like enemy eyes against a background, or a hero against the environment. Can clash if both are fully saturated." [ref=e3818]: Complementary
+            - button "+" [ref=e3819] [cursor=pointer]:
+              - generic [ref=e3820]: +
+            - generic [ref=e3821]: "#0C68C0"
+          - generic [ref=e3822]:
+            - 'generic "Adjacent hues within 30 degrees. Low contrast, calm, harmonious. Use for cohesive natural scenes: forests, oceans, sunsets, anything that should feel unified." [ref=e3823]': Analogous
+            - generic [ref=e3824]:
+              - generic [ref=e3825]:
+                - button "+" [ref=e3826] [cursor=pointer]:
+                  - generic [ref=e3827]: +
+                - generic [ref=e3828]: "#C0BE0C"
+              - generic [ref=e3829]:
+                - button "+" [ref=e3830] [cursor=pointer]:
+                  - generic [ref=e3831]: +
+                - generic [ref=e3832]: "#C00C0E"
+            - button "+ Add Both" [ref=e3833] [cursor=pointer]
+          - generic [ref=e3834]:
+            - 'generic "Three hues evenly spaced 120 degrees apart. Vivid and balanced. Use for playful character palettes: a hero plus two distinct accent pieces. Strong but more flexible than complementary." [ref=e3835]': Triadic
+            - generic [ref=e3836]:
+              - generic [ref=e3837]:
+                - button "+" [ref=e3838] [cursor=pointer]:
+                  - generic [ref=e3839]: +
+                - generic [ref=e3840]: "#0CC064"
+              - generic [ref=e3841]:
+                - button "+" [ref=e3842] [cursor=pointer]:
+                  - generic [ref=e3843]: +
+                - generic [ref=e3844]: "#640CC0"
+            - button "+ Add Both" [ref=e3845] [cursor=pointer]
+          - generic [ref=e3846]:
+            - generic "The base plus two hues flanking its complement (150 and 210 degrees). Same punch as complementary but softer. Use when complementary feels too harsh. Good for cozy indoor scenes." [ref=e3847]: Split-Comp
+            - generic [ref=e3848]:
+              - generic [ref=e3849]:
+                - button "+" [ref=e3850] [cursor=pointer]:
+                  - generic [ref=e3851]: +
+                - generic [ref=e3852]: "#0CC0BE"
+              - generic [ref=e3853]:
+                - button "+" [ref=e3854] [cursor=pointer]:
+                  - generic [ref=e3855]: +
+                - generic [ref=e3856]: "#0C0EC0"
+            - button "+ Add Both" [ref=e3857] [cursor=pointer]
+          - generic [ref=e3858]:
+            - generic "Four hues forming a rectangle on the wheel (two complementary pairs). Rich and complex. Use for scenes with multiple distinct elements like a market stall. Hard to balance; let one color dominate and others accent." [ref=e3859]: Tetradic
+            - generic [ref=e3860]:
+              - generic [ref=e3861]:
+                - button "+" [ref=e3862] [cursor=pointer]:
+                  - generic [ref=e3863]: +
+                - generic [ref=e3864]: "#68C00C"
+              - generic [ref=e3865]:
+                - button "+" [ref=e3866] [cursor=pointer]:
+                  - generic [ref=e3867]: +
+                - generic [ref=e3868]: "#0C68C0"
+              - generic [ref=e3869]:
+                - button "+" [ref=e3870] [cursor=pointer]:
+                  - generic [ref=e3871]: +
+                - generic [ref=e3872]: "#640CC0"
+            - button "+ Add All" [ref=e3873] [cursor=pointer]
+          - generic [ref=e3874]:
+            - generic "Four hues evenly spaced 90 degrees apart. Bold, graphic, retro-arcade. Maximum balanced contrast. All four will fight if equally weighted; treat one as dominant and the rest as accents." [ref=e3875]: Square
+            - generic [ref=e3876]:
+              - generic [ref=e3877]:
+                - button "+" [ref=e3878] [cursor=pointer]:
+                  - generic [ref=e3879]: +
+                - generic [ref=e3880]: "#0EC00C"
+              - generic [ref=e3881]:
+                - button "+" [ref=e3882] [cursor=pointer]:
+                  - generic [ref=e3883]: +
+                - generic [ref=e3884]: "#0C68C0"
+              - generic [ref=e3885]:
+                - button "+" [ref=e3886] [cursor=pointer]:
+                  - generic [ref=e3887]: +
+                - generic [ref=e3888]: "#BE0CC0"
+            - button "+ Add All" [ref=e3889] [cursor=pointer]
+    - button "Palette Visualization" [ref=e3891] [cursor=pointer]:
+      - heading "Palette Visualization" [level=2] [ref=e3892]:
+        - img [ref=e3893]
+        - text: Palette Visualization
+      - img [ref=e3896]
+    - button "Side-by-Side Compare" [ref=e3899] [cursor=pointer]:
+      - heading "Side-by-Side Compare" [level=2] [ref=e3900]:
+        - img [ref=e3901]
+        - text: Side-by-Side Compare
+      - img [ref=e3904]
+    - button "Saved Palettes (0)" [ref=e3907] [cursor=pointer]:
+      - heading "Saved Palettes (0)" [level=2] [ref=e3908]:
+        - img [ref=e3909]
+        - text: Saved Palettes
+        - generic [ref=e3911]: (0)
+      - img [ref=e3913]
+    - button "History (1 of 1)" [ref=e3916] [cursor=pointer]:
+      - heading "History (1 of 1)" [level=2] [ref=e3917]:
+        - img [ref=e3918]
+        - text: History
+        - generic [ref=e3922]: (1 of 1)
+      - img [ref=e3924]
+    - generic [ref=e3926]:
+      - generic [ref=e3928]:
+        - img [ref=e3929]
+        - button "Hardware Lock" [ref=e3932] [cursor=pointer]
+      - generic [ref=e3933]:
+        - button "Download .txt" [ref=e3934] [cursor=pointer]:
+          - img [ref=e3935]
+          - text: Download .txt
+        - button "Copy" [ref=e3938] [cursor=pointer]:
+          - img [ref=e3939]
+          - text: Copy
+        - button "WCAG Check" [ref=e3942] [cursor=pointer]:
+          - img [ref=e3943]
+          - text: WCAG Check
+      - generic [ref=e3946]:
+        - generic [ref=e3947]: ".gpl style:"
+        - button "Punchy" [ref=e3948] [cursor=pointer]
+        - button "Balanced" [ref=e3949] [cursor=pointer]
+        - button "Muted" [ref=e3950] [cursor=pointer]
+        - button ".gpl (Piskel/Aseprite/GIMP)" [ref=e3951] [cursor=pointer]:
+          - img [ref=e3952]
+          - text: .gpl (Piskel/Aseprite/GIMP)
+        - button "Import .gpl" [ref=e3955] [cursor=pointer]:
+          - img [ref=e3956]
+          - text: Import .gpl
+    - button "Tips" [ref=e3960] [cursor=pointer]:
+      - generic [ref=e3961]: Tips
+      - img [ref=e3963]
