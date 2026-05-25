@@ -10,7 +10,6 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-dist-electron
 release
 *.local
 
@@ -39,3 +38,9 @@ playwright-report/
 test-results/
 *.original.md
 .superpowers/
+
+# Generated screenshots and playwright artifacts
+.playwright-mcp/
+skill-observations/
+# Root-level screenshots (not src-tauri/icons which are needed for builds)
+/*.png
