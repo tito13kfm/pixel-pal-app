@@ -62,6 +62,22 @@ npm run dist     # packaged desktop release, output to release/
 - Not a cloud service. Palettes save to local browser storage, no account required.
 - Not a hardware accuracy tool for emulation. Hardware palettes are artist references, not bit-exact captures.
 
+## Linux Requirements
+
+Before running PIXEL.PAL on Linux, install these system libraries:
+
+```bash
+sudo apt-get install libwebkit2gtk-4.1-dev librsvg2-dev patchelf libsecret-1-dev
+```
+
+> Note: `libsecret-1-dev` is required for encrypted API key storage. If not installed, the app will fall back to unencrypted local storage.
+
+For non-Debian/Ubuntu distributions, install the equivalent packages:
+- WebKit2GTK 4.1
+- librsvg2
+- patchelf
+- libsecret
+
 ## License
 
 MIT
