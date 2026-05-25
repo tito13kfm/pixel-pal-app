@@ -1,0 +1,46 @@
+# PIXEL.PAL Palette Export
+# Generated 5/24/2026, 7:01:46 PM
+
+## Color 1
+### Punchy
+#311807  outline
+#722205  deep shadow
+#B0400C  shadow
+#DA6612  mid shadow
+#EB9437  base
+#F6D07A  mid highlight
+#FCF2B0  highlight
+#FBFAEA  bright
+### Balanced
+#552A0C  outline
+#8D2F0C  deep shadow
+#C34D16  shadow
+#E86C13  mid shadow
+#EB9437  base
+#F4C357  mid highlight
+#F4E583  highlight
+#F2EFBA  bright
+### Muted
+#904614  outline
+#AC4721  deep shadow
+#C55C2B  shadow
+#ED741D  mid shadow
+#EB9437  base
+#F3BF4A  mid highlight
+#E3D470  highlight
+#EAE591  bright
+
+## Harmony Colors
+#378EEB  complementary
+#E8EB37  analogous 1
+#EB3A37  analogous 2
+#37EB94  triadic 1
+#9437EB  triadic 2
+#37E8EB  split-complementary 1
+#3A37EB  split-complementary 2
+#8EEB37  tetradic 1
+#378EEB  tetradic 2
+#9437EB  tetradic 3
+#37EB3A  square 1
+#378EEB  square 2
+#EB37E8  square 3
