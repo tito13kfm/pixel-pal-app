@@ -2843,7 +2843,7 @@ dependencies = [
 
 [[package]]
 name = "pixel-pal-app"
-version = "0.5.0"
+version = "0.5.2"
 dependencies = [
  "keyring",
  "log",
