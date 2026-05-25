@@ -1,4 +1,4 @@
-﻿﻿﻿// @ts-nocheck
+﻿﻿// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus } from 'lucide-react';
 import {
@@ -820,7 +820,7 @@ const buildRandomHex = () => {
 
 // ---------- Panel state persistence ----------
 const PANEL_STORAGE_KEY = 'ui:panels'
-const PANEL_DEFAULTS = { vizOpen: false, harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: true, historyOpen: false, savedOpen: false, sbsOpen: false }
+const PANEL_DEFAULTS = { harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: true, historyOpen: false, savedOpen: false, sbsOpen: false }
 function loadPanelState() {
   try {
     const raw = localStorage.getItem(PANEL_STORAGE_KEY)
@@ -917,8 +917,9 @@ export default function PixelPalGenerator() {
   const [compareAnchor, setCompareAnchor] = useState(null); // { baseIndex, shadeIndex, style, hex } | null
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [gplStyle, setGplStyle] = useState('punchy');
-  const [vizOpen, setVizOpen] = useState(_panels.vizOpen);
   const [vizStyle, setVizStyle] = useState('punchy');
+  const [harmonizeMode, setHarmonizeMode] = useState('complement');
+  const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
   const [harmonyOpen, setHarmonyOpen] = useState(_panels.harmonyOpen);
   const [tipsOpen, setTipsOpen] = useState(_panels.tipsOpen);
   const [hwPickerOpen, setHwPickerOpen] = useState(_panels.hwPickerOpen);
@@ -1191,7 +1192,7 @@ export default function PixelPalGenerator() {
   // Named sbsLeft/sbsRight rather than compareLeft/compareRight to avoid
   // confusion with the existing WCAG Check (formerly "Compare Mode") picker.
   const [sbsOpen, setSbsOpen] = useState(_panels.sbsOpen);
-  const [sbsLeft, setSbsLeft] = useState(null);
+  const [sbsLeft, setSbsLeft] = useState('working');
   const [sbsRight, setSbsRight] = useState(null);
   // Per-slot async payload cache. When a slot points at a saved palette
   // slug, the full payload is fetched from storage and stored here so
@@ -1676,8 +1677,8 @@ export default function PixelPalGenerator() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ vizOpen, harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen }))
-  }, [vizOpen, harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen]);
+    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen }))
+  }, [harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen]);
 
   function handleAISettingsClose() {
     setShowAISettings(false);
@@ -1930,11 +1931,6 @@ export default function PixelPalGenerator() {
 
   // Canvas ref for drawing the remap output.
   const remapCanvasRef = useRef(null);
-  // Ref to the Image Preview panel container, used by the SBS Compare
-  // section's "Scroll to controls" button so the user can jump from
-  // the SBS image-preview status indicator back to the controls that
-  // actually drive the upload, the dither toggle, and Refresh.
-  const remapPanelRef = useRef(null);
   // Canvas refs for the Side-by-Side image preview row (one per slot).
   const sbsLeftRemapCanvasRef = useRef(null);
   const sbsRightRemapCanvasRef = useRef(null);
@@ -2721,22 +2717,18 @@ export default function PixelPalGenerator() {
   };
 
   // harmonize: rotate the hue of every UNLOCKED non-anchor base to a
-  // color-theory position relative to the harmony anchor (the base
-  // currently selected in the "Derive From" selector). Saturation and
-  // lightness are preserved per base so each ramp keeps its own value
-  // character. Locked bases AND the anchor itself are left untouched.
-  //
-  // Slot order: complement, analogous (+30, -30), triadic (+120, -120),
-  // splitComp (+150, -150), tetradic outer (+60, +240), square (+90, +270).
-  // Eleven slots is enough for any reasonable palette (the baseColors cap
-  // is 16, so up to 14 unlocked-non-anchor bases). If a palette has more
-  // unlocked non-anchor bases than slots, the slot list cycles, which is
-  // a graceful fallback: ramps in slots 12+ get duplicate hue positions.
-  //
-  // No-op (no state change) when there are zero unlocked non-anchor bases.
-  // Feedback message is set so the user gets confirmation in either
-  // success or no-op case.
-  const HARMONIZE_SLOTS = [180, 30, -30, 120, -120, 150, -150, 60, 240, 90, 270];
+  // color-theory position relative to the harmony anchor. Saturation and
+  // lightness preserved per base. Mode controls the slot pattern used.
+  // On first press the current base colors are saved as a baseline so
+  // the user can restore pre-harmonize hues without relying on undo.
+  const HARMONIZE_MODE_SLOTS = {
+    complement:         [180],
+    analogous:          [30, 330, 15, 345, 45, 315, 20, 340, 60, 300, 10],
+    triadic:            [120, 240, 60, 180, 300, 30, 90, 150, 210, 270, 330],
+    'split-complement': [150, 210, 30, 330, 120, 240, 60, 180, 90, 270, 45],
+    square:             [90, 180, 270, 45, 135, 225, 315, 30, 60, 120, 150],
+    tetradic:           [60, 240, 180, 120, 300, 30, 90, 150, 210, 270, 330],
+  };
   const harmonize = () => {
     if (baseColors.length < 2) {
       setExportFeedback('Need at least 2 ramps to harmonize');
@@ -2747,7 +2739,6 @@ export default function PixelPalGenerator() {
     const anchorHex = baseColors[anchorIdx];
     if (!anchorHex) return;
     const anchorHsl = hexToHsl(anchorHex);
-    // Indices to nudge: every base that is NOT the anchor and NOT locked.
     const targets = [];
     for (let i = 0; i < baseColors.length; i++) {
       if (i === anchorIdx) continue;
@@ -2759,25 +2750,32 @@ export default function PixelPalGenerator() {
       setTimeout(() => setExportFeedback(''), 2000);
       return;
     }
-    // Compute new hex for each target: preserve original sat and lightness,
-    // replace hue with anchorHue + slot. Modulo 360 to keep h in [0, 360).
+    if (!harmonizeBaseline) setHarmonizeBaseline(baseColors.slice());
+    const slots = HARMONIZE_MODE_SLOTS[harmonizeMode] || HARMONIZE_MODE_SLOTS.complement;
     const newBaseColors = baseColors.slice();
     for (let k = 0; k < targets.length; k++) {
       const i = targets[k];
-      const slot = HARMONIZE_SLOTS[k % HARMONIZE_SLOTS.length];
+      const slot = slots[k % slots.length];
       const orig = hexToHsl(baseColors[i]);
       const newH = ((anchorHsl.h + slot) % 360 + 360) % 360;
       newBaseColors[i] = hslToHex({ h: newH, s: orig.s, l: orig.l });
     }
-    pendingLabelRef.current = `Harmonize (${targets.length})`;
+    const modeLabel = harmonizeMode.replace('-', ' ');
+    pendingLabelRef.current = `Harmonize (${targets.length}, ${modeLabel})`;
     setBaseColors(newBaseColors);
-    // Clear in-flight compare state because the swatches the user picked
-    // as anchor may now have moved hue. The compare swatches reference
-    // hex strings, not indices, so they'd still display but the displayed
-    // hex would no longer match anything in the palette.
     setCompareAnchor(null);
     setCompareResult(null);
-    setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'}`);
+    setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'} — ${modeLabel}`);
+    setTimeout(() => setExportFeedback(''), 2000);
+  };
+  const restoreHarmonizeBaseline = () => {
+    if (!harmonizeBaseline) return;
+    pendingLabelRef.current = 'Restore pre-harmonize hues';
+    setBaseColors(harmonizeBaseline.slice());
+    setHarmonizeBaseline(null);
+    setCompareAnchor(null);
+    setCompareResult(null);
+    setExportFeedback('Restored original hues');
     setTimeout(() => setExportFeedback(''), 2000);
   };
 
@@ -3109,7 +3107,7 @@ export default function PixelPalGenerator() {
     const prev = prevBaseLenRef.current;
     const curr = baseColors.length;
     if (prev <= 1 && curr > 1) {
-      setVizOpen(true);
+      setSbsOpen(true);
     }
     if (curr > prev && curr >= 3) {
       // Indices [prev, prev+1, ..., curr-1] are the newly-appended bases.
@@ -3120,6 +3118,7 @@ export default function PixelPalGenerator() {
       });
     }
     prevBaseLenRef.current = curr;
+    if (harmonizeBaseline && harmonizeBaseline.length !== curr) setHarmonizeBaseline(null);
   }, [baseColors.length]);
 
   // Close the pin editor if its target shade is no longer addressable. This
@@ -6191,21 +6190,10 @@ export default function PixelPalGenerator() {
                     );
                   })}
                 </div>
-                {/* Harmonize cluster: button + live status text. Both
-                    the harmony anchor (the selection above) AND the lock
-                    state on each ramp drive Harmonize's behavior. The
-                    status line surfaces both inputs so it's clear what
-                    will happen on click. When there's nothing to
-                    harmonize (every non-anchor ramp is locked), the
-                    button is disabled so the dead-click case can't fire.
-                    The button is visually separated from the Derive
-                    From row by living in its own flex-col on the right,
-                    so it doesn't read as a Derive-From accessory. */}
-                <div className="ml-auto flex flex-col items-end gap-1">
+                {/* Harmonize cluster: mode selector, button, restore, status. */}
+                <div className="ml-auto flex flex-col items-end gap-1.5">
                   {(() => {
                     const anchorName = aiColorNames[safeAnchor] || `Color ${safeAnchor + 1}`;
-                    // Count unlocked non-anchor ramps. Mirrors the targets
-                    // computation in harmonize() exactly.
                     let unlockedCount = 0;
                     for (let i = 0; i < baseColors.length; i++) {
                       if (i === safeAnchor) continue;
@@ -6213,25 +6201,61 @@ export default function PixelPalGenerator() {
                       unlockedCount++;
                     }
                     const disabled = unlockedCount === 0;
+                    const MODES = [
+                      { key: 'complement',       label: 'Compl.',  tip: 'All unlocked ramps snap to the complementary hue (180° from anchor). Maximum contrast.' },
+                      { key: 'analogous',        label: 'Analog',  tip: 'Ramps cluster tightly around the anchor (±15–60°). Low contrast, cohesive feel.' },
+                      { key: 'triadic',          label: 'Triadic', tip: 'Ramps distributed at 120° intervals around the wheel. Balanced and vibrant.' },
+                      { key: 'split-complement', label: 'Split',   tip: 'Ramps land at ±150° from anchor (adjacent to the complement). Softer than straight complement.' },
+                      { key: 'square',           label: 'Square',  tip: 'Ramps at 90° intervals around the wheel. Even spacing, four-color symmetry.' },
+                      { key: 'tetradic',         label: 'Tetrad',  tip: 'Two complementary pairs with a 60° offset between them (rectangle on the wheel).' },
+                    ];
                     return (
                       <>
-                        <button
-                          onClick={harmonize}
-                          disabled={disabled}
-                          title={disabled
-                            ? 'Nothing to harmonize: every non-anchor ramp is locked. Unlock one or more ramps to allow Harmonize to rotate them.'
-                            : `Rotate the hue of every unlocked non-anchor ramp to a color-theory position relative to ${anchorName}. Slot order: complement, analogous, triadic, splitComp, tetradic, square. Saturation and lightness preserved per ramp. Lock any ramp to hold it in place.`}
-                          className={`px-3 py-2 rounded font-bold border-2 transition-all flex items-center gap-2 uppercase tracking-wider text-xs ${disabled
-                            ? 'bg-purple-900/40 text-pink-300/40 border-pink-700/30 cursor-not-allowed'
-                            : 'bg-pink-400 text-purple-900 border-pink-100 hover:bg-pink-300 hover:scale-105'}`}
-                          style={disabled ? {} : { boxShadow: '0 0 10px rgba(255, 0, 255, 0.5)' }}
-                        >
-                          <Sparkles size={14} />Harmonize
-                        </button>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {MODES.map(({ key, label, tip }) => (
+                            <button
+                              key={key}
+                              onClick={() => setHarmonizeMode(key)}
+                              title={tip}
+                              className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${
+                                harmonizeMode === key
+                                  ? 'bg-pink-400 text-purple-900 border-pink-100'
+                                  : 'bg-purple-900/40 text-pink-300/80 border-pink-700/40 hover:bg-purple-800/60 hover:border-pink-500/60'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {harmonizeBaseline && (
+                            <button
+                              onClick={restoreHarmonizeBaseline}
+                              title="Restore the hues from before any Harmonize was applied. Saturation and lightness stay as-is."
+                              className="px-2 py-1.5 rounded font-bold border-2 transition-all flex items-center gap-1 uppercase tracking-wider text-[10px] bg-yellow-400 text-purple-900 border-yellow-100 hover:bg-yellow-300"
+                              style={{ boxShadow: '0 0 8px rgba(255, 230, 0, 0.4)' }}
+                            >
+                              <RotateCcw size={11} />Restore
+                            </button>
+                          )}
+                          <button
+                            onClick={harmonize}
+                            disabled={disabled}
+                            title={disabled
+                              ? 'Nothing to harmonize: every non-anchor ramp is locked.'
+                              : `Snap hues of ${unlockedCount} unlocked ramp${unlockedCount === 1 ? '' : 's'} to ${harmonizeMode.replace('-', ' ')} positions relative to ${anchorName}. Saturation and lightness preserved.`}
+                            className={`px-3 py-2 rounded font-bold border-2 transition-all flex items-center gap-2 uppercase tracking-wider text-xs ${disabled
+                              ? 'bg-purple-900/40 text-pink-300/40 border-pink-700/30 cursor-not-allowed'
+                              : 'bg-pink-400 text-purple-900 border-pink-100 hover:bg-pink-300 hover:scale-105'}`}
+                            style={disabled ? {} : { boxShadow: '0 0 10px rgba(255, 0, 255, 0.5)' }}
+                          >
+                            <Sparkles size={14} />Harmonize
+                          </button>
+                        </div>
                         <span className="text-[10px] text-pink-200/70 italic">
                           {disabled
                             ? 'All non-anchor ramps are locked.'
-                            : `Will rotate ${unlockedCount} unlocked ramp${unlockedCount === 1 ? '' : 's'} around ${anchorName}.`}
+                            : `Will rotate ${unlockedCount} ramp${unlockedCount === 1 ? '' : 's'} — ${harmonizeMode.replace('-', ' ')}.`}
                         </span>
                       </>
                     );
@@ -6327,33 +6351,193 @@ export default function PixelPalGenerator() {
           </div>}
         </div>
 
-        {/* ---------- Palette Visualization (collapsible) ---------- */}
+        {/* ---------- Visualize & Compare (collapsible) ---------- */}
         {(() => {
-          const activeRampsRaw = vizStyle === 'balanced' ? rampsBalanced : vizStyle === 'muted' ? rampsMuted : rampsPunchy;
-          // Filter each ramp by hiddenShades for its base. Visualization
-          // represents the "final" palette the user intends to keep, so
-          // hidden shades shouldn't appear in mosaic / lightness bar /
-          // chromatic plot. Use the per-ramp labels so filterHidden has
-          // something to pass through (we don't use labels here but the
-          // helper expects them).
-          const activeRamps = activeRampsRaw.map((ramp, i) => {
-            // Use the per-ramp label set so filterHidden's per-style
-            // labels match the rest of the UI, though the viz section
-            // itself doesn't display labels.
-            const effectiveBase = resolveBaseForRamp(baseColors[i], i);
-            const labels = labelsForRamp(ramp, effectiveBase);
-            return filterHidden(ramp, labels, i).hexes;
-          });
-          const allColors = activeRamps.flat();
-          const sortedByL = [...allColors].sort((a, b) => hexToHsl(a).l - hexToHsl(b).l);
           const styleAccent = vizStyle === 'balanced' ? '#00ffff' : vizStyle === 'muted' ? '#a855f7' : '#ff00ff';
+          const leftSnap = getSnapshotForSlot(sbsLeft, sbsLeftPayload);
+          const rightSnap = getSnapshotForSlot(sbsRight, sbsRightPayload);
+          const isTwoColumn = sbsRight !== null;
+          const renderSlotViz = (snap, label, slotKey, compact) => {
+            const slotValue = slotKey === 'left' ? sbsLeft : sbsRight;
+            const loading = slotKey === 'left' ? sbsLeftLoading : sbsRightLoading;
+            const error = slotKey === 'left' ? sbsLeftError : sbsRightError;
+            if (loading) {
+              return (
+                <div className="text-center text-cyan-100/70 italic text-sm py-12 border-2 border-dashed border-cyan-700/40 rounded">
+                  Loading {label}...
+                </div>
+              );
+            }
+            if (error) {
+              return (
+                <div className={`text-xs rounded p-3 border-2 ${t.alertErrorBg} ${t.alertErrorText} ${t.alertErrorBorder}`}>
+                  {error}
+                </div>
+              );
+            }
+            if (!snap || !Array.isArray(snap.baseColors) || snap.baseColors.length === 0) {
+              return (
+                <div className="text-center text-cyan-100/50 italic text-sm py-12 border-2 border-dashed border-cyan-700/40 rounded">
+                  {slotValue === null ? 'Pick a palette above to compare' : 'No colors to show'}
+                </div>
+              );
+            }
+            const ramps = buildRampsForSnapshot(snap, vizStyle);
+            const allColors = ramps.flat();
+            const sortedByL = [...allColors].sort((a, b) => hexToHsl(a).l - hexToHsl(b).l);
+            const namesSource = Array.isArray(snap.aiColorNames) ? snap.aiColorNames : aiColorNames;
+            const plotSize = compact ? 200 : 280;
+            const mosaicH = compact ? '28px' : '40px';
+            const lightnessH = compact ? '22px' : '32px';
+            return (
+              <div className="flex flex-col gap-4">
+                {compact && sbsRemapSource && (() => {
+                  const slotRemap = slotKey === 'left' ? sbsLeftRemap : sbsRightRemap;
+                  const slotRemapLoading = slotKey === 'left' ? sbsLeftRemapLoading : sbsRightRemapLoading;
+                  const canvasRef = slotKey === 'left' ? sbsLeftRemapCanvasRef : sbsRightRemapCanvasRef;
+                  const slotPayload = slotKey === 'left' ? sbsLeftPayload : sbsRightPayload;
+                  const slotLetter = slotKey === 'left' ? 'A' : 'B';
+                  return (
+                    <div>
+                      <h4 className="text-[11px] font-bold text-cyan-200 uppercase tracking-widest mb-1">Image Preview</h4>
+                      <div className="flex justify-center bg-black/30 rounded border" style={{ borderColor: t.vizDataBorder, minHeight: '64px' }}>
+                        {slotRemapLoading && !slotRemap && (
+                          <div className="text-[11px] text-cyan-100/70 italic py-6">Computing...</div>
+                        )}
+                        {slotRemap && (
+                          <canvas
+                            ref={canvasRef}
+                            style={{ imageRendering: 'pixelated', maxWidth: '100%', maxHeight: '256px', height: 'auto', display: 'block' }}
+                            title={`Uploaded image remapped to this slot's palette (${slotRemap.width}x${slotRemap.height}, ${remapDither === 'floyd-steinberg' ? 'Floyd-Steinberg' : 'no dither'})`}
+                          />
+                        )}
+                        {!slotRemap && !slotRemapLoading && (
+                          <div className="text-[11px] text-cyan-100/40 italic py-6">No preview</div>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-cyan-100/60 italic text-center mt-1 font-mono truncate" title={`Slot ${slotLetter}: ${getSlotLabel(slotValue, slotPayload)}`}>
+                        Slot {slotLetter}: {getSlotLabel(slotValue, slotPayload)}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div>
+                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
+                    {compact ? 'Chromatic Plot' : '▸ Chromatic Plot'}
+                  </h4>
+                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Each color positioned by hue (angle) and saturation (distance from center). Tight clusters = cohesive palette.</p>}
+                  <div className="flex justify-center">
+                    <svg width={plotSize} height={plotSize} viewBox="0 0 280 280">
+                      <circle cx="140" cy="140" r="125" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
+                      <circle cx="140" cy="140" r="83" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
+                      <circle cx="140" cy="140" r="42" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
+                      {[0, 60, 120, 180, 240, 300].map(deg => {
+                        const rad = (deg - 90) * Math.PI / 180;
+                        const x2 = 140 + Math.cos(rad) * 125;
+                        const y2 = 140 + Math.sin(rad) * 125;
+                        return <line key={deg} x1="140" y1="140" x2={x2} y2={y2} stroke={t.vizSpokeStroke} strokeWidth="1" />;
+                      })}
+                      {allColors.map((hex, i) => {
+                        const { h, s, l } = hexToHsl(hex);
+                        const rad = (h - 90) * Math.PI / 180;
+                        const dist = (s / 100) * 125;
+                        const cx = 140 + Math.cos(rad) * dist;
+                        const cy = 140 + Math.sin(rad) * dist;
+                        const strokeColor = l > 50 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+                        return <circle key={i} cx={cx} cy={cy} r="6" fill={hex} stroke={strokeColor} strokeWidth="1.5">
+                          <title>{hex.toUpperCase()} H={h.toFixed(0)}{compact ? '' : '°'} S={s.toFixed(0)}{compact ? '' : '%'} L={l.toFixed(0)}{compact ? '' : '%'}</title>
+                        </circle>;
+                      })}
+                      {!compact && (
+                        <>
+                          <text x="140" y="14" textAnchor="middle" fontSize="9" fill={t.vizAxisLabel} fontFamily="monospace">0°</text>
+                          <text x="271" y="144" textAnchor="end" fontSize="9" fill={t.vizAxisLabel} fontFamily="monospace">90°</text>
+                          <text x="140" y="274" textAnchor="middle" fontSize="9" fill={t.vizAxisLabel} fontFamily="monospace">180°</text>
+                          <text x="9" y="144" textAnchor="start" fontSize="9" fill={t.vizAxisLabel} fontFamily="monospace">270°</text>
+                        </>
+                      )}
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
+                    {compact ? 'Lightness Distribution' : '▸ Lightness Distribution'}
+                  </h4>
+                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">All colors sorted darkest to lightest. Gaps indicate missing tonal ranges.</p>}
+                  <div className="flex w-full rounded overflow-hidden border" style={{ height: lightnessH, borderColor: t.vizDataBorder }}>
+                    {sortedByL.map((hex, i) => (
+                      <div key={i} className="flex-1" style={{ background: hex }} title={`${hex.toUpperCase()} L=${hexToHsl(hex).l.toFixed(0)}`} />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
+                    {compact ? 'Mosaic' : '▸ Mosaic'}
+                  </h4>
+                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">All ramps side-by-side. Look for adjacent colors that clash or harmonize.</p>}
+                  <div className="flex flex-col gap-1">
+                    {ramps.map((ramp, i) => (
+                      <div key={i} className="flex w-full rounded overflow-hidden border" style={{ height: mosaicH, borderColor: t.vizDataBorder }}>
+                        {ramp.map((hex, j) => (
+                          <div key={`${i}-${j}`} className="flex-1" style={{ background: hex }} title={`${(namesSource && namesSource[i]) || `Color ${i + 1}`} ${hex.toUpperCase()}`} />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {compact && <div className="text-[10px] text-cyan-100/50 text-center font-mono">{ramps.length} ramps, {allColors.length} colors total</div>}
+              </div>
+            );
+          };
+          const slotClassicOptions = CLASSIC_PALETTES.map(c => ({ value: `classic:${c.id}`, label: c.name }));
+          const slotSavedOptions = savedPalettes.map(p => ({ value: p.slug, label: p.name }));
+          const parseSlot = (raw) => (raw === '' ? null : raw);
+          const renderSlotAOptions = () => (
+            <>
+              <option value="working">Current working palette (live)</option>
+              {slotClassicOptions.length > 0 && (
+                <optgroup label="Classic palettes">
+                  {slotClassicOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </optgroup>
+              )}
+              {slotSavedOptions.length > 0 && (
+                <optgroup label="Saved palettes">
+                  {slotSavedOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </optgroup>
+              )}
+            </>
+          );
+          const renderSlotBOptions = () => (
+            <>
+              <option value="">(empty)</option>
+              <option value="working">Current working palette (live)</option>
+              {slotClassicOptions.length > 0 && (
+                <optgroup label="Classic palettes">
+                  {slotClassicOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </optgroup>
+              )}
+              {slotSavedOptions.length > 0 && (
+                <optgroup label="Saved palettes">
+                  {slotSavedOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </optgroup>
+              )}
+            </>
+          );
           return (
             <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgViz, borderColor: themedAccentBorder(styleAccent), boxShadow: accentGlow(styleAccent, 0.4) }}>
-              <button onClick={() => setVizOpen(o => !o)} title={vizOpen ? "Collapse the Palette Visualization section" : "Expand the Palette Visualization section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-                <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor(styleAccent), textShadow: accentTextGlow(styleAccent) }}><BarChart3 size={22} />Palette Visualization</h2>
-                <span className="text-cyan-200">{vizOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+              <button onClick={() => setSbsOpen(o => !o)} title={sbsOpen ? "Collapse the Visualize & Compare section" : "Expand the Visualize & Compare section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+                <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor(styleAccent), textShadow: accentTextGlow(styleAccent) }}><BarChart3 size={22} />Visualize & Compare</h2>
+                <span className="text-cyan-200">{sbsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
               </button>
-              {vizOpen && (
+              {sbsOpen && (
                 <div className="p-6 pt-2 flex flex-col gap-6">
                   <div className="flex gap-2 items-center flex-wrap justify-center bg-black/30 rounded border-2 border-cyan-500/40 px-3 py-2">
                     <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style:</span>
@@ -6361,526 +6545,198 @@ export default function PixelPalGenerator() {
                     <button onClick={() => setVizStyle('balanced')} title="Show mid-contrast Balanced ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={vizStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
                     <button onClick={() => setVizStyle('muted')} title="Show low-contrast Muted ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={vizStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
                   </div>
-
-                  {/* Mosaic: one row per base color */}
                   <div>
-                    <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Mosaic</h3>
-                    <p className="text-[11px] text-cyan-100/70 italic mb-2">All ramps side-by-side. Look for adjacent colors that clash or harmonize.</p>
-                    <div className="flex flex-col gap-1">
-                      {activeRamps.map((ramp, i) => (
-                        <div key={i} className="flex w-full rounded overflow-hidden border" style={{ height: '40px', borderColor: t.vizDataBorder }}>
-                          {ramp.map((hex, j) => (
-                            <div key={`${i}-${j}`} className="flex-1" style={{ background: hex }} title={`${aiColorNames[i] || `Color ${i + 1}`} ${hex.toUpperCase()}`} />
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Lightness bar: all colors sorted by L */}
-                  <div>
-                    <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Lightness Distribution</h3>
-                    <p className="text-[11px] text-cyan-100/70 italic mb-2">All colors sorted darkest to lightest. Gaps indicate missing tonal ranges.</p>
-                    <div className="flex w-full rounded overflow-hidden border" style={{ height: '32px', borderColor: t.vizDataBorder }}>
-                      {sortedByL.map((hex, i) => (
-                        <div key={i} className="flex-1" style={{ background: hex }} title={`${hex.toUpperCase()} L=${hexToHsl(hex).l.toFixed(0)}`} />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Chromatic plot: SVG wheel with dots by hue/saturation */}
-                  <div>
-                    <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Chromatic Plot</h3>
-                    <p className="text-[11px] text-cyan-100/70 italic mb-2">Each color positioned by hue (angle) and saturation (distance from center). Tight clusters = cohesive palette.</p>
-                    <div className="flex justify-center">
-                      <svg width="280" height="280" viewBox="0 0 280 280">
-                        {/* Background wheel rings */}
-                        <circle cx="140" cy="140" r="125" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
-                        <circle cx="140" cy="140" r="83" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
-                        <circle cx="140" cy="140" r="42" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
-                        {/* Hue spokes */}
-                        {[0, 60, 120, 180, 240, 300].map(deg => {
-                          const rad = (deg - 90) * Math.PI / 180;
-                          const x2 = 140 + Math.cos(rad) * 125;
-                          const y2 = 140 + Math.sin(rad) * 125;
-                          return <line key={deg} x1="140" y1="140" x2={x2} y2={y2} stroke={t.vizSpokeStroke} strokeWidth="1" />;
-                        })}
-                        {/* Color dots */}
-                        {allColors.map((hex, i) => {
-                          const { h, s, l } = hexToHsl(hex);
-                          const rad = (h - 90) * Math.PI / 180;
-                          const dist = (s / 100) * 125;
-                          const cx = 140 + Math.cos(rad) * dist;
-                          const cy = 140 + Math.sin(rad) * dist;
-                          // Stroke color: darker for light dots, lighter for dark dots, for visibility
-                          const strokeColor = l > 50 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
-                          return <circle key={i} cx={cx} cy={cy} r="6" fill={hex} stroke={strokeColor} strokeWidth="1.5">
-                            <title>{hex.toUpperCase()} H={h.toFixed(0)}° S={s.toFixed(0)}% L={l.toFixed(0)}%</title>
-                          </circle>;
-                        })}
-                        {/* Hue labels */}
-                        <text x="140" y="14" textAnchor="middle" fontSize="9" fill={t.vizAxisLabel} fontFamily="monospace">0°</text>
-                        <text x="271" y="144" textAnchor="end" fontSize="9" fill={t.vizAxisLabel} fontFamily="monospace">90°</text>
-                        <text x="140" y="274" textAnchor="middle" fontSize="9" fill={t.vizAxisLabel} fontFamily="monospace">180°</text>
-                        <text x="9" y="144" textAnchor="start" fontSize="9" fill={t.vizAxisLabel} fontFamily="monospace">270°</text>
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Image Preview: upload an image, remap it to the active palette */}
-                  {(() => {
-                    return (
-                      <div ref={remapPanelRef}>
-                        <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Image Preview</h3>
-                        <p className="text-[11px] text-cyan-100/70 italic mb-2">Upload an image. Every pixel snaps to the nearest color in the active palette (current style, hidden shades excluded, hardware lock honored). Auto-updates as you edit; 300ms debounce.</p>
-                        {!remapImageDataUrl && (
-                          <div
-                            onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setRemapDragOver(true); }}
-                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (!remapDragOver) setRemapDragOver(true); }}
-                            onDragLeave={(e) => {
-                              e.preventDefault(); e.stopPropagation();
-                              // The drop zone is a flex container with
-                              // children. dragleave fires when entering a
-                              // child, so we only clear on a leave that
-                              // actually exits the outer element. The
-                              // currentTarget vs relatedTarget check is the
-                              // standard pattern; relatedTarget can be null
-                              // (drag exited the window) which also counts
-                              // as a real leave.
-                              const related = e.relatedTarget;
-                              if (!related || !e.currentTarget.contains(related)) {
-                                setRemapDragOver(false);
-                              }
-                            }}
-                            onDrop={(e) => {
-                              e.preventDefault(); e.stopPropagation();
-                              setRemapDragOver(false);
-                              const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-                              if (f) handleRemapImageUpload(f);
-                            }}
-                            className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded p-6 transition-colors ${remapDragOver ? 'border-cyan-300 bg-cyan-900/40' : 'border-cyan-500/50 bg-black/30'}`}
-                            style={remapDragOver ? { boxShadow: '0 0 12px rgba(0, 255, 255, 0.5)' } : {}}
-                          >
-                            <ImageIcon size={28} className={remapDragOver ? 'text-cyan-200' : 'text-cyan-300/60'} />
-                            <p className="text-xs text-cyan-100/70 text-center">{remapDragOver ? 'Release to upload' : 'Drop an image here, or browse for a file, to remap against the palette.'}</p>
-                            <label className="px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all flex items-center gap-1 uppercase tracking-wider text-xs cursor-pointer" style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}>
-                              <Upload size={14} />Browse files
-                              <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) handleRemapImageUpload(f); e.target.value = ''; }} className="hidden" />
-                            </label>
-                            {remapError && (
-                              <p className="text-xs text-red-300 mt-1">{remapError}</p>
-                            )}
-                          </div>
-                        )}
-                        {remapImageDataUrl && (
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
-                              <span className="text-cyan-100/80 truncate" title={remapImageName}>
-                                Source: <span className="text-cyan-200 font-bold">{remapImageName || 'image'}</span>
-                                {remapImageNaturalSize && (
-                                  <span className="text-cyan-100/50 ml-2">{remapImageNaturalSize.w}x{remapImageNaturalSize.h}</span>
-                                )}
-                              </span>
-                              <button onClick={clearRemapImage} title="Remove the uploaded image" className={`px-2 py-1 rounded font-bold border-2 transition-all flex items-center gap-1 uppercase tracking-wider text-[11px] ${t.controlBtnDefault} ${t.controlBtnHover}`}>
-                                <X size={12} />Clear
-                              </button>
-                            </div>
-                            {remapLoading && (
-                              <div className={`px-2 py-1 rounded border-2 text-[11px] font-bold uppercase tracking-wider ${t.alertInfoBg} ${t.alertInfoText} ${t.alertInfoBorder}`}>
-                                Computing...
-                              </div>
-                            )}
-                            {remapError && (
-                              <p className="text-xs text-red-300">{remapError}</p>
-                            )}
-                            <div className="flex justify-center bg-black/30 rounded border-2 border-cyan-700/40 p-2">
-                              {!remapOutput && (
-                                <div className="flex flex-col items-center gap-2 py-4">
-                                  <img src={remapImageDataUrl} alt="source" style={{ imageRendering: 'pixelated', maxWidth: '100%', maxHeight: '320px', height: 'auto' }} />
-                                  <p className="text-[11px] text-cyan-100/60 italic">Remapping...</p>
-                                </div>
-                              )}
-                              {remapOutput && (
-                                <canvas ref={remapCanvasRef} style={{ imageRendering: 'pixelated', maxWidth: '100%', height: 'auto' }} />
-                              )}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2">
-                              <span className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">Dither:</span>
-                              <button onClick={() => setRemapDither('none')} title="No dithering: every source pixel maps to its single nearest palette color" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'none' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>None</button>
-                              <button onClick={() => setRemapDither('floyd-steinberg')} title="Floyd-Steinberg error diffusion: better gradient handling at the cost of a busier image" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'floyd-steinberg' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>Floyd-Steinberg</button>
-                            </div>
-                            {remapOutput && remapImageNaturalSize && (() => {
-                              // Compute available scale options dynamically
-                              // from the upload's natural size. Filter out
-                              // scales that would produce outputs larger
-                              // than 8192px per axis (a canvas-size ceiling
-                              // matching WebGL MAX_TEXTURE_SIZE on consumer
-                              // hardware).
-                              const scaleOpts = computeRemapScaleOptions(remapImageNaturalSize.w, remapImageNaturalSize.h, 8192);
-                              if (scaleOpts.length === 0) {
-                                // Pathological case: upload natural size is
-                                // already past the 8192 cap. Fall back to
-                                // showing only a "Source too large" message;
-                                // the user can pick a smaller image.
-                                return (
-                                  <div className="flex items-center gap-2 bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2 text-[11px] text-yellow-200">
-                                    ▲ Source image exceeds 8192px on at least one axis. Resize the upload to enable export.
-                                  </div>
-                                );
-                              }
-                              // Format a scale value as a label fragment
-                              // (e.g. 0.25 -> '0.25x', 1 -> '1x').
-                              const fmtScale = (s) => (Number.isInteger(s) ? s + 'x' : s + 'x');
-                              const projectedCost = estimateRemapCost(
-                                Math.max(1, Math.floor(remapImageNaturalSize.w * remapDownloadScale)),
-                                Math.max(1, Math.floor(remapImageNaturalSize.h * remapDownloadScale)),
-                                getActiveRemapPalette().length,
-                                remapDither
-                              );
-                              const willWarn = projectedCost > 50000000;
-                              return (
-                                <div className="flex flex-col gap-2">
-                                  <div className="flex flex-wrap items-center gap-2 justify-between bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">Export scale:</span>
-                                      <select
-                                        value={remapDownloadScale}
-                                        onChange={(e) => {
-                                          const v = parseFloat(e.target.value);
-                                          setRemapDownloadScale(Number.isFinite(v) && v > 0 ? v : 1);
-                                          setRemapDownloadConfirmPending(false);
-                                          if (remapDownloadConfirmTimerRef.current) { clearTimeout(remapDownloadConfirmTimerRef.current); remapDownloadConfirmTimerRef.current = null; }
-                                        }}
-                                        title="Multiplier applied to the upload's natural size at export. Nearest-neighbor sampling preserves pixel-art aesthetics."
-                                        className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider cursor-pointer ${t.controlBtnDefault} ${t.controlBtnHover}`}
-                                      >
-                                        {scaleOpts.map((s) => {
-                                          const w = Math.max(1, Math.floor(remapImageNaturalSize.w * s));
-                                          const h = Math.max(1, Math.floor(remapImageNaturalSize.h * s));
-                                          return <option key={s} value={s}>{fmtScale(s)} ({w}x{h})</option>;
-                                        })}
-                                      </select>
-                                    </div>
-                                    <button
-                                      onClick={downloadRemap}
-                                      disabled={remapLoading}
-                                      title={remapDownloadConfirmPending ? "Click again within 5 seconds to commit this slow export" : (willWarn ? "Heavy export: clicking will prompt for confirmation first" : "Download the remapped image as PNG at the selected scale")}
-                                      className={`px-3 py-1.5 rounded font-bold border-2 transition-all flex items-center gap-1 uppercase tracking-wider text-[11px] ${
-                                        remapLoading
-                                          ? 'bg-purple-900/60 text-cyan-200/50 border-cyan-700/30 cursor-not-allowed'
-                                          : remapDownloadConfirmPending
-                                            ? 'bg-yellow-300 text-purple-900 border-yellow-100 hover:bg-yellow-200'
-                                            : 'bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300'
-                                      }`}
-                                      style={!remapLoading ? { boxShadow: remapDownloadConfirmPending ? '0 0 8px rgba(255, 230, 0, 0.5)' : '0 0 8px rgba(0, 255, 255, 0.4)' } : {}}
-                                    >
-                                      <Download size={12} />
-                                      {remapDownloadConfirmPending ? 'Click to confirm' : 'Download PNG'}
-                                    </button>
-                                  </div>
-                                  {remapDownloadConfirmPending && (
-                                    <div className={`px-2 py-1 rounded border-2 text-[11px] font-bold uppercase tracking-wider ${t.alertWarnBg} ${t.alertWarnText} ${t.alertWarnBorder}`}>
-                                      ▲ This export will take a while (an estimated {(projectedCost / 1000000).toFixed(0)}M pixel operations). The browser tab may freeze during the work. Click Download again within 5 seconds to proceed, or change the scale or dither setting.
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
+                    <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Image Preview</h3>
+                    <p className="text-[11px] text-cyan-100/70 italic mb-2">Upload an image. Every pixel snaps to the nearest color in the active palette (current style, hidden shades excluded, hardware lock honored). Auto-updates as you edit; 300ms debounce.</p>
+                    {!remapImageDataUrl && (
+                      <div
+                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setRemapDragOver(true); }}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (!remapDragOver) setRemapDragOver(true); }}
+                        onDragLeave={(e) => {
+                          e.preventDefault(); e.stopPropagation();
+                          const related = e.relatedTarget;
+                          if (!related || !e.currentTarget.contains(related)) {
+                            setRemapDragOver(false);
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault(); e.stopPropagation();
+                          setRemapDragOver(false);
+                          const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+                          if (f) handleRemapImageUpload(f);
+                        }}
+                        className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded p-6 transition-colors ${remapDragOver ? 'border-cyan-300 bg-cyan-900/40' : 'border-cyan-500/50 bg-black/30'}`}
+                        style={remapDragOver ? { boxShadow: '0 0 12px rgba(0, 255, 255, 0.5)' } : {}}
+                      >
+                        <ImageIcon size={28} className={remapDragOver ? 'text-cyan-200' : 'text-cyan-300/60'} />
+                        <p className="text-xs text-cyan-100/70 text-center">{remapDragOver ? 'Release to upload' : 'Drop an image here, or browse for a file, to remap against the palette.'}</p>
+                        <label className="px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all flex items-center gap-1 uppercase tracking-wider text-xs cursor-pointer" style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}>
+                          <Upload size={14} />Browse files
+                          <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) handleRemapImageUpload(f); e.target.value = ''; }} className="hidden" />
+                        </label>
+                        {remapError && (
+                          <p className="text-xs text-red-300 mt-1">{remapError}</p>
                         )}
                       </div>
-                    );
-                  })()}
+                    )}
+                    {remapImageDataUrl && (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                          <span className="text-cyan-100/80 truncate" title={remapImageName}>
+                            Source: <span className="text-cyan-200 font-bold">{remapImageName || 'image'}</span>
+                            {remapImageNaturalSize && (
+                              <span className="text-cyan-100/50 ml-2">{remapImageNaturalSize.w}x{remapImageNaturalSize.h}</span>
+                            )}
+                          </span>
+                          <button onClick={clearRemapImage} title="Remove the uploaded image" className={`px-2 py-1 rounded font-bold border-2 transition-all flex items-center gap-1 uppercase tracking-wider text-[11px] ${t.controlBtnDefault} ${t.controlBtnHover}`}>
+                            <X size={12} />Clear
+                          </button>
+                        </div>
+                        {remapLoading && (
+                          <div className={`px-2 py-1 rounded border-2 text-[11px] font-bold uppercase tracking-wider ${t.alertInfoBg} ${t.alertInfoText} ${t.alertInfoBorder}`}>
+                            Computing...
+                          </div>
+                        )}
+                        {remapError && (
+                          <p className="text-xs text-red-300">{remapError}</p>
+                        )}
+                        {!isTwoColumn && (
+                          <div className="flex justify-center bg-black/30 rounded border-2 border-cyan-700/40 p-2">
+                            {!remapOutput && (
+                              <div className="flex flex-col items-center gap-2 py-4">
+                                <img src={remapImageDataUrl} alt="source" style={{ imageRendering: 'pixelated', maxWidth: '100%', maxHeight: '320px', height: 'auto' }} />
+                                <p className="text-[11px] text-cyan-100/60 italic">Remapping...</p>
+                              </div>
+                            )}
+                            {remapOutput && (
+                              <canvas ref={remapCanvasRef} style={{ imageRendering: 'pixelated', maxWidth: '100%', height: 'auto' }} />
+                            )}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-2 bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2">
+                          <span className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">Dither:</span>
+                          <button onClick={() => setRemapDither('none')} title="No dithering: every source pixel maps to its single nearest palette color" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'none' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>None</button>
+                          <button onClick={() => setRemapDither('floyd-steinberg')} title="Floyd-Steinberg error diffusion: better gradient handling at the cost of a busier image" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'floyd-steinberg' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>Floyd-Steinberg</button>
+                        </div>
+                        {!isTwoColumn && remapOutput && remapImageNaturalSize && (() => {
+                          const scaleOpts = computeRemapScaleOptions(remapImageNaturalSize.w, remapImageNaturalSize.h, 8192);
+                          if (scaleOpts.length === 0) {
+                            return (
+                              <div className="flex items-center gap-2 bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2 text-[11px] text-yellow-200">
+                                ▲ Source image exceeds 8192px on at least one axis. Resize the upload to enable export.
+                              </div>
+                            );
+                          }
+                          const fmtScale = (s) => (Number.isInteger(s) ? s + 'x' : s + 'x');
+                          const projectedCost = estimateRemapCost(
+                            Math.max(1, Math.floor(remapImageNaturalSize.w * remapDownloadScale)),
+                            Math.max(1, Math.floor(remapImageNaturalSize.h * remapDownloadScale)),
+                            getActiveRemapPalette().length,
+                            remapDither
+                          );
+                          const willWarn = projectedCost > 50000000;
+                          return (
+                            <div className="flex flex-col gap-2">
+                              <div className="flex flex-wrap items-center gap-2 justify-between bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">Export scale:</span>
+                                  <select
+                                    value={remapDownloadScale}
+                                    onChange={(e) => {
+                                      const v = parseFloat(e.target.value);
+                                      setRemapDownloadScale(Number.isFinite(v) && v > 0 ? v : 1);
+                                      setRemapDownloadConfirmPending(false);
+                                      if (remapDownloadConfirmTimerRef.current) { clearTimeout(remapDownloadConfirmTimerRef.current); remapDownloadConfirmTimerRef.current = null; }
+                                    }}
+                                    title="Multiplier applied to the upload's natural size at export. Nearest-neighbor sampling preserves pixel-art aesthetics."
+                                    className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider cursor-pointer ${t.controlBtnDefault} ${t.controlBtnHover}`}
+                                  >
+                                    {scaleOpts.map((s) => {
+                                      const w = Math.max(1, Math.floor(remapImageNaturalSize.w * s));
+                                      const h = Math.max(1, Math.floor(remapImageNaturalSize.h * s));
+                                      return <option key={s} value={s}>{fmtScale(s)} ({w}x{h})</option>;
+                                    })}
+                                  </select>
+                                </div>
+                                <button
+                                  onClick={downloadRemap}
+                                  disabled={remapLoading}
+                                  title={remapDownloadConfirmPending ? "Click again within 5 seconds to commit this slow export" : (willWarn ? "Heavy export: clicking will prompt for confirmation first" : "Download the remapped image as PNG at the selected scale")}
+                                  className={`px-3 py-1.5 rounded font-bold border-2 transition-all flex items-center gap-1 uppercase tracking-wider text-[11px] ${
+                                    remapLoading
+                                      ? 'bg-purple-900/60 text-cyan-200/50 border-cyan-700/30 cursor-not-allowed'
+                                      : remapDownloadConfirmPending
+                                        ? 'bg-yellow-300 text-purple-900 border-yellow-100 hover:bg-yellow-200'
+                                        : 'bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300'
+                                  }`}
+                                  style={!remapLoading ? { boxShadow: remapDownloadConfirmPending ? '0 0 8px rgba(255, 230, 0, 0.5)' : '0 0 8px rgba(0, 255, 255, 0.4)' } : {}}
+                                >
+                                  <Download size={12} />
+                                  {remapDownloadConfirmPending ? 'Click to confirm' : 'Download PNG'}
+                                </button>
+                              </div>
+                              {remapDownloadConfirmPending && (
+                                <div className={`px-2 py-1 rounded border-2 text-[11px] font-bold uppercase tracking-wider ${t.alertWarnBg} ${t.alertWarnText} ${t.alertWarnBorder}`}>
+                                  ▲ This export will take a while (an estimated {(projectedCost / 1000000).toFixed(0)}M pixel operations). The browser tab may freeze during the work. Click Download again within 5 seconds to proceed, or change the scale or dither setting.
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-4 items-end">
+                    <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
+                      <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Slot A</span>
+                      <select
+                        value={sbsLeft === null ? 'working' : sbsLeft}
+                        onChange={(e) => setSbsLeft(e.target.value)}
+                        title="Pick the palette to visualize (or compare in the left column)"
+                        className="w-full px-2 py-1.5 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-sm font-mono"
+                      >
+                        {renderSlotAOptions()}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Slot B</span>
+                        {sbsRight && (
+                          <button onClick={() => setSbsRight(null)} title="Clear slot B to return to single-column view" className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500 text-white border border-pink-200 hover:bg-pink-400 uppercase tracking-wider">Clear</button>
+                        )}
+                      </div>
+                      <select
+                        value={sbsRight === null ? '' : sbsRight}
+                        onChange={(e) => setSbsRight(parseSlot(e.target.value))}
+                        title="Pick a second palette to compare side-by-side (empty = single-column view)"
+                        className="w-full px-2 py-1.5 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-sm font-mono"
+                      >
+                        {renderSlotBOptions()}
+                      </select>
+                    </div>
+                  </div>
+                  {isTwoColumn ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="flex flex-col gap-3 bg-black/30 rounded border-2 border-cyan-500/40 p-3">
+                        <div className="text-[10px] text-cyan-100/60 font-mono truncate" title={getSlotLabel(sbsLeft, sbsLeftPayload)}>{getSlotLabel(sbsLeft, sbsLeftPayload)}</div>
+                        {renderSlotViz(leftSnap, 'Slot A', 'left', true)}
+                      </div>
+                      <div className="flex flex-col gap-3 bg-black/30 rounded border-2 border-cyan-500/40 p-3">
+                        <div className="text-[10px] text-cyan-100/60 font-mono truncate" title={getSlotLabel(sbsRight, sbsRightPayload)}>{getSlotLabel(sbsRight, sbsRightPayload)}</div>
+                        {renderSlotViz(rightSnap, 'Slot B', 'right', true)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {renderSlotViz(leftSnap, 'Slot A', 'left', false)}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-cyan-100/40 italic text-center">Style applies to all views. Hidden shades are filtered out.</p>
                 </div>
               )}
             </div>
           );
         })()}
-
-        {/* ---------- Side-by-Side Compare (collapsible) ---------- */}
-        {/* Lets the user pick two palettes (the live working palette, a
-            classic palette, any saved palette, or null) and view their
-            visualizations in two side-by-side columns under the active
-            vizStyle. Row order inside each column: Image Preview (if
-            an image is uploaded to the main Image Preview panel),
-            Chromatic Plot, Lightness Distribution, Mosaic. Variable-
-            height Mosaic is placed LAST so columns with different
-            ramp counts don't push the other three rows out of
-            horizontal alignment between the two slots. Distinct from
-            the WCAG Check (Contrast picker) in the export bar
-            below: that picker selects two SWATCHES; this section
-            compares two whole PALETTES. State prefix sbs to keep the
-            namespaces apart. */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.25) }}>
-          <button onClick={() => setSbsOpen(o => !o)} title={sbsOpen ? "Collapse the Side-by-Side Compare section" : "Expand the Side-by-Side Compare section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Columns size={22} />Side-by-Side Compare</h2>
-            <span className="text-cyan-200">{sbsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-          </button>
-          {sbsOpen && (() => {
-            const leftSnap = getSnapshotForSlot(sbsLeft, sbsLeftPayload);
-            const rightSnap = getSnapshotForSlot(sbsRight, sbsRightPayload);
-            // Render the three visualizations for a given snapshot. Lives
-            // inline so it can read vizStyle, aiColorNames, and hexToHsl
-            // from the surrounding closure. Returns null if no snapshot.
-            const renderSlotViz = (snap, label, slotKey) => {
-              const slotValue = slotKey === 'left' ? sbsLeft : sbsRight;
-              const loading = slotKey === 'left' ? sbsLeftLoading : sbsRightLoading;
-              const error = slotKey === 'left' ? sbsLeftError : sbsRightError;
-              if (loading) {
-                return (
-                  <div className="text-center text-cyan-100/70 italic text-sm py-12 border-2 border-dashed border-cyan-700/40 rounded">
-                    Loading {label}...
-                  </div>
-                );
-              }
-              if (error) {
-                return (
-                  <div className={`text-xs rounded p-3 border-2 ${t.alertErrorBg} ${t.alertErrorText} ${t.alertErrorBorder}`}>
-                    {error}
-                  </div>
-                );
-              }
-              if (!snap || !Array.isArray(snap.baseColors) || snap.baseColors.length === 0) {
-                return (
-                  <div className="text-center text-cyan-100/50 italic text-sm py-12 border-2 border-dashed border-cyan-700/40 rounded">
-                    {slotValue === null ? 'Pick a palette above to compare' : 'No colors to show'}
-                  </div>
-                );
-              }
-              const ramps = buildRampsForSnapshot(snap, vizStyle);
-              const allColors = ramps.flat();
-              const sortedByL = [...allColors].sort((a, b) => hexToHsl(a).l - hexToHsl(b).l);
-              const namesSource = Array.isArray(snap.aiColorNames) ? snap.aiColorNames : aiColorNames;
-              return (
-                <div className="flex flex-col gap-4">
-                  {/* Image Preview FIRST. Renders the same uploaded image
-                      from the main Image Preview panel, remapped against
-                      THIS slot's palette under the same vizStyle and
-                      dither setting. Pinned at the top of the slot
-                      column so the two slots' image previews align
-                      horizontally regardless of how different the two
-                      palettes' Mosaic row counts are below them. Only
-                      rendered when the user has actually uploaded an
-                      image; otherwise the row is omitted. */}
-                  {sbsRemapSource && (() => {
-                    const slotRemap = slotKey === 'left' ? sbsLeftRemap : sbsRightRemap;
-                    const slotRemapLoading = slotKey === 'left' ? sbsLeftRemapLoading : sbsRightRemapLoading;
-                    const canvasRef = slotKey === 'left' ? sbsLeftRemapCanvasRef : sbsRightRemapCanvasRef;
-                    const slotValue = slotKey === 'left' ? sbsLeft : sbsRight;
-                    const slotPayload = slotKey === 'left' ? sbsLeftPayload : sbsRightPayload;
-                    const slotLetter = slotKey === 'left' ? 'A' : 'B';
-                    return (
-                      <div>
-                        <h4 className="text-[11px] font-bold text-cyan-200 uppercase tracking-widest mb-1">Image Preview</h4>
-                        <div className="flex justify-center bg-black/30 rounded border" style={{ borderColor: t.vizDataBorder, minHeight: '64px' }}>
-                          {slotRemapLoading && !slotRemap && (
-                            <div className="text-[11px] text-cyan-100/70 italic py-6">Computing...</div>
-                          )}
-                          {slotRemap && (
-                            <canvas
-                              ref={canvasRef}
-                              style={{ imageRendering: 'pixelated', maxWidth: '100%', maxHeight: '256px', height: 'auto', display: 'block' }}
-                              title={`Uploaded image remapped to this slot's palette (${slotRemap.width}x${slotRemap.height}, ${remapDither === 'floyd-steinberg' ? 'Floyd-Steinberg' : 'no dither'})`}
-                            />
-                          )}
-                          {!slotRemap && !slotRemapLoading && (
-                            <div className="text-[11px] text-cyan-100/40 italic py-6">No preview</div>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-cyan-100/60 italic text-center mt-1 font-mono truncate" title={`Slot ${slotLetter}: ${getSlotLabel(slotValue, slotPayload)}`}>
-                          Slot {slotLetter}: {getSlotLabel(slotValue, slotPayload)}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {/* Chromatic plot. Same SVG layout as the main viz block
-                      but scaled down to fit the two-column grid. */}
-                  <div>
-                    <h4 className="text-[11px] font-bold text-cyan-200 uppercase tracking-widest mb-1">Chromatic Plot</h4>
-                    <div className="flex justify-center">
-                      <svg width="200" height="200" viewBox="0 0 280 280">
-                        <circle cx="140" cy="140" r="125" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
-                        <circle cx="140" cy="140" r="83" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
-                        <circle cx="140" cy="140" r="42" fill="none" stroke={t.vizRingStroke} strokeWidth="1" />
-                        {[0, 60, 120, 180, 240, 300].map(deg => {
-                          const rad = (deg - 90) * Math.PI / 180;
-                          const x2 = 140 + Math.cos(rad) * 125;
-                          const y2 = 140 + Math.sin(rad) * 125;
-                          return <line key={deg} x1="140" y1="140" x2={x2} y2={y2} stroke={t.vizSpokeStroke} strokeWidth="1" />;
-                        })}
-                        {allColors.map((hex, i) => {
-                          const { h, s, l } = hexToHsl(hex);
-                          const rad = (h - 90) * Math.PI / 180;
-                          const dist = (s / 100) * 125;
-                          const cx = 140 + Math.cos(rad) * dist;
-                          const cy = 140 + Math.sin(rad) * dist;
-                          const strokeColor = l > 50 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
-                          return <circle key={i} cx={cx} cy={cy} r="6" fill={hex} stroke={strokeColor} strokeWidth="1.5">
-                            <title>{hex.toUpperCase()} H={h.toFixed(0)} S={s.toFixed(0)} L={l.toFixed(0)}</title>
-                          </circle>;
-                        })}
-                      </svg>
-                    </div>
-                  </div>
-                  {/* Lightness bar */}
-                  <div>
-                    <h4 className="text-[11px] font-bold text-cyan-200 uppercase tracking-widest mb-1">Lightness Distribution</h4>
-                    <div className="flex w-full rounded overflow-hidden border" style={{ height: '22px', borderColor: t.vizDataBorder }}>
-                      {sortedByL.map((hex, i) => (
-                        <div key={i} className="flex-1" style={{ background: hex }} title={`${hex.toUpperCase()} L=${hexToHsl(hex).l.toFixed(0)}`} />
-                      ))}
-                    </div>
-                  </div>
-                  {/* Mosaic. Variable height (one row per ramp). Placed LAST
-                      so columns with different ramp counts don't push the
-                      image preview, chromatic plot, and lightness bar out
-                      of horizontal alignment. */}
-                  <div>
-                    <h4 className="text-[11px] font-bold text-cyan-200 uppercase tracking-widest mb-1">Mosaic</h4>
-                    <div className="flex flex-col gap-1">
-                      {ramps.map((ramp, i) => (
-                        <div key={i} className="flex w-full rounded overflow-hidden border" style={{ height: '28px', borderColor: t.vizDataBorder }}>
-                          {ramp.map((hex, j) => (
-                            <div key={`${i}-${j}`} className="flex-1" style={{ background: hex }} title={`${(namesSource && namesSource[i]) || `Color ${i + 1}`} ${hex.toUpperCase()}`} />
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-cyan-100/50 text-center font-mono">{ramps.length} ramps, {allColors.length} colors total</div>
-                </div>
-              );
-            };
-            // Slot dropdown options. Three groups: standalone (empty +
-            // working), classics (CLASSIC_PALETTES in declaration order),
-            // and saved palettes. The dropdown value is the slot setting
-            // verbatim (null serialized as empty string). Classics use
-            // the `classic:<id>` prefix to distinguish from saved-palette
-            // slugs.
-            const slotStandalone = [
-              { value: '', label: '(empty)' },
-              { value: 'working', label: 'Current working palette (live)' },
-            ];
-            const slotClassicOptions = CLASSIC_PALETTES.map(c => ({
-              value: `classic:${c.id}`,
-              label: c.name,
-            }));
-            const slotSavedOptions = savedPalettes.map(p => ({
-              value: p.slug,
-              label: p.name,
-            }));
-            const renderSlotOptions = () => (
-              <>
-                {slotStandalone.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-                {slotClassicOptions.length > 0 && (
-                  <optgroup label="Classic palettes">
-                    {slotClassicOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </optgroup>
-                )}
-                {slotSavedOptions.length > 0 && (
-                  <optgroup label="Saved palettes">
-                    {slotSavedOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </>
-            );
-            const parseSlot = (raw) => (raw === '' ? null : raw);
-            // Scroll the user back up to the Image Preview panel where
-            // the upload, dither toggle, and Refresh button live.
-            // Smooth-scroll keeps it less jarring; `block: 'start'` lines
-            // up the panel heading at the top of the viewport.
-            const scrollToImagePanel = () => {
-              if (remapPanelRef.current && typeof remapPanelRef.current.scrollIntoView === 'function') {
-                remapPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            };
-            return (
-              <div className="p-6 pt-2 flex flex-col gap-4">
-                <p className="text-[11px] text-cyan-100/70 italic">▸ Pick two palettes to compare under the same Style as the main Visualization section. The working palette updates live as you edit. Saved palettes render at full fidelity (pins, hidden shades, hardware lock, per-ramp sizes and saturations). Classic palettes render under your current Style and shade-count settings for an apples-to-apples reference.</p>
-                {/* Image preview status indicator. Two states:
-                    - No image uploaded: a hint pointing the user up to
-                      the Image Preview panel where uploads happen.
-                    - Image uploaded: a one-line status showing the
-                      filename, dither mode, and a button that scrolls
-                      back up to the Image Preview panel controls. The
-                      SBS section deliberately does NOT duplicate the
-                      upload / dither / refresh controls (one source
-                      of truth in the main panel). */}
-                {!remapImageDataUrl && (
-                  <div className="text-[10px] text-cyan-100/50 italic bg-black/20 rounded border border-cyan-700/30 px-3 py-2">
-                    ▸ Upload an image in the Palette Visualization {'>'} Image Preview panel above to also compare these palettes against a reference image.
-                  </div>
-                )}
-                {remapImageDataUrl && (
-                  <div className="flex items-center justify-between gap-3 bg-black/40 rounded border-2 border-cyan-500/30 px-3 py-2">
-                    <div className="text-[10px] text-cyan-100/80 font-mono flex-1 min-w-0">
-                      <span className="text-cyan-200 font-bold uppercase tracking-wider">Reference image:</span>
-                      <span className="ml-2 truncate" title={remapImageName || 'image'}>{remapImageName || 'image'}</span>
-                      {remapImageNaturalSize && (
-                        <span className="text-cyan-100/50 ml-2">{remapImageNaturalSize.w}x{remapImageNaturalSize.h}</span>
-                      )}
-                      <span className="text-cyan-100/50 ml-3">Dither: {remapDither === 'floyd-steinberg' ? 'Floyd-Steinberg' : 'none'}</span>
-                    </div>
-                    <button
-                      onClick={scrollToImagePanel}
-                      title="Scroll up to the Image Preview panel where the upload, dither toggle, and Refresh controls live"
-                      className="px-2 py-1 rounded text-[10px] font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all uppercase tracking-wider whitespace-nowrap"
-                    >
-                      Controls {'→'}
-                    </button>
-                  </div>
-                )}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {/* Left slot */}
-                  <div className="flex flex-col gap-3 bg-black/30 rounded border-2 border-cyan-500/40 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Slot A</span>
-                      {sbsLeft && (
-                        <button onClick={() => setSbsLeft(null)} title="Clear slot A" className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500 text-white border border-pink-200 hover:bg-pink-400 uppercase tracking-wider">Clear</button>
-                      )}
-                    </div>
-                    <select
-                      value={sbsLeft === null ? '' : sbsLeft}
-                      onChange={(e) => setSbsLeft(parseSlot(e.target.value))}
-                      title="Pick the palette to show on the left (working palette, a classic palette, or any saved palette)"
-                      className="w-full px-2 py-1.5 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-sm font-mono"
-                    >
-                      {renderSlotOptions()}
-                    </select>
-                    <div className="text-[10px] text-cyan-100/60 font-mono truncate" title={getSlotLabel(sbsLeft, sbsLeftPayload)}>{getSlotLabel(sbsLeft, sbsLeftPayload)}</div>
-                    {renderSlotViz(leftSnap, 'slot A', 'left')}
-                  </div>
-                  {/* Right slot */}
-                  <div className="flex flex-col gap-3 bg-black/30 rounded border-2 border-cyan-500/40 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Slot B</span>
-                      {sbsRight && (
-                        <button onClick={() => setSbsRight(null)} title="Clear slot B" className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500 text-white border border-pink-200 hover:bg-pink-400 uppercase tracking-wider">Clear</button>
-                      )}
-                    </div>
-                    <select
-                      value={sbsRight === null ? '' : sbsRight}
-                      onChange={(e) => setSbsRight(parseSlot(e.target.value))}
-                      title="Pick the palette to show on the right (working palette, a classic palette, or any saved palette)"
-                      className="w-full px-2 py-1.5 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-sm font-mono"
-                    >
-                      {renderSlotOptions()}
-                    </select>
-                    <div className="text-[10px] text-cyan-100/60 font-mono truncate" title={getSlotLabel(sbsRight, sbsRightPayload)}>{getSlotLabel(sbsRight, sbsRightPayload)}</div>
-                    {renderSlotViz(rightSnap, 'slot B', 'right')}
-                  </div>
-                </div>
-                <p className="text-[10px] text-cyan-100/40 italic text-center">Both columns use the Style setting from the main Visualization section above. Hidden shades are filtered out.</p>
-              </div>
-            );
-          })()}
-        </div>
 
         {/* ---------- Saved Palettes (collapsible) ---------- */}
         <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgYellow, borderColor: themedAccentBorder('#ffff00'), boxShadow: accentGlow('#ffff00', 0.25) }}>
