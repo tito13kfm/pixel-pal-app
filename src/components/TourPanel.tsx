@@ -39,7 +39,9 @@ export function TourPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourGuideId, tourStep])
 
-  // Auto-advance on false→true detector transition
+  // Auto-advance on false→true detector transition.
+  // Setting detectorBaselineRef.current = true on first detection prevents
+  // subsequent re-renders from canceling and re-setting the timer.
   useEffect(() => {
     if (!open || !tourGuideId) return
     const guide = ALL_GUIDES.find(g => g.id === tourGuideId)
@@ -50,18 +52,18 @@ export function TourPanel({
 
     const current = step.detector(appState)
     if (detectorBaselineRef.current === false && current === true) {
+      detectorBaselineRef.current = true // edge-trigger: block re-entry on next renders
       const isLast = tourStep === guide.steps.length - 1
-      const timer = setTimeout(() => {
+      setTimeout(() => {
         if (isLast) {
           if (tourGuideId === 'onboarding') onMarkSeen()
-          onSetGuide(null)
+          onClose()
         } else {
           onSetStep(tourStep + 1)
         }
       }, 400)
-      return () => clearTimeout(timer)
     }
-  }, [appState, open, tourGuideId, tourStep, onMarkSeen, onSetGuide, onSetStep])
+  }, [appState, open, tourGuideId, tourStep, onMarkSeen, onClose, onSetStep])
 
   if (!open) return null
 
@@ -74,7 +76,7 @@ export function TourPanel({
     if (!currentGuide) return
     if (isLastStep) {
       if (isOnboarding) onMarkSeen()
-      onSetGuide(null)
+      onClose()
     } else {
       onSetStep(tourStep + 1)
     }
@@ -206,7 +208,7 @@ export function TourPanel({
             </button>
             {isOnboarding && !isLastStep && (
               <button
-                onClick={() => { onMarkSeen(); onSetGuide(null) }}
+                onClick={() => { onMarkSeen(); onClose() }}
                 className="text-xs px-2 py-1 transition-colors"
                 style={{ color: '#6d28d9' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#a78bfa')}
