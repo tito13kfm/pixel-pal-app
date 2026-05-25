@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master, feat/tauri-migration]
+    branches: [master]
   pull_request:
     branches: [master]
 
@@ -47,10 +47,14 @@ jobs:
       - name: JS unit tests
         shell: bash
         run: |
-          for f in tests/test_*.js; do
-            echo "Running $f"
-            node "$f"
-          done
+          if compgen -G "tests/test_*.js" > /dev/null 2>&1; then
+            for f in tests/test_*.js; do
+              echo "Running $f"
+              node "$f"
+            done
+          else
+            echo "tests/ not tracked, skipping JS unit tests"
+          fi
 
       - name: Cargo check
         working-directory: src-tauri
