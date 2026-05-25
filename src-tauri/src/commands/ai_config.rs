@@ -79,3 +79,23 @@ pub async fn ai_config_set(config: AIConfig) -> SetResult {
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ai_config_round_trips_json() {
+        let config = AIConfig {
+            provider: "openai".into(),
+            base_url: "https://api.openai.com/v1".into(),
+            api_key: "sk-test-key".into(),
+            model: "gpt-4o".into(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"baseUrl\""), "baseUrl key must be camelCase");
+        assert!(json.contains("\"apiKey\""), "apiKey key must be camelCase");
+        let parsed: AIConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, config);
+    }
+}
