@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿﻿﻿// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus } from 'lucide-react';
 import {
@@ -4826,7 +4826,7 @@ export default function PixelPalGenerator() {
         className={`relative w-14 h-14 rounded border-2 border-pink-400 transition-all cursor-pointer group ${isAdded ? 'opacity-60 cursor-not-allowed' : 'hover:scale-110 hover:ring-2 hover:ring-cyan-400'}`}
         style={{ backgroundColor: hex, boxShadow: '0 0 8px rgba(255, 0, 255, 0.4)' }}
       >
-        {isAdded && <div className=”absolute inset-0 flex items-center justify-center bg-black/50 rounded text-cyan-200 text-lg font-bold”>✓</div>}
+        {isAdded && <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded text-cyan-200 text-lg font-bold">{'✓'}</div>}
         {!isAdded && <div className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-300 border-2 border-cyan-100 rounded-full flex items-center justify-center text-purple-900 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">+</div>}
       </button>
     );
@@ -6815,7 +6815,7 @@ export default function PixelPalGenerator() {
                       title="Scroll up to the Image Preview panel where the upload, dither toggle, and Refresh controls live"
                       className="px-2 py-1 rounded text-[10px] font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all uppercase tracking-wider whitespace-nowrap"
                     >
-                      Controls â†‘
+                      Controls {'→'}
                     </button>
                   </div>
                 )}
@@ -7006,13 +7006,13 @@ export default function PixelPalGenerator() {
                               {renameError ? (
                                 <div className="text-pink-300 text-[10px] mt-1">{renameError}</div>
                               ) : (
-                                <div className="text-yellow-100/50 text-[10px] mt-1">{p.baseColors.length} color{p.baseColors.length === 1 ? '' : 's'}{dateStr ? ` â€¢ ${dateStr}` : ''}</div>
+                                <div className="text-yellow-100/50 text-[10px] mt-1">{p.baseColors.length} color{p.baseColors.length === 1 ? '' : 's'}{dateStr ? ` • ${dateStr}` : ''}</div>
                               )}
                             </>
                           ) : (
                             <>
                               <div className="text-yellow-100 font-bold text-sm truncate">{p.name}</div>
-                              <div className="text-yellow-100/50 text-[10px]">{p.baseColors.length} color{p.baseColors.length === 1 ? '' : 's'}{dateStr ? ` â€¢ ${dateStr}` : ''}</div>
+                              <div className="text-yellow-100/50 text-[10px]">{p.baseColors.length} color{p.baseColors.length === 1 ? '' : 's'}{dateStr ? ` • ${dateStr}` : ''}</div>
                             </>
                           )}
                         </div>
