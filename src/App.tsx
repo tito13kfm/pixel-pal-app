@@ -4826,7 +4826,7 @@ export default function PixelPalGenerator() {
         className={`relative w-14 h-14 rounded border-2 border-pink-400 transition-all cursor-pointer group ${isAdded ? 'opacity-60 cursor-not-allowed' : 'hover:scale-110 hover:ring-2 hover:ring-cyan-400'}`}
         style={{ backgroundColor: hex, boxShadow: '0 0 8px rgba(255, 0, 255, 0.4)' }}
       >
-        {isAdded && <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded text-cyan-200 text-lg font-bold">âœ“</div>}
+        {isAdded && <div className=”absolute inset-0 flex items-center justify-center bg-black/50 rounded text-cyan-200 text-lg font-bold”>✓</div>}
         {!isAdded && <div className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-300 border-2 border-cyan-100 rounded-full flex items-center justify-center text-purple-900 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">+</div>}
       </button>
     );
