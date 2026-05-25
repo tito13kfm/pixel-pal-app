@@ -35,9 +35,7 @@ jobs:
         run: npm ci
 
       - name: Build and package
-        run: npm run dist
-        env:
-          ELECTRON_BUILDER_PUBLISH: never
+        run: npm run build && npm run electron:compile && npx electron-builder --publish never
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
