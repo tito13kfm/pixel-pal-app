@@ -5,6 +5,7 @@
       setAIConfig: (config: { provider: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ encrypted: boolean }>
       openExternal: (url: string) => Promise<void>
     }
+    __TAURI_INTERNALS__: unknown
   }
 }
 
