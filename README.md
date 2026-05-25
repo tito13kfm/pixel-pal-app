@@ -26,6 +26,7 @@ Color palette generator for pixel art. Takes a base color, text description, or 
 ### Prerequisites
 
 - Node.js 18+
+- Rust (stable) — required to build the desktop app
 
 ### Install & Run
 
@@ -35,9 +36,9 @@ cd pixel-pal-app
 npm install
 
 # Desktop app
-npm run electron:dev
+npm run tauri:dev
 
-# Browser only
+# Browser only (no keychain, no updater)
 npm run dev
 ```
 
@@ -45,7 +46,7 @@ npm run dev
 
 ```bash
 npm run build    # type-check + web build
-npm run dist     # packaged desktop release, output to release/
+npm run dist     # packaged desktop installer, output to src-tauri/target/release/bundle/
 ```
 
 ## Input Modes
@@ -54,12 +55,12 @@ npm run dist     # packaged desktop release, output to release/
 
 **From Image:** Upload, paste, or drag-and-drop. Extracts 3-6 dominant colors. Eyedropper lets you click individual pixels with up to 8x zoom.
 
-**AI Assist:** Type a description and the app sends it to a language model for color extraction. Requires an API key (your own, never leaves your machine). Supported providers: OpenAI, Anthropic, Google Gemini, Mistral, xAI Grok, DeepSeek, Ollama, and any OpenAI-compatible endpoint. Configure in Settings on first launch.
+**AI Assist:** Type a description and the app sends it to a language model for color extraction. Requires an API key (your own, never leaves your machine). Supported providers: OpenAI, Anthropic, Google Gemini, xAI Grok, OpenRouter, Ollama, and any OpenAI-compatible endpoint. Configure in Settings on first launch.
 
 ## What This Is Not
 
 - Not a pixel art editor. Use Aseprite, Piskel, or Pixelorama for painting.
-- Not a cloud service. Palettes save to local browser storage, no account required.
+- Not a cloud service. Palettes save to local storage, no account required.
 - Not a hardware accuracy tool for emulation. Hardware palettes are artist references, not bit-exact captures.
 
 ## Linux Requirements
@@ -72,11 +73,11 @@ sudo apt-get install libwebkit2gtk-4.1-dev librsvg2-dev patchelf libsecret-1-dev
 
 > Note: `libsecret-1-dev` is required for encrypted API key storage. If not installed, the app will fall back to unencrypted local storage.
 
-For non-Debian/Ubuntu distributions, install the equivalent packages:
-- WebKit2GTK 4.1
-- librsvg2
-- patchelf
-- libsecret
+For non-Debian/Ubuntu distributions, install the equivalent packages: WebKit2GTK 4.1, librsvg2, patchelf, libsecret.
+
+## AI Assistance
+
+This project was built with AI coding assistance (Claude). AI was used for code generation, refactoring, testing, and debugging throughout development.
 
 ## License
 
