@@ -9,6 +9,7 @@ type UpdateCallback = (info: { version: string }) => void
 
 const updateAvailableCallbacks: UpdateCallback[] = []
 const updateReadyCallbacks: UpdateCallback[] = []
+const updateErrorCallbacks: ((error: string) => void)[] = []
 let pendingUpdate: Update | null = null
 
 async function checkForUpdates(): Promise<void> {
@@ -47,11 +48,22 @@ export function initTauriBridge(): void {
       updateReadyCallbacks.push(cb)
     },
 
+    onUpdateError: (cb: (error: string) => void): void => {
+      updateErrorCallbacks.push(cb)
+    },
+
     downloadUpdate: async (): Promise<void> => {
       if (!pendingUpdate) return
       const version = pendingUpdate.version
-      await pendingUpdate.download()
-      updateReadyCallbacks.forEach(cb => cb({ version }))
+      try {
+        await pendingUpdate.download()
+        updateReadyCallbacks.forEach(cb => cb({ version }))
+      } catch (e) {
+        console.error('[tauri-bridge] download failed:', e)
+        pendingUpdate = null
+        const msg = e instanceof Error ? e.message : String(e)
+        updateErrorCallbacks.forEach(cb => cb(msg))
+      }
     },
 
     installUpdate: async (): Promise<void> => {

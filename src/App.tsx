@@ -1672,6 +1672,7 @@ export default function PixelPalGenerator() {
   useEffect(() => {
     window.electronAPI?.onUpdateAvailable?.((info) => setUpdateInfo(info));
     window.electronAPI?.onUpdateReady?.((info) => { setUpdateInfo(info); setUpdateReady(true); setUpdateDownloading(false); });
+    window.electronAPI?.onUpdateError?.((err) => { console.error('Update failed:', err); setUpdateDownloading(false); setUpdateInfo(null); });
   }, []);
 
   useEffect(() => {
