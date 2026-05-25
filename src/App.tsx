@@ -5413,7 +5413,7 @@ export default function PixelPalGenerator() {
               of font / padding changes. The spacer text is "CRT OFF"
               (the longer state) so it matches the real button's now-
               stabilized width exactly. */}
-          <div className="absolute top-0 left-0 z-20 flex flex-col gap-2 items-stretch">
+          <div className="absolute top-0 left-0 z-20 flex flex-col gap-2 items-stretch pointer-events-none">
             <button aria-hidden="true" tabIndex={-1} className="invisible pointer-events-none px-3 py-2 rounded font-bold border-2 flex items-center justify-center gap-2 uppercase tracking-wider text-xs">
               <span className="relative inline-flex items-center justify-center" style={{ width: 16, height: 16 }}>
                 <MonitorOff size={16} />
@@ -5429,7 +5429,7 @@ export default function PixelPalGenerator() {
                 live OUTSIDE the filtered region so the active state stays
                 readable in all modes. Aligned horizontally with the theme
                 switcher on the right via an invisible spacer above. */}
-            <div className="flex gap-1 rounded border-2 p-1" style={{ borderColor: t.panelBorder, background: t.panelBg }}>
+            <div className="flex gap-1 rounded border-2 p-1 pointer-events-auto" style={{ borderColor: t.panelBorder, background: t.panelBg }}>
               {[
                 { id: 'none',   label: 'None', hint: 'Normal vision (no simulation)' },
                 { id: 'protan', label: 'Pro',  hint: 'Protanopia: simulates red-blindness (~1% of men)' },
