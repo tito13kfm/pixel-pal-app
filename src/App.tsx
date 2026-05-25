@@ -13,7 +13,8 @@ import {
 } from './lib/constants';
 import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFromPrompt } from './lib/ai';
 import { AISettingsPanel } from './settings/AISettingsPanel';
-import { TourPanel } from './components/TourPanel';
+import { TourPanel } from './components/TourPanel'
+import { ONBOARDING_TOUR, TASK_GUIDES } from './lib/tours';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -1448,6 +1449,20 @@ export default function PixelPalGenerator() {
   const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'balanced', hueShiftStrength), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength]);
   const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'muted', hueShiftStrength), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
+
+  const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
+  const activeTourTarget = useMemo(() => {
+    if (!tourOpen || !tourGuideId) return null
+    const guide = ALL_TOUR_GUIDES.find(g => g.id === tourGuideId)
+    return guide?.steps[tourStep]?.target ?? null
+  }, [tourOpen, tourGuideId, tourStep, ALL_TOUR_GUIDES])
+
+  useEffect(() => {
+    if (!activeTourTarget) return
+    const el = document.querySelector(`[data-tour-id="${activeTourTarget}"]`)
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [activeTourTarget])
+
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.
   // briefly after a remove before the clamp effect runs, or after a load
   // restores fewer bases than were present before), fall back to 0.
@@ -5493,7 +5508,7 @@ export default function PixelPalGenerator() {
         <div style={{ filter: cvdMode === 'none' ? 'none' : `url(#cvd-${cvdMode})` }}>
 
         <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" style={{ background: t.cardBgPinkBright, borderColor: themedAccentBorder('#ff00ff'), boxShadow: t.glowStrong > 0.5 ? '0 0 30px rgba(255, 0, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.2)' : accentGlow('#ff00ff', 0.5) }}>
-          <div className="flex flex-wrap gap-2 mb-4 justify-center">
+          <div className={`flex flex-wrap gap-2 mb-4 justify-center${activeTourTarget === 'mode-tabs' ? ' tour-highlight' : ''}`} data-tour-id="mode-tabs">
             <button onClick={() => setMode('color')} title="Build a palette from a single hex color" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm ${mode === 'color' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={mode === 'color' ? { boxShadow: '0 0 15px #00ffff' } : {}}>Single Color</button>
             <button onClick={() => setMode('ai')} title="Describe a subject, mood, or scene and let AI pick the palette" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'ai' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-pink-900/60 text-pink-200 border-pink-700/50 hover:bg-pink-800/60'}`} style={mode === 'ai' ? { boxShadow: '0 0 15px #ff00ff' } : {}}><Wand2 size={16} />AI Assist</button>
             <button onClick={() => setMode('image')} title="Extract a palette from an uploaded image" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'image' ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-yellow-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-800/60'}`} style={mode === 'image' ? { boxShadow: '0 0 15px #ffff00' } : {}}><ImageIcon size={16} />From Image</button>
@@ -5639,42 +5654,6 @@ export default function PixelPalGenerator() {
             <div className={`mb-4 p-3 rounded border-2 text-sm ${t.alertErrorBg} ${t.alertErrorText} ${t.alertErrorBorder}`}>{aiError}</div>
           )}
 
-          <div className="flex flex-wrap gap-4 items-center justify-center text-cyan-100">
-            <div className="flex gap-2 items-center">
-              <span className="text-sm font-bold uppercase tracking-wider">Shades:</span>
-              {[4, 5, 6, 7, 8].map(n => (
-                <button key={n} onClick={() => setRampSize(n)} title={`Use ${n} shades per ramp (default for new and unset ramps)`} className={`w-9 h-9 rounded font-bold border-2 transition-all ${rampSize === n ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampSize === n ? { boxShadow: '0 0 10px #00ffff' } : {}}>{n}</button>
-              ))}
-            </div>
-            {/* Hue Shift strength slider. Scales the shadow/highlight hue
-                shifts applied inside generateRamp. 100% is the default
-                (preserves legacy behavior); 0% disables hue shift for
-                flatter ramps; 200% doubles it for painterly output.
-                The reset button restores the default with one click. */}
-            <div className="flex gap-2 items-center" title="Scales the warm/cool hue shifts applied to shadows and highlights. 0% is flat, 100% is the default, 200% is painterly. Affects all styles.">
-              <span className="text-sm font-bold uppercase tracking-wider">Hue Shift:</span>
-              <input
-                type="range"
-                min="0"
-                max="200"
-                step="5"
-                value={Math.round(hueShiftStrength * 100)}
-                onChange={(e) => setHueShiftStrength(Number(e.target.value) / 100)}
-                className="w-32 accent-cyan-300"
-                aria-label="Hue shift strength"
-                title={`Hue shift strength: ${Math.round(hueShiftStrength * 100)}%`}
-              />
-              <span className="text-sm font-mono text-cyan-200 w-12 text-right tabular-nums">{Math.round(hueShiftStrength * 100)}%</span>
-              {hueShiftStrength !== 1.0 && (
-                <button
-                  onClick={() => setHueShiftStrength(1.0)}
-                  title="Reset Hue Shift to 100% (default)"
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}
-                >Reset</button>
-              )}
-            </div>
-          </div>
-
           <div className="mt-4 pt-4 border-t border-cyan-700/30">
             <div className="flex flex-wrap gap-2 items-center justify-center text-cyan-100 mb-3">
               <span className="text-sm font-bold uppercase tracking-wider w-full sm:w-auto text-center">Preview Sprite:</span>
@@ -5704,6 +5683,37 @@ export default function PixelPalGenerator() {
               </button>
             </div>
 
+            <div className="flex flex-wrap gap-4 items-center justify-center text-cyan-100 mt-3 pt-3 border-t border-cyan-700/20">
+              <div className="flex gap-2 items-center">
+                <span className="text-sm font-bold uppercase tracking-wider">Shades:</span>
+                {[4, 5, 6, 7, 8].map(n => (
+                  <button key={n} onClick={() => setRampSize(n)} title={`Use ${n} shades per ramp (default for new and unset ramps)`} className={`w-9 h-9 rounded font-bold border-2 transition-all ${rampSize === n ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampSize === n ? { boxShadow: '0 0 10px #00ffff' } : {}}>{n}</button>
+                ))}
+              </div>
+              <div className="flex gap-2 items-center" title="Scales the warm/cool hue shifts applied to shadows and highlights. 0% is flat, 100% is the default, 200% is painterly. Affects all styles.">
+                <span className="text-sm font-bold uppercase tracking-wider">Hue Shift:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  step="5"
+                  value={Math.round(hueShiftStrength * 100)}
+                  onChange={(e) => setHueShiftStrength(Number(e.target.value) / 100)}
+                  className="w-32 accent-cyan-300"
+                  aria-label="Hue shift strength"
+                  title={`Hue shift strength: ${Math.round(hueShiftStrength * 100)}%`}
+                />
+                <span className="text-sm font-mono text-cyan-200 w-12 text-right tabular-nums">{Math.round(hueShiftStrength * 100)}%</span>
+                {hueShiftStrength !== 1.0 && (
+                  <button
+                    onClick={() => setHueShiftStrength(1.0)}
+                    title="Reset Hue Shift to 100% (default)"
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}
+                  >Reset</button>
+                )}
+              </div>
+            </div>
+
             {showSpriteImporter && (
               <div className="mt-3 p-4 rounded border-2 border-pink-500/50 bg-black/40">
                 <div className="flex flex-col gap-2">
@@ -5731,7 +5741,7 @@ export default function PixelPalGenerator() {
           </div>
         </div>
 
-        <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" style={{ background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.4) }}>
+        <div className={`rounded-lg p-6 mb-6 border-2 backdrop-blur-sm${activeTourTarget === 'ramp-area' ? ' tour-highlight' : ''}`} data-tour-id="ramp-area" style={{ background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.4) }}>
           <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Sun size={22} />Color Ramps</h2>
             <div className="flex items-center gap-2 flex-wrap">
@@ -7111,7 +7121,7 @@ export default function PixelPalGenerator() {
         </div>
 
         {/* Export & Tools — collapsible card matching section card pattern */}
-        <div className="rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.3) }}>
+        <div className={`rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden${activeTourTarget === 'export-panel' ? ' tour-highlight' : ''}`} data-tour-id="export-panel" style={{ background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.3) }}>
           <button onClick={() => setExportOpen(o => !o)} title={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Download size={22} />Export &amp; Tools</h2>
             <span style={{ color: sectionHeadColor('#00ffff') }}>{exportOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>

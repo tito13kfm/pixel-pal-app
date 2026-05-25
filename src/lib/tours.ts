@@ -13,6 +13,7 @@ export interface TourStep {
   title: string
   body: string
   hint?: string
+  target?: string
   detector?: (s: TourAppState) => boolean
 }
 
@@ -28,19 +29,23 @@ export const ONBOARDING_TOUR: TourGuide = {
   steps: [
     {
       title: 'Welcome to PIXEL.PAL',
-      body: 'Generates pixel-art palette ramps. Pick an input mode below to start.',
+      body: 'Pixel-art palette generator. Pick an input mode to get started.',
+      target: 'mode-tabs',
     },
     {
       title: 'Input modes',
       body: 'Three ways in: type a hex color, describe a palette with AI, or extract colors from an image.',
+      target: 'mode-tabs',
     },
     {
       title: 'Palette ramps',
-      body: 'Each ramp shows 4-8 shades in 3 contrast styles: Punchy, Balanced, Muted. Adjust HSV, pin shades, or shuffle.',
+      body: 'Generate a palette to see ramps here. Each ramp shows 4-8 shades in 3 contrast styles.',
+      target: 'ramp-area',
     },
     {
       title: 'Export',
-      body: 'Export as plain text or .gpl for Aseprite, Krita, or GIMP. Done — go make something.',
+      body: 'Click Export at the bottom to open the export panel. Download as .txt or .gpl for Aseprite, Piskel, GIMP, and Krita.',
+      target: 'export-panel',
     },
   ],
 }
