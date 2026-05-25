@@ -33,6 +33,7 @@ playwright.config.ts
 tests/
 docs/
 !docs/superpowers/specs/
+!docs/superpowers/plans/
 scripts/
 playwright-report/
 test-results/
