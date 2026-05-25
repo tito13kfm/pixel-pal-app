@@ -5,6 +5,8 @@ Color palette generator for pixel art. Takes a base color, text description, or 
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+![PIXEL.PAL screenshot](media/screenshot-main.png)
+
 ## Download
 
 Pre-built installers for Windows, macOS, and Linux are on the [Releases page](https://github.com/tito13kfm/pixel-pal-app/releases).

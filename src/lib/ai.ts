@@ -9,48 +9,55 @@ export interface AIResponse {
   description: string      // 2-3 sentence atmospheric description
 }
 
-export const PROVIDER_PRESETS: Record<string, { baseUrl: string; label: string; hint: string; modelExample: string }> = {
+export const PROVIDER_PRESETS: Record<string, { baseUrl: string; label: string; hint: string; modelExample: string; apiKeyExample: string }> = {
   openai: {
     baseUrl: 'https://api.openai.com/v1',
     label: 'OpenAI',
     hint: 'Get a key at https://platform.openai.com/api-keys',
     modelExample: 'gpt-4o-mini',
+    apiKeyExample: 'sk-proj-...',
   },
   anthropic: {
     baseUrl: 'https://api.anthropic.com/v1',
     label: 'Anthropic (Claude)',
     hint: 'Get a key at https://console.anthropic.com/settings/keys — Claude models work with the OpenAI-compatible endpoint.',
     modelExample: 'claude-sonnet-4-6',
+    apiKeyExample: 'sk-ant-api03-...',
   },
   xai: {
     baseUrl: 'https://api.x.ai/v1',
     label: 'xAI (Grok)',
     hint: 'Get a key at https://console.x.ai',
     modelExample: 'grok-3-mini',
+    apiKeyExample: 'xai-...',
   },
   google: {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     label: 'Google (Gemini)',
     hint: 'Get a free key at https://aistudio.google.com/apikey — free tier available.',
     modelExample: 'gemini-3.1-flash-lite',
+    apiKeyExample: 'AIzaSy...',
   },
   openrouter: {
     baseUrl: 'https://openrouter.ai/api/v1',
     label: 'OpenRouter',
     hint: 'Get a key at https://openrouter.ai/settings/keys — supports hundreds of models from one endpoint.',
     modelExample: 'anthropic/claude-sonnet-4-6',
+    apiKeyExample: 'sk-or-v1-...',
   },
   ollama: {
     baseUrl: 'http://localhost:11434/v1',
     label: 'Ollama (local)',
     hint: 'Install Ollama at https://ollama.com — no API key needed, enter any string.',
     modelExample: 'llama3.2',
+    apiKeyExample: 'ollama',
   },
   custom: {
     baseUrl: '',
     label: 'Custom',
     hint: 'Any OpenAI-compatible endpoint. Works with LM Studio, vLLM, and others.',
     modelExample: '',
+    apiKeyExample: 'your-api-key',
   },
 }
 

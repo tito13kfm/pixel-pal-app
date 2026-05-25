@@ -77,7 +77,7 @@ export function AISettingsPanel({ onClose }: Props) {
           type="password"
           value={apiKey}
           onChange={e => setApiKey(e.target.value)}
-          placeholder={provider === 'ollama' ? 'ollama (any string)' : 'sk-...'}
+          placeholder={preset.apiKeyExample}
           className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm font-mono mb-3 text-zinc-100"
         />
 
