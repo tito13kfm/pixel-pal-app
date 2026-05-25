@@ -1,7 +1,7 @@
-{
+﻿{
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PIXEL.PAL",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "identifier": "com.pixelpal.app",
   "build": {
     "frontendDist": "../dist",
@@ -37,7 +37,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFCRUUwNkMyQTJGMUQwQTQKUldTazBQR2l3Z2J1RzR2TmRFRTk5RENocU9PeGNGWW9pN3BtbVFUVUlwRWl3b3lPY3FQQ3dsMGsK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGMzg3NjEwMjQyOTIzNjUKUldSbEl5a2tFSFk0VHo3cjkyWUJKb2dkcVFhTjNDZW9QYUNwSUl4WmJNSXdoOUliT01LNHpOb1cK",
       "endpoints": [
         "https://github.com/tito13kfm/pixel-pal-app/releases/latest/download/latest.json"
       ]
