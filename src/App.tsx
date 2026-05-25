@@ -5326,6 +5326,21 @@ export default function PixelPalGenerator() {
 
       <div className="max-w-5xl mx-auto relative z-10">
         <div className="text-center mb-6 relative">
+          <div className="absolute top-0 left-0 z-20">
+            <button
+              onClick={() => {
+                if (tourOpen) {
+                  setTourOpen(false);
+                } else {
+                  setTourOpen(true);
+                  setTourGuideId(null);
+                  setTourStep(0);
+                }
+              }}
+              title="Open guides"
+              className={`px-3 py-2 rounded font-bold border-2 transition-all uppercase tracking-wider text-xs ${t.controlBtnDefault} ${t.controlBtnHover}`}
+            >?</button>
+          </div>
           <h1 className="text-5xl font-bold mb-2" style={{ color: t.titleColor, textShadow: t.titleGlow, letterSpacing: '0.15em' }}>PIXEL.PAL</h1>
           <p className="text-sm tracking-widest" style={{ color: t.subtitleColor, textShadow: t.subtitleGlow }}>▓▒░ PIXEL ART PALETTE GENERATOR ░▒▓</p>
           <p className="text-[10px] mt-1 opacity-40 tracking-widest font-mono" style={{ color: t.subtitleColor }}>v{__APP_VERSION__} &middot; {__BUILD_DATE__}</p>
@@ -7352,6 +7367,25 @@ export default function PixelPalGenerator() {
         )}
       </div>
       {showAISettings && <AISettingsPanel onClose={handleAISettingsClose} />}
+      <TourPanel
+        open={tourOpen}
+        onClose={() => setTourOpen(false)}
+        appState={{
+          mode,
+          showAISettings,
+          imageDataUrl,
+          exportOpen,
+          compareMode,
+          hwPickerOpen,
+          aiLoading,
+          baseColors,
+        }}
+        tourGuideId={tourGuideId}
+        tourStep={tourStep}
+        onSetGuide={(id) => { setTourGuideId(id); setTourStep(0); }}
+        onSetStep={setTourStep}
+        onMarkSeen={handleTourMarkSeen}
+      />
     </div>
   );
 }
