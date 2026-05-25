@@ -1540,7 +1540,7 @@ export default function PixelPalGenerator() {
         return;
       }
       const seedHint = buildRandomDescription();
-      const prompt = `Invent a creative pixel art subject and give me its palette. For variety, lean toward something in the spirit of: "${seedHint}" (but you can pick anything). Subject should be tangible (object/creature/scene), visually specific, and suited for pixel art. Use rich saturated colors at mid lightness.`;
+      const prompt = `Invent a creative pixel art subject and give me its palette. For variety, lean toward something in the spirit of: "${seedHint}" (but you can pick anything). Subject should be tangible (object/creature/scene), visually specific, and suited for pixel art. Use rich saturated colors at mid lightness. Include a "subject" field in your JSON with a short 2-5 word title for the subject you invented.`;
       const aiClient = createAIClient(cfg);
       const result = await generatePaletteFromPrompt(aiClient, cfg.model, prompt);
       const hexes = (result.colors || []).filter(h => /^#[0-9a-fA-F]{6}$/.test(h));
@@ -1549,6 +1549,7 @@ export default function PixelPalGenerator() {
         ? hexes.map((_, i) => result.names[i] || `Color ${i + 1}`)
         : hexes.map((_, i) => `Color ${i + 1}`);
       pendingLabelRef.current = 'Surprise me';
+      if (result.subject) setAiInput(result.subject);
       setBaseColors(hexes); setAiColorNames(names); setAiReasoning(result.description || '');
       resetPaletteState();
       setShuffleSeed(s => s + 1);

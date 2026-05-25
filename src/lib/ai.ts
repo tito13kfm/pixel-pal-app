@@ -7,6 +7,7 @@ export interface AIResponse {
   colors: string[]         // array of hex color strings (mapped from colors[].hex)
   names: string[]          // descriptive color names from AI (parallel to colors)
   description: string      // 2-3 sentence atmospheric description
+  subject?: string         // short title of the invented subject (Surprise Me only)
 }
 
 export const PROVIDER_PRESETS: Record<string, { baseUrl: string; label: string; hint: string; modelExample: string; apiKeyExample: string }> = {
@@ -136,6 +137,7 @@ export async function generatePaletteFromPrompt(
   const systemPrompt = `You are a pixel art color palette designer. Given a subject or theme, respond with a JSON object containing:
 - "colors": array of 4-6 objects, each with "hex" (e.g. "#ff0080") and "name" (short color name)
 - "description": a 2-3 sentence atmospheric description of the subject and color choices
+- "subject": if you invented the subject yourself, a short 2-5 word title for it
 
 Respond with valid JSON only. No markdown, no explanation outside the JSON.`
 
@@ -184,5 +186,6 @@ Respond with valid JSON only. No markdown, no explanation outside the JSON.`
 
   if (colors.length === 0) throw new Error('AI response contained no base colors')
 
-  return { colors, names, description }
+  const subject = typeof parsed.subject === 'string' ? parsed.subject : undefined
+  return { colors, names, description, subject }
 }
