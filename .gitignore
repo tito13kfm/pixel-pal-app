@@ -39,6 +39,9 @@ test-results/
 *.original.md
 .superpowers/
 
+# Signing keys (never commit private keys)
+~/.tauri/
+
 # Generated screenshots and playwright artifacts
 .playwright-mcp/
 skill-observations/
