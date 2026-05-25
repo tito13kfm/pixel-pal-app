@@ -33,8 +33,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "android": {
-      "debugApplicationIdSuffix": ".debug"
+    "publisher": "Tim Kurash"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "PLACEHOLDER_REPLACE_IN_TASK_12",
+      "endpoints": [
+        "https://github.com/tito13kfm/pixel-pal-app/releases/latest/download/latest.json"
+      ]
     }
   }
 }
