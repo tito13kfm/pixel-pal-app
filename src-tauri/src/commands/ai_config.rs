@@ -40,10 +40,17 @@ pub async fn ai_config_get() -> AIConfigResult {
             config: Some(config),
             encrypted: true,
         },
-        _ => AIConfigResult {
+        Ok(None) => AIConfigResult {
             config: None,
             encrypted: false,
         },
+        Err(e) => {
+            log::error!("[ai_config_get] spawn_blocking failed: {e}");
+            AIConfigResult {
+                config: None,
+                encrypted: false,
+            }
+        }
     }
 }
 
@@ -62,6 +69,13 @@ pub async fn ai_config_set(config: AIConfig) -> SetResult {
     .await;
 
     SetResult {
-        encrypted: stored.map(|r| r.is_some()).unwrap_or(false),
+        encrypted: match stored {
+            Ok(Some(())) => true,
+            Ok(None) => false,
+            Err(e) => {
+                log::error!("[ai_config_set] spawn_blocking failed: {e}");
+                false
+            }
+        },
     }
 }
