@@ -1,7 +1,7 @@
 {
   "name": "pixel-pal-app",
   "private": true,
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Pixel art color palette generator",
   "author": "Tim Kurash",
   "type": "module",
