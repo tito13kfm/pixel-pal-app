@@ -13,6 +13,7 @@ import {
 } from './lib/constants';
 import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFromPrompt } from './lib/ai';
 import { AISettingsPanel } from './settings/AISettingsPanel';
+import { TourPanel } from './components/TourPanel';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -882,6 +883,9 @@ export default function PixelPalGenerator() {
   const [spriteImportName, setSpriteImportName] = useState('');
   const [spriteImportError, setSpriteImportError] = useState('');
   const [spriteDragging, setSpriteDragging] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourGuideId, setTourGuideId] = useState(null);
+  const [tourStep, setTourStep] = useState(0);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [copiedHex, setCopiedHex] = useState(null);
   const [shuffleSeed, setShuffleSeed] = useState(0);
@@ -1629,6 +1633,16 @@ export default function PixelPalGenerator() {
   }, []);
 
   useEffect(() => {
+    if (!localStorage.getItem('pixel-pal-tour-seen')) {
+      setTimeout(() => {
+        setTourOpen(true);
+        setTourGuideId('onboarding');
+        setTourStep(0);
+      }, 600);
+    }
+  }, []);
+
+  useEffect(() => {
     window.electronAPI?.onUpdateAvailable?.((info) => setUpdateInfo(info));
     window.electronAPI?.onUpdateReady?.((info) => { setUpdateInfo(info); setUpdateReady(true); setUpdateDownloading(false); });
   }, []);
@@ -1636,6 +1650,10 @@ export default function PixelPalGenerator() {
   function handleAISettingsClose() {
     setShowAISettings(false);
     setAiConfigured(getCachedAIConfig() !== null);
+  }
+
+  function handleTourMarkSeen() {
+    localStorage.setItem('pixel-pal-tour-seen', '1');
   }
 
   useEffect(() => {
