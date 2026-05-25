@@ -11,6 +11,12 @@
     "store:default",
     "log:default",
     "process:default",
-    "http:default"
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://**" },
+        { "url": "http://localhost:**/**" }
+      ]
+    }
   ]
 }
