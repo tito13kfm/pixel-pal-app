@@ -907,6 +907,9 @@ export default function PixelPalGenerator() {
   const [tipsOpen, setTipsOpen] = useState(false);
   const [hwPickerOpen, setHwPickerOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(true);
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateReady, setUpdateReady] = useState(false);
+  const [updateDownloading, setUpdateDownloading] = useState(false);
   // Per-ramp export style. Independent of vizStyle (which controls the
   // Visualization panel near the bottom of the page) and of gplStyle
   // (which controls the full-palette .gpl Download button in the bottom
@@ -1623,6 +1626,11 @@ export default function PixelPalGenerator() {
     loadAIConfigAsync().then(({ config }) => {
       setAiConfigured(config !== null);
     });
+  }, []);
+
+  useEffect(() => {
+    window.electronAPI?.onUpdateAvailable?.((info) => setUpdateInfo(info));
+    window.electronAPI?.onUpdateReady?.((info) => { setUpdateInfo(info); setUpdateReady(true); setUpdateDownloading(false); });
   }, []);
 
   function handleAISettingsClose() {
@@ -7170,6 +7178,55 @@ export default function PixelPalGenerator() {
           </div>}
         </div>
         </div>{/* end CVD filter wrapper */}
+
+        {/* Update notification. Fixed bottom-right, outside CVD wrapper. */}
+        {updateInfo && (
+          <div className="fixed bottom-4 right-4 z-50 rounded-lg p-4 border-2 w-80" style={{ background: 'rgba(26,10,46,0.97)', borderColor: themedAccentBorder('#00ffff'), boxShadow: '0 0 24px rgba(0,255,255,0.4)' }}>
+            <h3 className="text-sm font-bold uppercase tracking-widest mb-1 flex items-center gap-2" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}>
+              Update Available
+            </h3>
+            <p className="text-xs text-cyan-100/80 mb-3">
+              Version {updateInfo.version} is ready.{' '}
+              {updateReady ? 'Downloaded and ready to install.' : updateDownloading ? 'Downloading...' : 'Download and install now?'}
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {!updateReady && !updateDownloading && (
+                <button
+                  onClick={() => { setUpdateDownloading(true); window.electronAPI?.downloadUpdate?.(); }}
+                  className="px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all"
+                  style={{ boxShadow: '0 0 8px #00ffff' }}
+                >
+                  Update Now
+                </button>
+              )}
+              {updateReady && (
+                <button
+                  onClick={() => window.electronAPI?.installUpdate?.()}
+                  className="px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all"
+                  style={{ boxShadow: '0 0 8px #00ffff' }}
+                >
+                  Restart to Install
+                </button>
+              )}
+              {!updateReady && !updateDownloading && (
+                <>
+                  <button
+                    onClick={() => setUpdateInfo(null)}
+                    className="px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-200 border-2 border-cyan-700/50 hover:bg-purple-800/60 transition-all"
+                  >
+                    Later
+                  </button>
+                  <button
+                    onClick={() => { window.electronAPI?.skipUpdate?.(updateInfo.version); setUpdateInfo(null); }}
+                    className="px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wider bg-purple-900/60 text-pink-200 border-2 border-pink-700/50 hover:bg-purple-800/60 transition-all"
+                  >
+                    Skip This Version
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* WCAG Check floating panel. Sits OUTSIDE the CVD filter wrapper
             so its color swatches and ratio numbers stay legible regardless

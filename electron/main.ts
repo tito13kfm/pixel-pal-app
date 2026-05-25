@@ -7,6 +7,7 @@ import log from 'electron-log'
 const { autoUpdater } = pkg
 
 autoUpdater.logger = log
+autoUpdater.autoDownload = false
 log.transports.file.level = 'info'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -112,15 +113,41 @@ ipcMain.handle('ai-config:set', (_event, config: unknown): { encrypted: boolean 
 
 autoUpdater.on('error', (err) => { log.error('updater error', err) })
 autoUpdater.on('checking-for-update', () => { log.info('checking for update') })
-autoUpdater.on('update-available', (info) => { log.info('update available', info) })
 autoUpdater.on('update-not-available', (info) => { log.info('update not available', info) })
 autoUpdater.on('download-progress', (p) => { log.info('download progress', p.percent) })
-autoUpdater.on('update-downloaded', (info) => { log.info('update downloaded', info) })
+
+autoUpdater.on('update-available', (info) => {
+  log.info('update available', info)
+  const skipped = store.get('skippedVersion' as any)
+  if (skipped === info.version) { log.info('update skipped', info.version); return }
+  BrowserWindow.getAllWindows().forEach(w =>
+    w.webContents.send('update:available', { version: info.version })
+  )
+})
+
+autoUpdater.on('update-downloaded', (info) => {
+  log.info('update downloaded', info)
+  BrowserWindow.getAllWindows().forEach(w =>
+    w.webContents.send('update:ready', { version: info.version })
+  )
+})
+
+ipcMain.handle('update:download', () => {
+  autoUpdater.downloadUpdate().catch(err => log.error('download error', err))
+})
+
+ipcMain.handle('update:install', () => {
+  autoUpdater.quitAndInstall(true, true)
+})
+
+ipcMain.handle('update:skip', (_event, version: string) => {
+  store.set('skippedVersion' as any, version)
+})
 
 app.whenReady().then(() => {
   createWindow()
   if (!process.env.VITE_DEV_SERVER_URL) {
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => { log.error('checkForUpdatesAndNotify error', err) })
+    autoUpdater.checkForUpdates().catch((err) => { log.error('checkForUpdates error', err) })
   }
 })
 
