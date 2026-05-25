@@ -3,13 +3,7 @@ import { check, type Update } from '@tauri-apps/plugin-updater'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { load } from '@tauri-apps/plugin-store'
 import { relaunch } from '@tauri-apps/plugin-process'
-
-interface AIConfig {
-  provider: string
-  baseUrl: string
-  apiKey: string
-  model: string
-}
+import type { AIConfig } from './palette'
 
 type UpdateCallback = (info: { version: string }) => void
 
@@ -55,8 +49,9 @@ export function initTauriBridge(): void {
 
     downloadUpdate: async (): Promise<void> => {
       if (!pendingUpdate) return
+      const version = pendingUpdate.version
       await pendingUpdate.download()
-      updateReadyCallbacks.forEach(cb => cb({ version: pendingUpdate!.version }))
+      updateReadyCallbacks.forEach(cb => cb({ version }))
     },
 
     installUpdate: async (): Promise<void> => {
