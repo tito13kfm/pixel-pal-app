@@ -6892,67 +6892,6 @@ export default function PixelPalGenerator() {
             <div className="p-6 pt-2 flex flex-col gap-4">
               <p className="text-[11px] text-yellow-100/70 italic">▸ Palettes save locally to your browser. They persist across sessions but stay on this device.</p>
 
-              {/* Classic palette loader. Compact form: a dropdown of the
-                  seven classics with a small preview row showing the
-                  selected classic's swatch mosaic and tip text, then a
-                  Load button that replaces the current palette. Lives
-                  inside Saved Palettes (rather than in its own top-
-                  level section) because classics are read-only sample
-                  data, not a feature on the same scale as the actual
-                  Saved Palettes CRUD that owns this section. */}
-              {(() => {
-                const selectedClassic = CLASSIC_PALETTES.find(c => c.id === classicLoaderId) || CLASSIC_PALETTES[0];
-                if (!selectedClassic) return null;
-                return (
-                  <div className="bg-black/30 rounded border-2 border-green-700/40 p-3 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] text-green-100/80 font-bold uppercase tracking-wider whitespace-nowrap">Load classic:</span>
-                      <select
-                        value={classicLoaderId}
-                        onChange={(e) => setClassicLoaderId(e.target.value)}
-                        title="Pick a classic palette to preview below. Click Load to replace the current palette with the chosen classic's base colors."
-                        className="flex-1 min-w-[180px] px-2 py-1.5 rounded bg-black/60 text-green-100 border-2 border-green-700/60 focus:border-green-400 focus:outline-none text-sm font-mono"
-                      >
-                        {CLASSIC_PALETTES.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => loadClassicPalette(selectedClassic)}
-                        title={`Replace the current palette with ${selectedClassic.name}'s base colors. Destructive: wipes pins, hidden shades, ramp locks, side-by-side slots, harmony anchor, and per-ramp customizations.`}
-                        className="px-3 py-1.5 rounded font-bold bg-green-400 text-purple-900 border-2 border-green-100 hover:bg-green-300 transition-all flex items-center gap-1 uppercase tracking-wider text-xs whitespace-nowrap"
-                        style={{ boxShadow: '0 0 8px rgba(0, 255, 153, 0.4)' }}
-                      >
-                        <FolderOpen size={14} />Load
-                      </button>
-                    </div>
-                    {/* Preview row: swatch mosaic + tip text. Updates
-                        live as the dropdown selection changes so the
-                        user sees what they're about to load before
-                        committing. */}
-                    <div className="flex items-center gap-2 bg-black/20 rounded border border-green-700/30 p-2">
-                      <div className="flex h-8 rounded overflow-hidden border flex-shrink-0 w-24" style={{ borderColor: t.vizDataBorder }}>
-                        {selectedClassic.baseColors.map((hex, i) => (
-                          <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />
-                        ))}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-green-100/60 text-[10px] mb-0.5">{selectedClassic.baseColors.length} base color{selectedClassic.baseColors.length === 1 ? '' : 's'}</div>
-                        <div className="text-green-100/80 text-[11px] italic">{selectedClassic.tip}</div>
-                      </div>
-                    </div>
-                    {/* "Inspired by" disclaimer. The classic palettes shipped
-                        with this app are a curated subset of the originals'
-                        base colors, not the full canonical sets. Loading one
-                        gives you a starting point that the ramp generator
-                        will then extend into full ramps. Worth being honest
-                        about so users searching for the exact canonical
-                        palette know they should look elsewhere. */}
-                    <p className="text-[10px] text-green-100/60 italic">▸ Inspired by the original palette. The ramp generator builds from this base; not the canonical full palette.</p>
-                  </div>
-                );
-              })()}
-
               {/* Save current palette */}
               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-black/30 rounded border-2 border-yellow-500/40 p-3">
                 <input ref={saveNameInputRef} type="text" value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this palette..." title="Type a name for the current palette and press Enter or click Save" className="flex-1 px-3 py-2 rounded bg-black/60 text-yellow-100 border-2 border-yellow-400 focus:outline-none text-sm" onKeyDown={(e) => { if (e.key === 'Enter' && !savedBusy) saveCurrentPalette(); }} disabled={savedBusy} />
@@ -7063,6 +7002,60 @@ export default function PixelPalGenerator() {
                 </div>
                 );
               })()}
+
+              {/* Classic palette loader */}
+              {(() => {
+                const selectedClassic = CLASSIC_PALETTES.find(c => c.id === classicLoaderId) || CLASSIC_PALETTES[0];
+                if (!selectedClassic) return null;
+                return (
+                  <div className="bg-black/30 rounded border-2 border-green-700/40 p-3 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] text-green-100/80 font-bold uppercase tracking-wider whitespace-nowrap">Load classic:</span>
+                      <select
+                        value={classicLoaderId}
+                        onChange={(e) => setClassicLoaderId(e.target.value)}
+                        title="Pick a classic palette to preview below. Click Load to replace the current palette with the chosen classic's base colors."
+                        className="flex-1 min-w-[180px] px-2 py-1.5 rounded bg-black/60 text-green-100 border-2 border-green-700/60 focus:border-green-400 focus:outline-none text-sm font-mono"
+                      >
+                        {CLASSIC_PALETTES.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => loadClassicPalette(selectedClassic)}
+                        title={`Replace the current palette with ${selectedClassic.name}'s base colors. Destructive: wipes pins, hidden shades, ramp locks, side-by-side slots, harmony anchor, and per-ramp customizations.`}
+                        className="px-3 py-1.5 rounded font-bold bg-green-400 text-purple-900 border-2 border-green-100 hover:bg-green-300 transition-all flex items-center gap-1 uppercase tracking-wider text-xs whitespace-nowrap"
+                        style={{ boxShadow: '0 0 8px rgba(0, 255, 153, 0.4)' }}
+                      >
+                        <FolderOpen size={14} />Load
+                      </button>
+                    </div>
+                    {/* Preview row: swatch mosaic + tip text. Updates
+                        live as the dropdown selection changes so the
+                        user sees what they're about to load before
+                        committing. */}
+                    <div className="flex items-center gap-2 bg-black/20 rounded border border-green-700/30 p-2">
+                      <div className="flex h-8 rounded overflow-hidden border flex-shrink-0 w-24" style={{ borderColor: t.vizDataBorder }}>
+                        {selectedClassic.baseColors.map((hex, i) => (
+                          <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />
+                        ))}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-green-100/60 text-[10px] mb-0.5">{selectedClassic.baseColors.length} base color{selectedClassic.baseColors.length === 1 ? '' : 's'}</div>
+                        <div className="text-green-100/80 text-[11px] italic">{selectedClassic.tip}</div>
+                      </div>
+                    </div>
+                    {/* "Inspired by" disclaimer. The classic palettes shipped
+                        with this app are a curated subset of the originals'
+                        base colors, not the full canonical sets. Loading one
+                        gives you a starting point that the ramp generator
+                        will then extend into full ramps. Worth being honest
+                        about so users searching for the exact canonical
+                        palette know they should look elsewhere. */}
+                    <p className="text-[10px] text-green-100/60 italic">▸ Inspired by the original palette. The ramp generator builds from this base; not the canonical full palette.</p>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -7145,28 +7138,41 @@ export default function PixelPalGenerator() {
           </button>
           {exportOpen && (
             <div className="px-6 pb-6 space-y-4">
-              {/* Hardware Lock row */}
-              <div className="flex gap-3 flex-wrap items-center">
-                <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
-                {hardwareLock ? (
-                  <>
-                    <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Locked:</span>
-                    <span className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-yellow-300 text-purple-900 border-yellow-100" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' }}>
-                      {HARDWARE_PALETTES.find(hw => hw.id === hardwareLock)?.name}
-                    </span>
-                    <button onClick={bakeHardwareLock} title="Bake the current locked output into permanent pins." className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-500 text-purple-900 border-cyan-100 hover:bg-cyan-400" style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.6)' }}>Bake into pins</button>
-                    <button onClick={() => toggleHardwareLock(hardwareLock)} title="Unlock and return to free generation" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-pink-500 text-white border-pink-200 hover:bg-pink-400">Unlock</button>
-                  </>
-                ) : (
+              {/* Download / Copy / WCAG / Hardware Lock */}
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-3 flex-wrap items-center">
+                  <button onClick={exportPalette} title="Download the active palette as a Pixel Art .txt file" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Download .txt</button>
+                  <button onClick={copyPaletteToClipboard} title="Copy the active palette to the clipboard as plain text" className="px-4 py-1.5 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-100 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ff00ff' }}><Copy size={14} />Copy</button>
                   <button
-                    onClick={() => setHwPickerOpen(o => !o)}
-                    title={hwPickerOpen ? 'Close hardware palette picker' : 'Snap all shades to a hardware color palette'}
-                    className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${hwPickerOpen ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
-                    style={hwPickerOpen ? { boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' } : {}}
+                    onClick={toggleCompareMode}
+                    title={compareMode ? 'Exit WCAG Check' : 'Enter WCAG Check: click any two ramp swatches to see their WCAG contrast ratio'}
+                    className={`px-4 py-1.5 rounded font-bold border-2 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs ${compareMode ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-500/50 hover:bg-purple-800/60'}`}
+                    style={compareMode ? { boxShadow: '0 0 12px #ffff00' } : {}}
                   >
-                    Hardware Lock
+                    <Contrast size={14} />{compareMode ? 'Checking (click to exit)' : 'WCAG Check'}
                   </button>
-                )}
+                  <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
+                  {hardwareLock ? (
+                    <>
+                      <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Locked:</span>
+                      <span className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-yellow-300 text-purple-900 border-yellow-100" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' }}>
+                        {HARDWARE_PALETTES.find(hw => hw.id === hardwareLock)?.name}
+                      </span>
+                      <button onClick={bakeHardwareLock} title="Bake the current locked output into permanent pins." className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-500 text-purple-900 border-cyan-100 hover:bg-cyan-400" style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.6)' }}>Bake into pins</button>
+                      <button onClick={() => toggleHardwareLock(hardwareLock)} title="Unlock and return to free generation" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-pink-500 text-white border-pink-200 hover:bg-pink-400">Unlock</button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setHwPickerOpen(o => !o)}
+                      title={hwPickerOpen ? 'Close hardware palette picker' : 'Snap all shades to a hardware color palette'}
+                      className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${hwPickerOpen ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
+                      style={hwPickerOpen ? { boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' } : {}}
+                    >
+                      Hardware Lock
+                    </button>
+                  )}
+                  {exportFeedback && <span className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-xs font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</span>}
+                </div>
                 {!hardwareLock && hwPickerOpen && (
                   <div className="flex gap-2 flex-wrap">
                     {HARDWARE_PALETTES.map(hw => (
@@ -7181,21 +7187,6 @@ export default function PixelPalGenerator() {
                     ))}
                   </div>
                 )}
-              </div>
-              <div className="border-t border-white/10" />
-              {/* Download / Copy / WCAG row */}
-              <div className="flex gap-3 flex-wrap items-center">
-                <button onClick={exportPalette} title="Download the active palette as a Pixel Art .txt file" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Download .txt</button>
-                <button onClick={copyPaletteToClipboard} title="Copy the active palette to the clipboard as plain text" className="px-4 py-1.5 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-100 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ff00ff' }}><Copy size={14} />Copy</button>
-                <button
-                  onClick={toggleCompareMode}
-                  title={compareMode ? 'Exit WCAG Check' : 'Enter WCAG Check: click any two ramp swatches to see their WCAG contrast ratio'}
-                  className={`px-4 py-1.5 rounded font-bold border-2 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs ${compareMode ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-500/50 hover:bg-purple-800/60'}`}
-                  style={compareMode ? { boxShadow: '0 0 12px #ffff00' } : {}}
-                >
-                  <Contrast size={14} />{compareMode ? 'Checking (click to exit)' : 'WCAG Check'}
-                </button>
-                {exportFeedback && <span className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-xs font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</span>}
               </div>
               <div className="border-t border-white/10" />
               {/* GPL row */}
