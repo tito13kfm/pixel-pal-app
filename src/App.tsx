@@ -17,7 +17,9 @@ import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFr
 import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
 import { MigrationBanner } from './components/MigrationBanner';
+import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { detectEngineVersion, promoteKeepNewLook, promoteRestoreOldLook } from './lib/migration';
+import type { CurvePresetSerialized, GamutStrategySerialized } from './lib/palette';
 import { ONBOARDING_TOUR, TASK_GUIDES } from './lib/tours';
 import type { UpdateInfo } from './lib/tauri-bridge';
 
@@ -1188,6 +1190,10 @@ export default function PixelPalGenerator() {
   const [savedPalettes, setSavedPalettes] = useState([]);
   const [legacyPaletteSlug, setLegacyPaletteSlug] = useState<string | null>(null);
   const [legacyPaletteName, setLegacyPaletteName] = useState<string>('');
+  const [curvePerRamp, setCurvePerRamp] = useState<Record<string, CurvePresetSerialized>>({});
+  const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
+  const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
+  const [restoreFrozen, setRestoreFrozen] = useState<Record<string, true>>({});
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   // Side-by-side compare: dedicated section with two slots. Each slot
   // holds either null (empty), the string 'working' (the live working
@@ -1468,18 +1474,23 @@ export default function PixelPalGenerator() {
   // to new opts-based generateRampNew. Returns hex[] to match the existing
   // useMemo pipeline. `seed` is intentionally dropped — the new engine is
   // deterministic from (base, style, size) and does not jitter.
-  const generateRamp = (baseHex: string, numColors: number, _seed: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number): string[] => {
+  const generateRamp = (baseHex: string, numColors: number, _seed: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number, rampIdx?: number): string[] => {
+    const rampKey = rampIdx !== undefined ? String(rampIdx) : undefined;
+    const curve = rampKey !== undefined ? curvePerRamp[rampKey] : undefined;
+    const gamut = rampKey !== undefined ? gamutPerRamp[rampKey] : undefined;
     const shades = generateRampNew(baseHex, {
       style,
       size: numColors,
       hueShiftStrength,
+      curve,
+      gamut,
     });
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'punchy', hueShiftStrength), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'balanced', hueShiftStrength), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'muted', hueShiftStrength), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength]);
+  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
+  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
+  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
@@ -3832,6 +3843,14 @@ export default function PixelPalGenerator() {
       // locked). Sorted purely for diff-friendliness when inspecting
       // stored JSON; load order doesn't matter.
       lockedRamps: [...lockedRamps].sort((a, b) => a - b),
+      // Perceptual ramp engine (v0.6+) fields. Always written as 'oklch-v1'
+      // for new saves; legacy palettes loaded and re-saved without the
+      // migration banner being acted on stay 'hsv-legacy'.
+      engineVersion: 'oklch-v1' as const,
+      curvePerRamp,
+      gamutPerRamp,
+      advancedOpen,
+      restoreFrozen,
     };
     setSavedBusy(true);
     try {
@@ -4055,6 +4074,12 @@ export default function PixelPalGenerator() {
       } else {
         setLockedRamps(new Set());
       }
+      // Perceptual ramp engine fields. All optional; absent fields restore
+      // to empty for backwards compatibility with pre-v0.6 payloads.
+      setCurvePerRamp(parsed.curvePerRamp && typeof parsed.curvePerRamp === 'object' ? parsed.curvePerRamp : {});
+      setGamutPerRamp(parsed.gamutPerRamp && typeof parsed.gamutPerRamp === 'object' ? parsed.gamutPerRamp : {});
+      setAdvancedOpen(parsed.advancedOpen && typeof parsed.advancedOpen === 'object' ? parsed.advancedOpen : {});
+      setRestoreFrozen(parsed.restoreFrozen && typeof parsed.restoreFrozen === 'object' ? parsed.restoreFrozen : {});
       setExportFeedback(`Loaded "${parsed.name || slug}"`);
       setTimeout(() => setExportFeedback(''), 2000);
     } catch (err) {
@@ -4098,6 +4123,7 @@ export default function PixelPalGenerator() {
       const promoted = promoteRestoreOldLook(parsed);
       await window.storage.set(`palettes:${legacyPaletteSlug}`, JSON.stringify(promoted));
       if (promoted.overrides) setOverrides(promoted.overrides);
+      if (promoted.restoreFrozen) setRestoreFrozen(promoted.restoreFrozen);
     } catch (err) {
       console.error('handleRestoreOldLook failed', err);
     } finally {
@@ -6110,6 +6136,15 @@ export default function PixelPalGenerator() {
                           <button onClick={() => setRampSatOverrides(prev => { const n = { ...prev }; delete n[i]; return n; })} title="Reset per-ramp saturation multiplier to 1.00x" className="text-[10px] px-2 py-1 rounded font-bold bg-purple-700 text-yellow-100 border-2 border-yellow-700/50 hover:bg-purple-600 transition-all uppercase tracking-wider">Reset</button>
                         )}
                       </div>
+                      <RampAdvancedPanel
+                        open={advancedOpen[String(i)] ?? false}
+                        curve={curvePerRamp[String(i)] ?? 'eased'}
+                        gamut={gamutPerRamp[String(i)] ?? 'auto'}
+                        sizeLocked={restoreFrozen[String(i)] === true}
+                        onToggle={() => setAdvancedOpen(prev => ({ ...prev, [String(i)]: !prev[String(i)] }))}
+                        onCurveChange={c => setCurvePerRamp(prev => ({ ...prev, [String(i)]: c }))}
+                        onGamutChange={g => setGamutPerRamp(prev => ({ ...prev, [String(i)]: g }))}
+                      />
                     </div>
                   </div>
                 )}
