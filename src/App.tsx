@@ -2659,7 +2659,7 @@ export default function PixelPalGenerator() {
     setHiddenShades({}); setRampShuffleOffsets({});
     setCompareAnchor(null); setCompareResult(null);
     setCollapsedRamps(new Set()); setLockedRamps(new Set());
-    setSbsLeft(null); setSbsRight(null);
+    setSbsLeft('working'); setSbsRight(null);
     setSbsLeftPayload(null); setSbsRightPayload(null);
     setSbsLeftError(''); setSbsRightError('');
     setSbsLeftLoading(false); setSbsRightLoading(false);
