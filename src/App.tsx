@@ -6058,6 +6058,9 @@ export default function PixelPalGenerator() {
                       <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>Muted</span>
                       <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
                     </div>
+                    <span className="self-center pl-1 text-cyan-200" aria-hidden="true">
+                      {collapsedRamps.has(i) ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                    </span>
                   </div>
                   {!collapsedRamps.has(i) && (() => {
                   // Reuse fPunchyTop/fBalancedTop/fMutedTop computed at
