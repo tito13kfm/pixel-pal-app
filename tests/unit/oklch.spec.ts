@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hexToOklch, oklchToHex, gamutMap, isInGamut, oklabToLinearRgb, oklchToOklab } from '../../src/lib/oklch';
+import { hexToOklch, oklchToHex, gamutMap, isInGamut, oklabToLinearRgb, oklchToOklab, deltaEOK } from '../../src/lib/oklch';
 import type { Oklch } from '../../src/lib/oklch';
 
 describe('oklch round-trip', () => {
@@ -94,5 +94,22 @@ describe('gamutMap clip', () => {
     expect(lin.g).toBeLessThanOrEqual(1 + eps);
     expect(lin.b).toBeGreaterThanOrEqual(-eps);
     expect(lin.b).toBeLessThanOrEqual(1 + eps);
+  });
+});
+
+describe('deltaEOK', () => {
+  it('returns 0 for identical colors', () => {
+    const c = hexToOklch('#c45c3a')!;
+    expect(deltaEOK(c, c)).toBe(0);
+  });
+  it('returns >0 for different colors', () => {
+    const a = hexToOklch('#c45c3a')!;
+    const b = hexToOklch('#3a5fc4')!;
+    expect(deltaEOK(a, b)).toBeGreaterThan(0.1);
+  });
+  it('is symmetric', () => {
+    const a = hexToOklch('#c45c3a')!;
+    const b = hexToOklch('#3a5fc4')!;
+    expect(deltaEOK(a, b)).toBeCloseTo(deltaEOK(b, a), 8);
   });
 });

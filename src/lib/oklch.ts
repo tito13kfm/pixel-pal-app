@@ -132,3 +132,12 @@ export function gamutMap(c: Oklch, strategy: GamutStrategy): Oklch {
   }
   return reduced;
 }
+
+export function deltaEOK(a: Oklch, b: Oklch): number {
+  const la = oklchToOklab(a);
+  const lb = oklchToOklab(b);
+  const dL = la.L - lb.L;
+  const da = la.a - lb.a;
+  const db = la.b - lb.b;
+  return Math.sqrt(dL * dL + da * da + db * db);
+}
