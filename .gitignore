@@ -36,6 +36,9 @@ tests/*
 # Exception: the WCAG contrast lint is tracked so CI can run it
 # (the existing `tests/test_*.js` runner picks it up automatically).
 !tests/test_contrast.js
+# Exception: fixtures used by unit tests
+!tests/fixtures/
+!tests/fixtures/**/*.json
 docs/
 scripts/
 playwright-report/
