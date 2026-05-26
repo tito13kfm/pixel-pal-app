@@ -29,7 +29,10 @@ CLAUDE.md
 playwright.config.ts
 
 # Tests, docs, scripts — not needed to build
-tests/
+tests/*
+# Exception: the WCAG contrast lint is tracked so CI can run it
+# (the existing `tests/test_*.js` runner picks it up automatically).
+!tests/test_contrast.js
 docs/
 scripts/
 playwright-report/
