@@ -9,7 +9,7 @@ Color palette generator for pixel art. Takes a base color, text description, or 
 
 ## Download
 
-Pre-built installers for Windows, macOS, and Linux are on the [Releases page](https://github.com/tito13kfm/pixel-pal-app/releases).
+Pre-built installers for Windows, macOS, and Linux are on the [Releases page](https://github.com/tito13kfm/pixel-pal-app/releases). A standalone portable Windows `.exe` (no installer, no auto-update) ships in each release as `PIXEL.PAL_<version>_x64-portable.exe`.
 
 ## Features
 
