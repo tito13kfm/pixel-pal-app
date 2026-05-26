@@ -2,10 +2,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus } from 'lucide-react';
 import {
-  generateRamp, hexToHsl, hslToHex, hexToRgb, rgbToHex,
+  hexToHsl, hslToHex, hexToRgb, rgbToHex,
   rgbToHsl, hslToRgb, hexToHsv, hsvToHex, hsvToRgb,
   getShadowHueShift, getHighlightHueShift, seededRandom,
+  generateRamp as legacyHsvRampForSnapshot,
 } from './lib/color';
+import { generateRamp as generateRampNew } from './lib/ramp-engine';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
@@ -540,7 +542,7 @@ const buildRampsForSnapshot = (snapshot, style) => {
 
   return baseColors.map((c, i) => {
     const seed = shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13;
-    const raw = generateRamp(resolveBase(c, i), resolveSize(i), seed, style, hueShiftStrength);
+    const raw = legacyHsvRampForSnapshot(resolveBase(c, i), resolveSize(i), seed, style, hueShiftStrength);
     const pinned = pinRamp(raw, i);
     const locked = snapHardware(pinned);
     return filterHidden(locked, i);
@@ -1456,6 +1458,19 @@ export default function PixelPalGenerator() {
       }
     }
     return deduped;
+  };
+
+  // Adapter from legacy positional-args generateRamp(baseHex, numColors, seed, style, hueShiftStrength)
+  // to new opts-based generateRampNew. Returns hex[] to match the existing
+  // useMemo pipeline. `seed` is intentionally dropped — the new engine is
+  // deterministic from (base, style, size) and does not jitter.
+  const generateRamp = (baseHex: string, numColors: number, _seed: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number): string[] => {
+    const shades = generateRampNew(baseHex, {
+      style,
+      size: numColors,
+      hueShiftStrength,
+    });
+    return shades.map(s => s.hex);
   };
 
   const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'punchy', hueShiftStrength), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength]);
