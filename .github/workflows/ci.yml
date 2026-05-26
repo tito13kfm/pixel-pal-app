@@ -64,4 +64,8 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
-      # e2e Playwright tests skipped: tauri-driver wiring is a follow-up task
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: npx playwright test
