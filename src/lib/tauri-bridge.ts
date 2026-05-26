@@ -12,6 +12,12 @@ type UpdateCallback = (info: UpdateInfo) => void
 const RELEASES_PAGE = 'https://github.com/tito13kfm/pixel-pal-app/releases'
 const LATEST_RELEASE_API =
   'https://api.github.com/repos/tito13kfm/pixel-pal-app/releases/latest'
+// Portable update-check cache TTL. The unauthenticated GitHub API allows
+// 60 requests/hour per IP. Single users won't bump that, but a power user
+// who restarts the app frequently (or anyone behind shared NAT) can. Cache
+// the result for an hour so the API gets hit at most once per session-ish.
+const PORTABLE_CHECK_TTL_MS = 60 * 60 * 1000
+type PortableCheckCache = { checkedAt: number; tagName: string; htmlUrl: string }
 
 const updateAvailableCallbacks: UpdateCallback[] = []
 const updateReadyCallbacks: UpdateCallback[] = []
@@ -34,20 +40,45 @@ function isNewerVersion(latest: string, current: string): boolean {
   return false
 }
 
-async function checkForUpdatesPortable(): Promise<void> {
-  const current = await getVersion()
+async function fetchLatestRelease(
+  store: Awaited<ReturnType<typeof load>>
+): Promise<{ tagName: string; htmlUrl: string } | null> {
+  const cached = await store.get<PortableCheckCache>('portableCheckCache')
+  if (cached && Date.now() - cached.checkedAt < PORTABLE_CHECK_TTL_MS) {
+    return { tagName: cached.tagName, htmlUrl: cached.htmlUrl }
+  }
   const res = await fetch(LATEST_RELEASE_API, {
     headers: { Accept: 'application/vnd.github+json' },
   })
-  if (!res.ok) throw new Error(`GitHub API ${res.status}`)
+  if (!res.ok) {
+    // Network or rate-limit failure: fall back to stale cache if we have one
+    // so the user still sees a (possibly outdated) prompt rather than a silent
+    // miss. If no cache, give up — checkForUpdatesPortable handles the null.
+    if (cached) return { tagName: cached.tagName, htmlUrl: cached.htmlUrl }
+    throw new Error(`GitHub API ${res.status}`)
+  }
   const data = (await res.json()) as { tag_name?: string; html_url?: string }
-  if (!data.tag_name) return
-  const latest = data.tag_name.replace(/^v/, '')
-  if (!isNewerVersion(latest, current)) return
+  if (!data.tag_name) return null
+  const fresh: PortableCheckCache = {
+    checkedAt: Date.now(),
+    tagName: data.tag_name,
+    htmlUrl: data.html_url ?? RELEASES_PAGE,
+  }
+  await store.set('portableCheckCache', fresh)
+  await store.save()
+  return { tagName: fresh.tagName, htmlUrl: fresh.htmlUrl }
+}
+
+async function checkForUpdatesPortable(): Promise<void> {
+  const current = await getVersion()
   const store = await load('settings.json')
+  const latestRelease = await fetchLatestRelease(store)
+  if (!latestRelease) return
+  const latest = latestRelease.tagName.replace(/^v/, '')
+  if (!isNewerVersion(latest, current)) return
   const skipped = await store.get<string>('skippedVersion')
   if (skipped === latest) return
-  portableLatestUrl = data.html_url ?? RELEASES_PAGE
+  portableLatestUrl = latestRelease.htmlUrl
   updateAvailableCallbacks.forEach(cb =>
     cb({ version: latest, isPortable: true, releaseUrl: portableLatestUrl ?? RELEASES_PAGE })
   )
