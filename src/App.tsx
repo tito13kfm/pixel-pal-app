@@ -8,6 +8,8 @@ import {
   generateRamp as legacyHsvRampForSnapshot,
 } from './lib/color';
 import { generateRamp as generateRampNew } from './lib/ramp-engine';
+import { hexToOklch, deltaEOK } from './lib/oklch';
+import type { EngineVersion } from './lib/palette';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
@@ -198,6 +200,26 @@ const quantizeToPalette = (hex, paletteColors) => {
 // for readability at call sites and to preserve existing test surface.
 // Behavior is byte-identical to the pre-refactor version when given the
 // same hardware entry.
+// quantizeToHardwarePerceptual: same role as quantizeToHardware but uses
+// ΔE_OK (perceptual distance in OKLab) for nearest-color search instead of
+// the weighted HSL distance. Gated by engineVersion in the caller — only
+// active for oklch-v1 palettes. Pre-v0.6 (hsv-legacy) palettes keep the
+// existing HSL-based snap so loaded-not-yet-promoted palettes look unchanged.
+const quantizeToHardwarePerceptual = (hex, hardware) => {
+  if (!hardware || !hardware.colors || hardware.colors.length === 0) return hex;
+  const target = hexToOklch(hex);
+  if (!target) return hardware.colors[0];
+  let bestHex = hardware.colors[0];
+  let bestDist = Infinity;
+  for (const candidate of hardware.colors) {
+    const co = hexToOklch(candidate);
+    if (!co) continue;
+    const d = deltaEOK(target, co);
+    if (d < bestDist) { bestDist = d; bestHex = candidate; }
+  }
+  return bestHex;
+};
+
 const quantizeToHardware = (hex, hardware) => {
   if (!hardware || !hardware.colors || hardware.colors.length === 0) return hex;
   return quantizeToPalette(hex, hardware.colors);
@@ -1194,6 +1216,11 @@ export default function PixelPalGenerator() {
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
   const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
   const [restoreFrozen, setRestoreFrozen] = useState<Record<string, true>>({});
+  // engineVersion tracks the loaded palette's engine. Fresh sessions default
+  // to 'oklch-v1'. Loading a legacy palette sets it to 'hsv-legacy' until
+  // the user clicks Keep / Restore in the migration banner. Drives Hardware
+  // Lock's distance metric (ΔE_OK for oklch-v1, HSL-weighted for hsv-legacy).
+  const [engineVersion, setEngineVersion] = useState<EngineVersion>('oklch-v1');
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   // Side-by-side compare: dedicated section with two slots. Each slot
   // holds either null (empty), the string 'working' (the live working
@@ -1456,7 +1483,8 @@ export default function PixelPalGenerator() {
   // would be a lie.
   const applyHardwareLock = (ramp, hardware) => {
     if (!hardware || !hardware.colors || hardware.colors.length === 0) return ramp;
-    const snapped = ramp.map(hex => quantizeToHardware(hex, hardware));
+    const quantize = engineVersion === 'oklch-v1' ? quantizeToHardwarePerceptual : quantizeToHardware;
+    const snapped = ramp.map(hex => quantize(hex, hardware));
     // Dedupe consecutive duplicates while preserving lightness order. We
     // don't fully dedupe set-style because that could reorder things; the
     // input is already sorted by lightness (sortByLightness in generateRamp),
@@ -1488,9 +1516,9 @@ export default function PixelPalGenerator() {
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
+  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, engineVersion]);
+  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, engineVersion]);
+  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, engineVersion]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
@@ -3898,7 +3926,9 @@ export default function PixelPalGenerator() {
         setSavedError('Palette data is invalid');
         return;
       }
-      if (detectEngineVersion(parsed) === 'hsv-legacy') {
+      const loadedEngine = detectEngineVersion(parsed);
+      setEngineVersion(loadedEngine);
+      if (loadedEngine === 'hsv-legacy') {
         setLegacyPaletteSlug(slug);
         setLegacyPaletteName(parsed.name ?? '(unnamed)');
       } else {
@@ -4108,6 +4138,7 @@ export default function PixelPalGenerator() {
       const parsed = JSON.parse(got.value);
       const promoted = promoteKeepNewLook(parsed);
       await window.storage.set(`palettes:${legacyPaletteSlug}`, JSON.stringify(promoted));
+      setEngineVersion('oklch-v1');
     } catch (err) {
       console.error('handleKeepNewLook failed', err);
     } finally {
@@ -4132,6 +4163,7 @@ export default function PixelPalGenerator() {
       await window.storage.set(`palettes:${legacyPaletteSlug}`, JSON.stringify(promoted));
       if (promoted.overrides) setOverrides(promoted.overrides);
       if (promoted.restoreFrozen) setRestoreFrozen(promoted.restoreFrozen);
+      setEngineVersion('oklch-v1');
     } catch (err) {
       console.error('handleRestoreOldLook failed', err);
     } finally {
