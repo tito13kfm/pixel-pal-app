@@ -33,6 +33,10 @@ tests/*
 # Exception: the WCAG contrast lint is tracked so CI can run it
 # (the existing `tests/test_*.js` runner picks it up automatically).
 !tests/test_contrast.js
+# Exception: Playwright e2e specs are tracked so CI can run them
+!tests/e2e/
+tests/e2e/*
+!tests/e2e/*.spec.ts
 docs/
 scripts/
 playwright-report/
