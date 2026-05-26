@@ -85,3 +85,50 @@ export function hexToOklch(hex: string): Oklch | null {
 export function oklchToHex(c: Oklch): string {
   return linearRgbToHex(oklabToLinearRgb(oklchToOklab(c)));
 }
+
+export type GamutStrategy = 'auto' | 'clip' | 'chroma-preserve';
+
+export function isInGamut(lin: LinearRgb): boolean {
+  const eps = 1e-6;
+  return (
+    lin.r >= -eps && lin.r <= 1 + eps &&
+    lin.g >= -eps && lin.g <= 1 + eps &&
+    lin.b >= -eps && lin.b <= 1 + eps
+  );
+}
+
+function clampChannel(c: number): number {
+  return Math.max(0, Math.min(1, c));
+}
+
+export function gamutMap(c: Oklch, strategy: GamutStrategy): Oklch {
+  if (strategy === 'clip') {
+    const lab = oklchToOklab(c);
+    const lin = oklabToLinearRgb(lab);
+    const clipped = { r: clampChannel(lin.r), g: clampChannel(lin.g), b: clampChannel(lin.b) };
+    return oklabToOklch(linearRgbToOklab(clipped));
+  }
+
+  let lab = oklchToOklab(c);
+  let lin = oklabToLinearRgb(lab);
+  if (isInGamut(lin)) return c;
+
+  let lo = 0;
+  let hi = c.C;
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    const test = oklchToOklab({ L: c.L, C: mid, H: c.H });
+    const lt = oklabToLinearRgb(test);
+    if (isInGamut(lt)) lo = mid;
+    else hi = mid;
+  }
+  const reduced: Oklch = { L: c.L, C: lo, H: c.H };
+
+  if (strategy === 'auto') return reduced;
+
+  for (const dL of [0.01, -0.01, 0.02, -0.02, 0.04, -0.04, 0.06, -0.06]) {
+    const tryC: Oklch = { L: clampChannel(c.L + dL), C: c.C, H: c.H };
+    if (isInGamut(oklabToLinearRgb(oklchToOklab(tryC)))) return tryC;
+  }
+  return reduced;
+}

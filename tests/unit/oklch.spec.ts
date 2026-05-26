@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { hexToOklch, oklchToHex } from '../../src/lib/oklch';
+import { hexToOklch, oklchToHex, gamutMap, isInGamut, oklabToLinearRgb, oklchToOklab } from '../../src/lib/oklch';
+import type { Oklch } from '../../src/lib/oklch';
 
 describe('oklch round-trip', () => {
   it('round-trips 100 random hexes within ΔE_OK ≤ 0.5', () => {
@@ -51,5 +52,47 @@ describe('oklch reference values', () => {
     const c = hexToOklch('#808080')!;
     expect(c.C).toBeLessThan(0.01);
     expect(c.H).toBe(0);
+  });
+});
+
+describe('isInGamut', () => {
+  it('returns true for in-gamut linear RGB', () => {
+    expect(isInGamut({ r: 0.5, g: 0.5, b: 0.5 })).toBe(true);
+  });
+  it('returns false when any channel < 0 or > 1', () => {
+    expect(isInGamut({ r: 1.1, g: 0.5, b: 0.5 })).toBe(false);
+    expect(isInGamut({ r: -0.01, g: 0.5, b: 0.5 })).toBe(false);
+  });
+});
+
+describe('gamutMap auto', () => {
+  it('returns unchanged OKLCH for already-in-gamut color', () => {
+    const c = hexToOklch('#808080')!;
+    const mapped = gamutMap(c, 'auto');
+    expect(mapped.L).toBeCloseTo(c.L, 6);
+    expect(mapped.C).toBeCloseTo(c.C, 6);
+  });
+  it('reduces chroma for out-of-gamut color, preserves L*', () => {
+    const farOut: Oklch = { L: 0.6, C: 0.5, H: 30 };
+    const mapped = gamutMap(farOut, 'auto');
+    expect(mapped.L).toBeCloseTo(0.6, 2);
+    expect(mapped.C).toBeLessThan(0.5);
+    const lin = oklabToLinearRgb(oklchToOklab(mapped));
+    expect(isInGamut(lin)).toBe(true);
+  });
+});
+
+describe('gamutMap clip', () => {
+  it('clamps to [0,1] linear RGB', () => {
+    const farOut: Oklch = { L: 0.6, C: 0.5, H: 30 };
+    const mapped = gamutMap(farOut, 'clip');
+    const lin = oklabToLinearRgb(oklchToOklab(mapped));
+    const eps = 1e-5;
+    expect(lin.r).toBeGreaterThanOrEqual(-eps);
+    expect(lin.r).toBeLessThanOrEqual(1 + eps);
+    expect(lin.g).toBeGreaterThanOrEqual(-eps);
+    expect(lin.g).toBeLessThanOrEqual(1 + eps);
+    expect(lin.b).toBeGreaterThanOrEqual(-eps);
+    expect(lin.b).toBeLessThanOrEqual(1 + eps);
   });
 });
