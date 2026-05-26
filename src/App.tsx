@@ -15,6 +15,7 @@ import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFr
 import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
 import { ONBOARDING_TOUR, TASK_GUIDES } from './lib/tours';
+import type { UpdateInfo } from './lib/tauri-bridge';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -924,7 +925,7 @@ export default function PixelPalGenerator() {
   const [tipsOpen, setTipsOpen] = useState(_panels.tipsOpen);
   const [hwPickerOpen, setHwPickerOpen] = useState(_panels.hwPickerOpen);
   const [exportOpen, setExportOpen] = useState(_panels.exportOpen);
-  const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateReady, setUpdateReady] = useState(false);
   const [updateDownloading, setUpdateDownloading] = useState(false);
   // Per-ramp export style. Independent of vizStyle (which controls the
@@ -7093,11 +7094,22 @@ export default function PixelPalGenerator() {
               Update Available
             </h3>
             <p className="text-xs text-cyan-100/80 mb-3">
-              Version {updateInfo.version} is ready.{' '}
-              {updateReady ? 'Downloaded and ready to install.' : updateDownloading ? 'Downloading...' : 'Download and install now?'}
+              Version {updateInfo.version} is{updateInfo.isPortable ? ' available.' : ' ready.'}{' '}
+              {updateInfo.isPortable
+                ? 'Portable builds don’t auto-update — grab the new .exe from the Releases page.'
+                : updateReady ? 'Downloaded and ready to install.' : updateDownloading ? 'Downloading...' : 'Download and install now?'}
             </p>
             <div className="flex gap-2 flex-wrap">
-              {!updateReady && !updateDownloading && (
+              {updateInfo.isPortable && (
+                <button
+                  onClick={() => { window.electronAPI?.openReleasesPage?.(); setUpdateInfo(null); }}
+                  className="px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all"
+                  style={{ boxShadow: '0 0 8px #00ffff' }}
+                >
+                  Open Releases
+                </button>
+              )}
+              {!updateInfo.isPortable && !updateReady && !updateDownloading && (
                 <button
                   onClick={() => { setUpdateDownloading(true); window.electronAPI?.downloadUpdate?.(); }}
                   className="px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all"
@@ -7106,7 +7118,7 @@ export default function PixelPalGenerator() {
                   Update Now
                 </button>
               )}
-              {updateReady && (
+              {!updateInfo.isPortable && updateReady && (
                 <button
                   onClick={() => window.electronAPI?.installUpdate?.()}
                   className="px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all"
@@ -7115,7 +7127,7 @@ export default function PixelPalGenerator() {
                   Restart to Install
                 </button>
               )}
-              {!updateReady && !updateDownloading && (
+              {(updateInfo.isPortable || (!updateReady && !updateDownloading)) && (
                 <>
                   <button
                     onClick={() => setUpdateInfo(null)}

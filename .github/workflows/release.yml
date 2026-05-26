@@ -53,3 +53,20 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeDebug: false
+
+      - name: Upload portable Windows .exe
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          EXE="src-tauri/target/release/pixel-pal-app.exe"
+          if [ ! -f "$EXE" ]; then
+            echo "Portable exe missing at $EXE"
+            ls -la src-tauri/target/release/ || true
+            exit 1
+          fi
+          OUT="pixel-pal-portable-${GITHUB_REF_NAME}.exe"
+          cp "$EXE" "$OUT"
+          gh release upload "${GITHUB_REF_NAME}" "$OUT" --repo "$GITHUB_REPOSITORY" --clobber
