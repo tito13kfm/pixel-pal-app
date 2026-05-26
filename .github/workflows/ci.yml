@@ -65,7 +65,9 @@ jobs:
         run: cargo test
 
       - name: Install Playwright browsers
+        if: matrix.platform == 'ubuntu-latest'
         run: npx playwright install --with-deps chromium
 
       - name: E2E tests
+        if: matrix.platform == 'ubuntu-latest'
         run: npx playwright test
