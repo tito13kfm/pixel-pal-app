@@ -2578,6 +2578,14 @@ export default function PixelPalGenerator() {
       }
       return next;
     });
+    // Clearing a pin invalidates the Restore-freeze marker on that ramp, since
+    // the ramp is no longer fully pinned to the legacy renderer's output.
+    setRestoreFrozen(prev => {
+      if (!prev[String(baseIndex)]) return prev;
+      const next = { ...prev };
+      delete next[String(baseIndex)];
+      return next;
+    });
   };
 
   // hideShade: mark a (baseIndex, shadeIndex) as hidden across all three
@@ -6103,9 +6111,10 @@ export default function PixelPalGenerator() {
                               <button
                                 key={n}
                                 onClick={() => setRampSizeOverrides(prev => ({ ...prev, [i]: n }))}
-                                className={`w-7 h-7 rounded text-xs font-bold border-2 transition-all ${isActive ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-100 border-yellow-700/50 hover:bg-purple-800/60'}`}
+                                disabled={restoreFrozen[String(i)] === true}
+                                className={`w-7 h-7 rounded text-xs font-bold border-2 transition-all ${isActive ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-100 border-yellow-700/50 hover:bg-purple-800/60'} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-purple-900/60`}
                                 style={isActive ? { boxShadow: '0 0 8px rgba(255, 255, 0, 0.5)' } : {}}
-                                title={isActive ? (isOverride ? `Currently overridden to ${n}` : `${n} (inheriting global)`) : `Override this ramp to ${n} shades`}
+                                title={restoreFrozen[String(i)] ? 'Size locked while old-engine shades are pinned. Clear pins to unlock.' : (isActive ? (isOverride ? `Currently overridden to ${n}` : `${n} (inheriting global)`) : `Override this ramp to ${n} shades`)}
                               >
                                 {n}
                               </button>
