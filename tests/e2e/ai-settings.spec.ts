@@ -1,12 +1,19 @@
 import { test, expect } from '@playwright/test'
 
+const AI_TAB_TITLE = 'Describe a subject, mood, or scene and let AI pick the palette'
+
+async function goToAIMode(page) {
+  await page.goto('/')
+  await page.waitForLoadState('networkidle')
+  await page.click(`[title="${AI_TAB_TITLE}"]`)
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('pixel-pal-tour-seen', '1'))
 })
 
 test('gear icon opens AI settings panel', async ({ page }) => {
-  await page.goto('/')
-  await page.waitForLoadState('networkidle')
+  await goToAIMode(page)
 
   await page.click('[title="AI Settings"]')
   // Actual heading is '▸ AI SETTINGS ▸' — getByText with partial match works
@@ -14,7 +21,7 @@ test('gear icon opens AI settings panel', async ({ page }) => {
 })
 
 test('AI settings panel closes on backdrop click', async ({ page }) => {
-  await page.goto('/')
+  await goToAIMode(page)
   await page.click('[title="AI Settings"]')
   await expect(page.getByText('AI SETTINGS')).toBeVisible()
 
@@ -25,7 +32,7 @@ test('AI settings panel closes on backdrop click', async ({ page }) => {
 })
 
 test('provider selection updates base URL', async ({ page }) => {
-  await page.goto('/')
+  await goToAIMode(page)
   await page.click('[title="AI Settings"]')
 
   await page.selectOption('select', 'openai')
@@ -36,7 +43,7 @@ test('provider selection updates base URL', async ({ page }) => {
 })
 
 test('AI config persists across reload', async ({ page }) => {
-  await page.goto('/')
+  await goToAIMode(page)
   await page.click('[title="AI Settings"]')
 
   await page.selectOption('select', 'xai')
@@ -52,6 +59,8 @@ test('AI config persists across reload', async ({ page }) => {
   // Reload — localStorage persists in Playwright's browser context
   await page.reload()
   await page.waitForLoadState('networkidle')
+  // Must re-enter AI mode after reload
+  await page.click(`[title="${AI_TAB_TITLE}"]`)
   await page.click('[title="AI Settings"]')
 
   const key = await page.locator('input[type="password"]').inputValue()
@@ -59,7 +68,7 @@ test('AI config persists across reload', async ({ page }) => {
 })
 
 test('instructions toggle shows and hides hint text', async ({ page }) => {
-  await page.goto('/')
+  await goToAIMode(page)
   await page.click('[title="AI Settings"]')
 
   // Default provider is 'anthropic' which has a hint, so toggle is present
