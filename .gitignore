@@ -26,7 +26,6 @@ release
 
 # Dev tooling — not for public consumption
 CLAUDE.md
-playwright.config.ts
 
 # Tests, docs, scripts — not needed to build
 tests/*
