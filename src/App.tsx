@@ -16,6 +16,8 @@ import {
 import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFromPrompt } from './lib/ai';
 import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
+import { MigrationBanner } from './components/MigrationBanner';
+import { detectEngineVersion, promoteKeepNewLook, promoteRestoreOldLook } from './lib/migration';
 import { ONBOARDING_TOUR, TASK_GUIDES } from './lib/tours';
 import type { UpdateInfo } from './lib/tauri-bridge';
 
@@ -1184,6 +1186,8 @@ export default function PixelPalGenerator() {
   // render. Loading the full payload happens on demand when the user clicks
   // Load. Storage operations are best-effort; failures show in `savedError`.
   const [savedPalettes, setSavedPalettes] = useState([]);
+  const [legacyPaletteSlug, setLegacyPaletteSlug] = useState<string | null>(null);
+  const [legacyPaletteName, setLegacyPaletteName] = useState<string>('');
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   // Side-by-side compare: dedicated section with two slots. Each slot
   // holds either null (empty), the string 'working' (the live working
@@ -3867,6 +3871,13 @@ export default function PixelPalGenerator() {
         setSavedError('Palette data is invalid');
         return;
       }
+      if (detectEngineVersion(parsed) === 'hsv-legacy') {
+        setLegacyPaletteSlug(slug);
+        setLegacyPaletteName(parsed.name ?? '(unnamed)');
+      } else {
+        setLegacyPaletteSlug(null);
+        setLegacyPaletteName('');
+      }
       // Merge any saved custom sprites back in. We don't replace the current
       // custom library wholesale, since the user may have other sprites they
       // want to keep. New sprites from the snapshot only fill in gaps.
@@ -4051,6 +4062,46 @@ export default function PixelPalGenerator() {
       setSavedError('Load failed: ' + (err && err.message ? err.message : 'unknown error'));
     } finally {
       setSavedBusy(false);
+    }
+  };
+
+  // Migration: promote a legacy palette to oklch-v1 by accepting the new
+  // engine's rendering. No override changes; new ramps drawn by the new engine.
+  const handleKeepNewLook = async () => {
+    if (!legacyPaletteSlug) return;
+    try {
+      const got = await window.storage.get(`palettes:${legacyPaletteSlug}`);
+      if (!got || !got.value) { setLegacyPaletteSlug(null); return; }
+      const parsed = JSON.parse(got.value);
+      const promoted = promoteKeepNewLook(parsed);
+      await window.storage.set(`palettes:${legacyPaletteSlug}`, JSON.stringify(promoted));
+    } catch (err) {
+      console.error('handleKeepNewLook failed', err);
+    } finally {
+      setLegacyPaletteSlug(null);
+    }
+    // TODO(Task 9 follow-up): retroactively re-tag in-memory undo snapshots as
+    // oklch-v1 so an Undo doesn't pop the banner back. Requires knowing the
+    // snapshot shape.
+  };
+
+  // Migration: promote a legacy palette to oklch-v1 by freezing the legacy
+  // renderer's output into overrides across all three styles. Locks size slider
+  // on those ramps via restoreFrozen marker.
+  const handleRestoreOldLook = async () => {
+    if (!legacyPaletteSlug) return;
+    if (!window.confirm('Restore freezes every shade in every style. The ramp size slider will lock for restored ramps until you clear pins. Proceed?')) return;
+    try {
+      const got = await window.storage.get(`palettes:${legacyPaletteSlug}`);
+      if (!got || !got.value) { setLegacyPaletteSlug(null); return; }
+      const parsed = JSON.parse(got.value);
+      const promoted = promoteRestoreOldLook(parsed);
+      await window.storage.set(`palettes:${legacyPaletteSlug}`, JSON.stringify(promoted));
+      if (promoted.overrides) setOverrides(promoted.overrides);
+    } catch (err) {
+      console.error('handleRestoreOldLook failed', err);
+    } finally {
+      setLegacyPaletteSlug(null);
     }
   };
 
@@ -5405,6 +5456,13 @@ export default function PixelPalGenerator() {
           <h1 className="text-5xl font-bold mb-2" style={{ color: t.titleColor, textShadow: t.titleGlow, letterSpacing: '0.15em' }}>PIXEL.PAL</h1>
           <p className="text-sm tracking-widest" style={{ color: t.subtitleColor, textShadow: t.subtitleGlow }}>▓▒░ PIXEL ART PALETTE GENERATOR ░▒▓</p>
           <p className="text-[10px] mt-1 opacity-40 tracking-widest font-mono" style={{ color: t.subtitleColor }}>v{__APP_VERSION__} &middot; {__BUILD_DATE__}</p>
+          {legacyPaletteSlug && (
+            <MigrationBanner
+              paletteName={legacyPaletteName}
+              onKeep={handleKeepNewLook}
+              onRestore={handleRestoreOldLook}
+            />
+          )}
           {/* Top-right control cluster: CRT toggle on top, three theme
               icon buttons in a horizontal row directly below, sized to
               match the CRT button's overall width.
