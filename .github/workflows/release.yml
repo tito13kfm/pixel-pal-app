@@ -67,6 +67,7 @@ jobs:
             ls -la src-tauri/target/release/ || true
             exit 1
           fi
-          OUT="pixel-pal-portable-${GITHUB_REF_NAME}.exe"
+          VER="${GITHUB_REF_NAME#v}"
+          OUT="PIXEL.PAL_${VER}_x64-portable.exe"
           cp "$EXE" "$OUT"
           gh release upload "${GITHUB_REF_NAME}" "$OUT" --repo "$GITHUB_REPOSITORY" --clobber
