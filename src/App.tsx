@@ -4949,6 +4949,11 @@ export default function PixelPalGenerator() {
       // `border-cyan-500/40`) which are intentional vaporwave coloring;
       // they are NOT replaced by a panel token, just the backing color is.
       panelBgStrong: 'rgba(0, 0, 0, 0.3)',
+      // Inactive panel-button text + hover. Used by the top-header theme
+      // switcher and CVD selector. Per-theme so the inactive label stays
+      // legible against panelBg (WCAG AA 3:1 for UI components).
+      panelTextInactive: 'text-cyan-200',
+      panelHoverBg: 'hover:bg-purple-800/60',
       // Swatch caption colors (hex code under each swatch, and the small
       // shade label like "outline" / "shadow"). These appear directly on
       // the page background between swatches, so they need explicit theme
@@ -5063,6 +5068,12 @@ export default function PixelPalGenerator() {
       panelBg: 'rgba(0, 0, 0, 0.4)',
       panelBorder: 'rgba(0, 0, 0, 0.3)',
       panelBgStrong: 'rgba(0, 0, 0, 0.5)',
+      // Inactive panel-button text + hover. panelBg here composites to a
+      // dark grey (rgba(0,0,0,0.4) over the #707070 grey gradient) so a
+      // dark text like zinc-700 was effectively invisible (ratio ~1.05).
+      // Use light text to clear WCAG AA 3:1.
+      panelTextInactive: 'text-zinc-100',
+      panelHoverBg: 'hover:bg-zinc-700/60',
       // Swatch caption tokens: hex code and shade label under each
       // swatch sit on the card backing (~#777777 18% gray). Light
       // off-white for legibility, slightly less bright for the secondary
@@ -5180,6 +5191,9 @@ export default function PixelPalGenerator() {
       // In Light, both panel tokens are solid white (no translucency at
       // all). See dark theme for the broader rationale.
       panelBgStrong: '#ffffff',
+      // panelBg is solid white here, so a dark zinc text is fine.
+      panelTextInactive: 'text-zinc-700',
+      panelHoverBg: 'hover:bg-zinc-200/60',
       swatchHex: '#262626',
       swatchLabel: '#525252',
       colorNameText: '#262626',
@@ -5427,7 +5441,7 @@ export default function PixelPalGenerator() {
                     onClick={() => setTheme(opt.id)}
                     title={opt.hint}
                     aria-label={opt.hint}
-                    className={`flex-1 flex items-center justify-center py-1 rounded transition-all ${theme === opt.id ? (t.glowStrong > 0.5 ? 'bg-cyan-300 text-purple-900' : 'bg-zinc-800 text-white') : (t.glowStrong > 0.5 ? 'text-cyan-200 hover:bg-purple-800/60' : 'text-zinc-700 hover:bg-white/60')}`}
+                    className={`flex-1 flex items-center justify-center py-1 rounded transition-all ${theme === opt.id ? (t.glowStrong > 0.5 ? 'bg-cyan-300 text-purple-900' : 'bg-zinc-800 text-white') : `${t.panelTextInactive} ${t.panelHoverBg}`}`}
                     style={theme === opt.id && t.glowStrong > 0.5 ? { boxShadow: '0 0 8px rgba(0, 255, 255, 0.6)' } : {}}
                   >
                     <Icon size={14} />
@@ -5473,7 +5487,7 @@ export default function PixelPalGenerator() {
                   onClick={() => setCvdMode(opt.id)}
                   title={opt.hint}
                   aria-label={opt.hint}
-                  className={`flex-1 flex items-center justify-center py-1 px-1 rounded transition-all text-[10px] font-bold uppercase tracking-wider ${cvdMode === opt.id ? (t.glowStrong > 0.5 ? 'bg-cyan-300 text-purple-900' : 'bg-zinc-800 text-white') : (t.glowStrong > 0.5 ? 'text-cyan-200 hover:bg-purple-800/60' : 'text-zinc-700 hover:bg-white/60')}`}
+                  className={`flex-1 flex items-center justify-center py-1 px-1 rounded transition-all text-[10px] font-bold uppercase tracking-wider ${cvdMode === opt.id ? (t.glowStrong > 0.5 ? 'bg-cyan-300 text-purple-900' : 'bg-zinc-800 text-white') : `${t.panelTextInactive} ${t.panelHoverBg}`}`}
                   style={cvdMode === opt.id && t.glowStrong > 0.5 ? { boxShadow: '0 0 8px rgba(0, 255, 255, 0.6)' } : {}}
                 >
                   {opt.id === 'none' ? <Eye size={12} /> : opt.label}
