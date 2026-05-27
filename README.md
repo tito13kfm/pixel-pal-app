@@ -23,19 +23,22 @@ Pre-built installers for Windows, macOS, and Linux are on the [Releases page](ht
 **Output**
 - 4-8 shade ramps with pixel-art slot labels (outline, shadow, base, highlight, bright)
 - Three contrast styles per ramp: Punchy, Balanced, Muted
+- Perceptual OKLCH engine: lightness-uniform shading, predictable contrast
 - Hue shift built in: shadows lean cool, highlights lean warm; strength is adjustable
 
 **Per-ramp controls**
-- HSV sliders and saturation multiplier
+- H/S/V sliders adjust the base color, then the engine derives shades from there
+- Saturation multiplier
 - Per-shade count override
 - Pin individual shades to a fixed hex across all three styles
 - Right-click a shade to hide it across all three styles
-- Shuffle ramp seed; lock ramp from global operations
+- Lock ramp from global operations
+- **Advanced disclosure** (closed by default): curve preset (linear / eased / s-curve / ease-in / ease-out) and gamut strategy (auto / clip / chroma-preserve)
 
 **Global tools**
 - Harmonize: rotate unlocked ramps to color-theory positions relative to an anchor ramp
 - Color harmony derivation: complementary, analogous, triadic, split-complementary, tetradic, square
-- Hardware Lock: snap all shades to the nearest legal color for NES, Game Boy DMG, CGA 16, EGA 64, or C64
+- Hardware Lock: snap all shades to the nearest legal color (perceptual ΔE_OK distance) for NES, Game Boy DMG, CGA 16, EGA 64, or C64
 
 **Image tools**
 - Remap any uploaded image to your active palette, with optional Floyd-Steinberg dithering
