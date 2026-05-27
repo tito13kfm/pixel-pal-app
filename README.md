@@ -17,7 +17,8 @@ Pre-built installers for Windows, macOS, and Linux are on the [Releases page](ht
 - Single hex color: type, pick, or roll random
 - Image upload, paste, or drag-and-drop: extracts 3-6 dominant colors; eyedropper with up to 8x zoom lets you click individual pixels
 - AI Assist: describe a subject and a language model picks the colors; "Surprise Me" has the AI invent a subject too
-- Classic palettes: load DawnBringer 16, PICO-8, Sweetie 16, Game Boy, NES Super Mario Bros, EDG32, CGA, and more
+- Example ramps inspired from classic palettes: DawnBringer 16, PICO-8, Sweetie 16, Game Boy, NES Super Mario Bros, EDG32, CGA, and more.
+  - (These are to emulate a feel of the palette, not full palettes.  Intentional design choice, trust me you dont't want 12000+ color swatches showing at once)
 - Import GIMP .gpl files
 
 **Output**
