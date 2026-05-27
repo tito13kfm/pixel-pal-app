@@ -7,6 +7,7 @@ import {
 } from './lib/color';
 import { generateRamp as generateRampNew } from './lib/ramp-engine';
 import { hexToOklch, deltaEOK } from './lib/oklch';
+import { saveFile } from './lib/save-file';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
@@ -1085,6 +1086,11 @@ export default function PixelPalGenerator() {
   // means a Game Boy ramp with 8 requested shades visually shows 4 since
   // the hardware only has 4 colors.
   const [hardwareLock, setHardwareLock] = useState(null);
+
+  // Per-ramp .gpl session folder. After the first dialog, this is set so
+  // subsequent per-ramp .gpl saves in the same session write silently to
+  // the same folder. Cleared on app reload OR on a failed silent write.
+  const [sessionRampGplFolder, setSessionRampGplFolder] = useState<string | null>(null);
 
   // Base color editor (feature #1). At most one ramp's editor is open at a
   // time; toggling another closes the previous. editorHsv holds the live
@@ -2211,20 +2217,21 @@ export default function PixelPalGenerator() {
             const base = remapImageName ? sanitize(remapImageName) : '';
             const filename = (base || 'remapped') + '-remapped-' + scaleTag + '.png';
 
-            exportCanvas.toBlob((blob) => {
+            exportCanvas.toBlob(async (blob) => {
               if (!blob) {
                 setRemapError('Failed to encode PNG');
                 setRemapLoading(false);
                 return;
               }
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              setTimeout(() => URL.revokeObjectURL(url), 0);
+              const result = await saveFile({
+                defaultName: filename,
+                filters: [{ name: 'PNG image', extensions: ['png'] }],
+                data: { bytes: blob },
+                folderKey: 'png',
+              });
+              if (!result.ok && !result.canceled) {
+                setRemapError('Failed to save PNG');
+              }
               setRemapLoading(false);
             }, 'image/png');
           } catch (err) {
@@ -4618,16 +4625,22 @@ export default function PixelPalGenerator() {
     return lines.join('\n');
   };
 
-  const exportPalette = () => {
+  const exportPalette = async () => {
     try {
       const text = buildPaletteText();
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'pixel-pal-palette.txt';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      setExportFeedback('Downloaded!');
+      const result = await saveFile({
+        defaultName: 'pixel-pal-palette.txt',
+        filters: [{ name: 'Pixel Pal palette', extensions: ['txt'] }],
+        data: { text },
+        folderKey: 'txt',
+      });
+      if (result.canceled) {
+        setExportFeedback('Save canceled');
+      } else if (!result.ok) {
+        setExportFeedback('Failed: try Copy');
+      } else {
+        setExportFeedback('Downloaded!');
+      }
       setTimeout(() => setExportFeedback(''), 2000);
     } catch {
       setExportFeedback('Failed: try Copy');
@@ -4709,16 +4722,22 @@ export default function PixelPalGenerator() {
     return lines.join('\n') + '\n';
   };
 
-  const exportPaletteGpl = () => {
+  const exportPaletteGpl = async () => {
     try {
       const text = buildPaletteGpl(gplStyle);
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `pixel-pal-${gplStyle}.gpl`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      setExportFeedback(`Downloaded ${gplStyle}.gpl!`);
+      const result = await saveFile({
+        defaultName: `pixel-pal-${gplStyle}.gpl`,
+        filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
+        data: { text },
+        folderKey: 'gpl',
+      });
+      if (result.canceled) {
+        setExportFeedback('Save canceled');
+      } else if (!result.ok) {
+        setExportFeedback('GPL export failed');
+      } else {
+        setExportFeedback(`Downloaded ${gplStyle}.gpl!`);
+      }
       setTimeout(() => setExportFeedback(''), 2000);
     } catch {
       setExportFeedback('GPL export failed');
@@ -4818,17 +4837,37 @@ export default function PixelPalGenerator() {
   // user sees ramps (Color 1, Color 2, ...). Reads rampExportStyle, NOT
   // vizStyle (the Visualization panel's style); see state declaration
   // for rationale.
-  const downloadSingleRampGpl = (i) => {
+  const downloadSingleRampGpl = async (i) => {
     try {
       const text = buildSingleRampGpl(i, rampExportStyle);
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `pixel-pal-ramp-${i + 1}-${rampExportStyle}.gpl`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      setExportFeedback(`Downloaded ramp ${i + 1}.gpl`);
-      setTimeout(() => setExportFeedback(''), 2000);
+      const defaultName = `pixel-pal-ramp-${i + 1}-${rampExportStyle}.gpl`;
+      const result = await saveFile({
+        defaultName,
+        filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
+        data: { text },
+        folderKey: 'gpl',
+        silentToFolder: sessionRampGplFolder,
+      });
+      if (result.canceled) {
+        setExportFeedback('Save canceled');
+      } else if (!result.ok) {
+        if (sessionRampGplFolder) {
+          setSessionRampGplFolder(null);
+          setExportFeedback('Folder unavailable — pick a new one');
+        } else {
+          setExportFeedback('Ramp GPL export failed');
+        }
+      } else {
+        if (result.folder && result.folder !== sessionRampGplFolder) {
+          setSessionRampGplFolder(result.folder);
+        }
+        if (sessionRampGplFolder && result.folder) {
+          setExportFeedback(`Saved ramp ${i + 1}.gpl to ${result.folder}`);
+        } else {
+          setExportFeedback(`Downloaded ramp ${i + 1}.gpl`);
+        }
+      }
+      setTimeout(() => setExportFeedback(''), 2500);
     } catch {
       setExportFeedback('Ramp GPL export failed');
       setTimeout(() => setExportFeedback(''), 3000);
@@ -7158,28 +7197,41 @@ export default function PixelPalGenerator() {
                   >
                     <Contrast size={14} />{compareMode ? 'Checking (click to exit)' : 'WCAG Check'}
                   </button>
-                  <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
-                  {hardwareLock ? (
-                    <>
+                  {!hardwareLock && (
+                    <button
+                      onClick={() => setHwPickerOpen(o => !o)}
+                      title={hwPickerOpen ? 'Close hardware palette picker' : 'Snap all shades to a hardware color palette'}
+                      className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-2 ${hwPickerOpen ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
+                      style={hwPickerOpen ? { boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' } : {}}
+                    >
+                      <Cpu size={14} />Hardware Lock
+                    </button>
+                  )}
+                  {exportFeedback && <span className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-xs font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</span>}
+                </div>
+
+                {hardwareLock && (
+                  <div
+                    className="rounded-lg border-2 p-3 flex flex-col gap-2"
+                    style={{ background: t.cardBgViz, borderColor: themedAccentBorder('#ffff00'), boxShadow: accentGlow('#ffff00', 0.3) }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Cpu size={14} style={{ color: sectionHeadColor('#ffff00') }} />
+                      <span className="text-xs font-bold uppercase tracking-widest" style={{ color: sectionHeadColor('#ffff00'), textShadow: accentTextGlow('#ffff00') }}>
+                        Hardware Lock
+                      </span>
+                    </div>
+                    <div className="flex gap-3 flex-wrap items-center">
                       <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Locked:</span>
                       <span className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-yellow-300 text-purple-900 border-yellow-100" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' }}>
                         {HARDWARE_PALETTES.find(hw => hw.id === hardwareLock)?.name}
                       </span>
                       <button onClick={bakeHardwareLock} title="Bake the current locked output into permanent pins." className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-500 text-purple-900 border-cyan-100 hover:bg-cyan-400" style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.6)' }}>Bake into pins</button>
                       <button onClick={() => toggleHardwareLock(hardwareLock)} title="Unlock and return to free generation" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-pink-500 text-white border-pink-200 hover:bg-pink-400">Unlock</button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => setHwPickerOpen(o => !o)}
-                      title={hwPickerOpen ? 'Close hardware palette picker' : 'Snap all shades to a hardware color palette'}
-                      className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${hwPickerOpen ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
-                      style={hwPickerOpen ? { boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' } : {}}
-                    >
-                      Hardware Lock
-                    </button>
-                  )}
-                  {exportFeedback && <span className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-xs font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</span>}
-                </div>
+                    </div>
+                  </div>
+                )}
+
                 {!hardwareLock && hwPickerOpen && (
                   <div className="flex gap-2 flex-wrap">
                     {HARDWARE_PALETTES.map(hw => (
