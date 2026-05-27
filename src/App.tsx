@@ -2455,13 +2455,13 @@ export default function PixelPalGenerator() {
   // collapsedRamps is left to the existing auto-collapse useEffect
   // (collapses newly-appended indices when total >= 3).
   //
-  // Caveat (documented for the user): the per-ramp shuffle seed formula
-  // is `shuffleSeed * 17 + i * 31 + offset * 13`. Because N != i, the
-  // duplicate's effective seed differs from the original even with the
-  // offset carried over, so the duplicate will look SIMILAR but not
-  // identical to the source. This is the per-USABILITY_ANALYSIS.md
-  // "simpler interpretation"; users who want exact duplication can pin
-  // every shade after duplicating.
+  // v0.6 perceptual engine: the new generateRamp ignores seed. Output is
+  // deterministic from (base, style, size, hueShift, curve, gamut, satMult).
+  // Since duplicateRamp carries over every per-base setting that the engine
+  // reads, the duplicate is byte-identical to the source. The seed formula
+  // `shuffleSeed * 17 + i * 31 + offset * 13` is still computed and passed
+  // through the adapter shim, but the new engine drops the value — so the
+  // N != i discrepancy from the old HSV engine no longer matters.
   const duplicateRamp = (i) => {
     if (i < 0 || i >= baseColors.length) return;
     pendingLabelRef.current = 'Duplicate ramp';
@@ -6110,13 +6110,14 @@ export default function PixelPalGenerator() {
                       tweaking; the user can re-lock if they want). The
                       auto-collapse useEffect handles whether the new
                       ramp's card starts collapsed (total >= 3 collapses
-                      it; total < 3 leaves it expanded). The duplicate
-                      will look SIMILAR but not identical to the source
-                      because the per-ramp shuffle seed depends on the
-                      ramp index. */}
+                      it; total < 3 leaves it expanded). With the v0.6
+                      perceptual engine, the duplicate is byte-identical
+                      to the source — engine is deterministic from
+                      (base, style, size, hueShift, curve, gamut,
+                      satMult) and ignores the shuffle seed. */}
                   <button
                     onClick={() => duplicateRamp(i)}
-                    title="Duplicate this ramp at the end of the palette. Carries over pins, shade count, saturation multiplier, hidden shades, and shuffle offset. Does not carry over lock state. The duplicate will look similar but not identical to the source (per-ramp shuffle seed depends on ramp index)."
+                    title="Duplicate this ramp at the end of the palette. Carries over pins, shade count, saturation multiplier, hidden shades, and shuffle offset. Does not carry over lock state. The duplicate is identical to the source."
                     className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-purple-600 text-cyan-100 border-cyan-400 hover:bg-purple-500"
                     style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.5)' }}
                   >
