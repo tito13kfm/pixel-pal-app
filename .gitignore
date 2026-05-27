@@ -26,7 +26,6 @@ release
 
 # Dev tooling — not for public consumption
 CLAUDE.md
-playwright.config.ts
 
 # Tests, docs, scripts — not needed to build
 tests/*
@@ -39,6 +38,10 @@ tests/*
 # Exception: fixtures used by unit tests
 !tests/fixtures/
 !tests/fixtures/**/*.json
+# Exception: Playwright e2e specs are tracked so CI can run them
+!tests/e2e/
+tests/e2e/*
+!tests/e2e/*.spec.ts
 docs/
 scripts/
 playwright-report/
