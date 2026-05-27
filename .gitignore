@@ -50,6 +50,7 @@ playwright-report/
 test-results/
 *.original.md
 .superpowers/
+.worktrees/
 
 # Signing keys (never commit private keys)
 ~/.tauri/
