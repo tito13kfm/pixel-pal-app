@@ -7,22 +7,25 @@
 // memory:updater-architecture for the rationale).
 //
 // So the binary detects its packaging at runtime by checking where it's
-// running from. Installer-installed copies land under "Program Files" /
-// "Program Files (x86)" by default; portable copies are wherever the user
-// dropped them.
+// running from. Tauri's NSIS installer defaults to per-user installs at
+// AppData\Local; per-machine installs land under Program Files. Portable
+// copies are wherever the user dropped them.
 //
 // Edge cases we accept:
 //   - Installed to a non-default location (D:\MyApps\PixelPal\) -> reads
 //     as portable. Annoying but harmless: the user just gets the manual
 //     update popup instead of auto-update.
-//   - Portable placed inside Program Files manually -> reads as installed.
-//     The tauri-plugin-updater will try to update against a loose .exe and
-//     misbehave. Rare; portable users typically don't choose system dirs.
+//   - Portable placed inside Program Files or AppData\Local manually ->
+//     reads as installed. Rare; portable users typically don't choose
+//     system dirs.
 
 /// Pure heuristic over a path string. Extracted from `is_portable()` so it
 /// can be unit-tested without touching the real `std::env::current_exe()`.
 pub fn is_path_portable(path: &str) -> bool {
-    !path.to_lowercase().contains("program files")
+    let lower = path.to_lowercase();
+    !lower.contains("program files")
+        && !lower.contains("appdata\\local")
+        && !lower.contains("appdata/local")
 }
 
 pub fn is_portable() -> bool {
@@ -42,14 +45,19 @@ mod tests {
 
     #[test]
     fn installed_default_location() {
+        // Per-machine installer: Program Files
         assert!(!is_path_portable(r"C:\Program Files\PIXEL.PAL\pixel-pal-app.exe"));
         assert!(!is_path_portable(r"C:\Program Files (x86)\PIXEL.PAL\pixel-pal-app.exe"));
+        // Tauri NSIS per-user installer default: AppData\Local
+        assert!(!is_path_portable(r"C:\Users\alice\AppData\Local\PIXEL.PAL\pixel-pal-app.exe"));
+        assert!(!is_path_portable(r"C:\Users\alice\AppData\Local\com.pixelpal.app\pixel-pal-app.exe"));
     }
 
     #[test]
     fn installed_location_is_case_insensitive() {
         assert!(!is_path_portable(r"C:\PROGRAM FILES\PIXEL.PAL\pixel-pal-app.exe"));
         assert!(!is_path_portable(r"c:\program files (x86)\foo\pixel-pal-app.exe"));
+        assert!(!is_path_portable(r"C:\Users\alice\APPDATA\LOCAL\PIXEL.PAL\pixel-pal-app.exe"));
     }
 
     #[test]
