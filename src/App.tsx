@@ -1087,6 +1087,11 @@ export default function PixelPalGenerator() {
   // the hardware only has 4 colors.
   const [hardwareLock, setHardwareLock] = useState(null);
 
+  // Per-ramp .gpl session folder. After the first dialog, this is set so
+  // subsequent per-ramp .gpl saves in the same session write silently to
+  // the same folder. Cleared on app reload OR on a failed silent write.
+  const [sessionRampGplFolder, setSessionRampGplFolder] = useState<string | null>(null);
+
   // Base color editor (feature #1). At most one ramp's editor is open at a
   // time; toggling another closes the previous. editorHsv holds the live
   // slider values for the currently-open editor; we keep HSV as the editor's
@@ -4832,17 +4837,37 @@ export default function PixelPalGenerator() {
   // user sees ramps (Color 1, Color 2, ...). Reads rampExportStyle, NOT
   // vizStyle (the Visualization panel's style); see state declaration
   // for rationale.
-  const downloadSingleRampGpl = (i) => {
+  const downloadSingleRampGpl = async (i) => {
     try {
       const text = buildSingleRampGpl(i, rampExportStyle);
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `pixel-pal-ramp-${i + 1}-${rampExportStyle}.gpl`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      setExportFeedback(`Downloaded ramp ${i + 1}.gpl`);
-      setTimeout(() => setExportFeedback(''), 2000);
+      const defaultName = `pixel-pal-ramp-${i + 1}-${rampExportStyle}.gpl`;
+      const result = await saveFile({
+        defaultName,
+        filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
+        data: { text },
+        folderKey: 'gpl',
+        silentToFolder: sessionRampGplFolder,
+      });
+      if (result.canceled) {
+        setExportFeedback('Save canceled');
+      } else if (!result.ok) {
+        if (sessionRampGplFolder) {
+          setSessionRampGplFolder(null);
+          setExportFeedback('Folder unavailable — pick a new one');
+        } else {
+          setExportFeedback('Ramp GPL export failed');
+        }
+      } else {
+        if (result.folder && result.folder !== sessionRampGplFolder) {
+          setSessionRampGplFolder(result.folder);
+        }
+        if (sessionRampGplFolder && result.folder) {
+          setExportFeedback(`Saved ramp ${i + 1}.gpl to ${result.folder}`);
+        } else {
+          setExportFeedback(`Downloaded ramp ${i + 1}.gpl`);
+        }
+      }
+      setTimeout(() => setExportFeedback(''), 2500);
     } catch {
       setExportFeedback('Ramp GPL export failed');
       setTimeout(() => setExportFeedback(''), 3000);
