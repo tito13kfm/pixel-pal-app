@@ -209,6 +209,18 @@ const dedupeHexes = (hexes) => {
   return out;
 };
 
+// seededHueDelta: deterministic hue offset in degrees for (effectiveSeed,
+// rampIdx). Replaces the old seededRandom jitter that the legacy HSV engine
+// used per-shade. The perceptual engine is called once per ramp so jitter is
+// applied to the BASE color instead — the whole ramp shifts together, keeping
+// the smooth OKLCH graduation intact. Seed 0 always returns 0 (baseline, no
+// jitter). Range ±8° — noticeable variation without changing color identity.
+const seededHueDelta = (effectiveSeed: number, rampIdx: number): number => {
+  if (effectiveSeed === 0) return 0;
+  const n = Math.imul(effectiveSeed * 17 + rampIdx * 31, 0x45d9f3b) >>> 0;
+  return (n / 0x100000000 - 0.5) * 16;
+};
+
 // quantizeToHardware: nearest hardware color search using ΔE_OK (perceptual
 // distance in OKLab). Used by applyHardwareLock and bakeHardwareLock for
 // every snap. The image-remap path uses quantizeToPalette directly with its
@@ -1514,14 +1526,24 @@ export default function PixelPalGenerator() {
 
   // Adapter over generateRampNew that returns hex[] (matches the rest of the
   // pipeline, which works in flat hex arrays). Threads per-ramp curve + gamut
-  // from local state. The old HSV engine took a positional `seed`; the new
-  // perceptual engine is deterministic from (base, style, size, hueShift,
-  // curve, gamut, satMult) — no jitter source needed.
+  // from local state. Applies a small seeded hue jitter to the base color so
+  // that global reshuffle and per-ramp reshuffle produce visible variation.
+  // Jitter is base-level (not per-shade) so the smooth OKLCH graduation is
+  // preserved. Seed 0 + no offset = zero jitter (deterministic baseline).
   const generateRamp = (baseHex: string, numColors: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number, rampIdx?: number): string[] => {
     const rampKey = rampIdx !== undefined ? String(rampIdx) : undefined;
     const curve = rampKey !== undefined ? curvePerRamp[rampKey] : undefined;
     const gamut = rampKey !== undefined ? gamutPerRamp[rampKey] : undefined;
-    const shades = generateRampNew(baseHex, {
+    let jitteredBase = baseHex;
+    if (rampIdx !== undefined) {
+      const effectiveSeed = shuffleSeed + (rampShuffleOffsets[rampIdx] || 0);
+      if (effectiveSeed !== 0) {
+        const hDelta = seededHueDelta(effectiveSeed, rampIdx);
+        const hsl = hexToHsl(jitteredBase);
+        jitteredBase = hslToHex({ h: (hsl.h + hDelta + 360) % 360, s: hsl.s, l: hsl.l });
+      }
+    }
+    const shades = generateRampNew(jitteredBase, {
       style,
       size: numColors,
       hueShiftStrength,
@@ -1531,9 +1553,9 @@ export default function PixelPalGenerator() {
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
+  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
@@ -3490,20 +3512,29 @@ export default function PixelPalGenerator() {
   //                          bleeding them through would produce nonsense.
   //   - <slug>            -> the cached payload from sbs*Payload, or null
   //                          while loading or on error.
-  const buildWorkingSnapshot = () => ({
-    baseColors,
-    rampSize,
-    shuffleSeed,
-    overrides,
-    rampSizeOverrides,
-    rampSatOverrides,
-    rampShuffleOffsets,
-    hiddenShades,
-    hardwareLock,
-    hueShiftStrength,
-    curvePerRamp,
-    gamutPerRamp,
-  });
+  const buildWorkingSnapshot = () => {
+    const jitteredBaseColors = baseColors.map((hex, i) => {
+      const effectiveSeed = shuffleSeed + (rampShuffleOffsets[i] || 0);
+      if (effectiveSeed === 0) return hex;
+      const hDelta = seededHueDelta(effectiveSeed, i);
+      const hsl = hexToHsl(hex);
+      return hslToHex({ h: (hsl.h + hDelta + 360) % 360, s: hsl.s, l: hsl.l });
+    });
+    return {
+      baseColors: jitteredBaseColors,
+      rampSize,
+      shuffleSeed,
+      overrides,
+      rampSizeOverrides,
+      rampSatOverrides,
+      rampShuffleOffsets,
+      hiddenShades,
+      hardwareLock,
+      hueShiftStrength,
+      curvePerRamp,
+      gamutPerRamp,
+    };
+  };
   // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
   // in getSnapshotForSlot above for the policy.
   const buildClassicSnapshot = (classicId) => {
@@ -4305,9 +4336,8 @@ export default function PixelPalGenerator() {
       for (let i = 0; i < baseColors.length; i++) {
         const effBase = resolveBaseForRamp(baseColors[i], i);
         const effSize = resolveSizeForRamp(i);
-        const seed = shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13;
         for (const style of STYLES) {
-          const raw = generateRamp(effBase, effSize, seed, style, hueShiftStrength);
+          const raw = generateRamp(effBase, effSize, style, hueShiftStrength, i);
           const withPins = applyOverrides(raw, i, prev, style);
           const snapped = withPins.map(hex => quantizeToHardware(hex, activeHardware));
           for (let j = 0; j < withPins.length; j++) {
