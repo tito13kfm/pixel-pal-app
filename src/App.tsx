@@ -200,6 +200,25 @@ const quantizeToPalette = (hex, paletteColors) => {
 // for readability at call sites and to preserve existing test surface.
 // Behavior is byte-identical to the pre-refactor version when given the
 // same hardware entry.
+// dedupeHexes: collapse duplicate hex strings preserving first occurrence
+// and original casing. Used for visualization, export, and copy where the
+// hardware-locked ramp can produce repeats (e.g. an 8-shade Game Boy ramp
+// collapses to 4 unique colors). The main per-ramp editor UI keeps duplicates
+// visible so the user sees the full shadow→highlight sequence; only
+// downstream consumers dedupe.
+const dedupeHexes = (hexes) => {
+  const seen = new Set();
+  const out = [];
+  for (const hex of hexes) {
+    if (typeof hex !== 'string') continue;
+    const key = hex.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(hex);
+  }
+  return out;
+};
+
 // quantizeToHardwarePerceptual: same role as quantizeToHardware but uses
 // ΔE_OK (perceptual distance in OKLab) for nearest-color search instead of
 // the weighted HSL distance. Gated by engineVersion in the caller — only
@@ -4653,6 +4672,25 @@ export default function PixelPalGenerator() {
     lines.push(`${harmony.square1.toUpperCase()}  square 1`);
     lines.push(`${harmony.square2.toUpperCase()}  square 2`);
     lines.push(`${harmony.square3.toUpperCase()}  square 3`);
+    // Unique-colors appendix: a flat deduped list across every ramp and
+    // every style, plus harmony. Useful for tools that want a single
+    // copy-paste list and for verifying total unique count at a glance.
+    lines.push('');
+    lines.push('## Unique Colors');
+    const allStyleHexes = [
+      ...rampsPunchy.flat(),
+      ...rampsBalanced.flat(),
+      ...rampsMuted.flat(),
+      harmony.complementary,
+      harmony.analogous1, harmony.analogous2,
+      harmony.triadic1, harmony.triadic2,
+      harmony.splitComp1, harmony.splitComp2,
+      harmony.tetradic1, harmony.tetradic2, harmony.tetradic3,
+      harmony.square1, harmony.square2, harmony.square3,
+    ];
+    const uniqueColors = dedupeHexes(allStyleHexes);
+    uniqueColors.forEach(hex => lines.push(hex.toUpperCase()));
+    lines.push(`# ${uniqueColors.length} unique colors`);
     return lines.join('\n');
   };
 
@@ -4720,6 +4758,18 @@ export default function PixelPalGenerator() {
     entries.push({ hex: harmony.square2, name: 'harmony square 2' });
     entries.push({ hex: harmony.square3, name: 'harmony square 3' });
 
+    // Dedupe entries by hex. GPL consumers (Aseprite, GIMP, etc.) expect
+    // unique colors — duplicate entries are ignored or cause confusion.
+    // Keep first occurrence's name so the most prominent slot label wins.
+    const seenHex = new Set();
+    const uniqueEntries = [];
+    for (const e of entries) {
+      const key = (e.hex || '').toLowerCase();
+      if (!key || seenHex.has(key)) continue;
+      seenHex.add(key);
+      uniqueEntries.push(e);
+    }
+
     const pad3 = (n) => String(n).padStart(3, ' ');
     const styleLabel = style === 'balanced' ? 'Balanced' : style === 'muted' ? 'Muted' : 'Punchy';
     const lines = [
@@ -4728,7 +4778,7 @@ export default function PixelPalGenerator() {
       `Columns: ${rampSize}`,
       '#',
     ];
-    entries.forEach(({ hex, name }) => {
+    uniqueEntries.forEach(({ hex, name }) => {
       const { r, g, b } = hexToRgb(hex);
       lines.push(`${pad3(r)} ${pad3(g)} ${pad3(b)}\t${name}`);
     });
@@ -4779,23 +4829,34 @@ export default function PixelPalGenerator() {
 
   const buildSingleRampText = (i, style) => {
     const filtered = _filteredRamp(i, style);
-    return filtered.hexes.join('\n') + '\n';
+    return dedupeHexes(filtered.hexes).join('\n') + '\n';
   };
 
   const buildSingleRampGpl = (i, style) => {
     const filtered = _filteredRamp(i, style);
     const name = aiColorNames[i] || `Color ${i + 1}`;
+    // Dedupe by hex, keep the first label encountered. Hardware-locked ramps
+    // collapse to fewer unique colors than positions; GPL consumers expect
+    // unique entries.
+    const seenHex = new Set();
+    const entries = [];
+    for (let k = 0; k < filtered.hexes.length; k++) {
+      const key = (filtered.hexes[k] || '').toLowerCase();
+      if (!key || seenHex.has(key)) continue;
+      seenHex.add(key);
+      entries.push({ hex: filtered.hexes[k], label: filtered.labels[k] });
+    }
     const pad3 = (n) => String(n).padStart(3, ' ');
     const styleLabel = style === 'balanced' ? 'Balanced' : style === 'muted' ? 'Muted' : 'Punchy';
     const lines = [
       'GIMP Palette',
       `Name: PIXEL.PAL ${name} ${styleLabel}`,
-      `Columns: ${filtered.hexes.length}`,
+      `Columns: ${entries.length}`,
       '#',
     ];
-    filtered.hexes.forEach((hex, k) => {
+    entries.forEach(({ hex, label }) => {
       const { r, g, b } = hexToRgb(hex);
-      lines.push(`${pad3(r)} ${pad3(g)} ${pad3(b)}\t${name} ${filtered.labels[k]}`);
+      lines.push(`${pad3(r)} ${pad3(g)} ${pad3(b)}\t${name} ${label}`);
     });
     return lines.join('\n') + '\n';
   };
@@ -6550,8 +6611,15 @@ export default function PixelPalGenerator() {
               );
             }
             const ramps = buildRampsForSnapshot(snap, vizStyle);
-            const allColors = ramps.flat();
+            // Cross-ramp dedupe for visualization: hardware-locked palettes
+            // often produce the same hex in multiple ramp positions. Polar
+            // plot and lightness strip get noisier without dedupe.
+            const allColors = dedupeHexes(ramps.flat());
             const sortedByL = [...allColors].sort((a, b) => hexToHsl(a).l - hexToHsl(b).l);
+            // Per-row mosaic dedupe: each ramp's non-consecutive duplicates
+            // collapse, preserving the per-ramp grouping. The main editor UI
+            // still shows all positions.
+            const mosaicRamps = ramps.map(ramp => dedupeHexes(ramp));
             const namesSource = Array.isArray(snap.aiColorNames) ? snap.aiColorNames : aiColorNames;
             const plotSize = compact ? 200 : 280;
             const mosaicH = compact ? '28px' : '40px';
@@ -6643,7 +6711,7 @@ export default function PixelPalGenerator() {
                   </h4>
                   {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">All ramps side-by-side. Look for adjacent colors that clash or harmonize.</p>}
                   <div className="flex flex-col gap-1">
-                    {ramps.map((ramp, i) => (
+                    {mosaicRamps.map((ramp, i) => (
                       <div key={i} className="flex w-full rounded overflow-hidden border" style={{ height: mosaicH, borderColor: t.vizDataBorder }}>
                         {ramp.map((hex, j) => (
                           <div key={`${i}-${j}`} className="flex-1" style={{ background: hex }} title={`${(namesSource && namesSource[i]) || `Color ${i + 1}`} ${hex.toUpperCase()}`} />
@@ -6652,7 +6720,7 @@ export default function PixelPalGenerator() {
                     ))}
                   </div>
                 </div>
-                {compact && <div className="text-[10px] text-cyan-100/50 text-center font-mono">{ramps.length} ramps, {allColors.length} colors total</div>}
+                {compact && <div className="text-[10px] text-cyan-100/50 text-center font-mono">{ramps.length} ramps, {allColors.length} unique colors</div>}
               </div>
             );
           };
