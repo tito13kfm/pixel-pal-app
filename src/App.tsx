@@ -7,6 +7,7 @@ import {
 } from './lib/color';
 import { generateRamp as generateRampNew } from './lib/ramp-engine';
 import { hexToOklch, deltaEOK } from './lib/oklch';
+import { saveFile } from './lib/save-file';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
@@ -4618,16 +4619,22 @@ export default function PixelPalGenerator() {
     return lines.join('\n');
   };
 
-  const exportPalette = () => {
+  const exportPalette = async () => {
     try {
       const text = buildPaletteText();
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'pixel-pal-palette.txt';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      setExportFeedback('Downloaded!');
+      const result = await saveFile({
+        defaultName: 'pixel-pal-palette.txt',
+        filters: [{ name: 'Pixel Pal palette', extensions: ['txt'] }],
+        data: { text },
+        folderKey: 'txt',
+      });
+      if (result.canceled) {
+        setExportFeedback('Save canceled');
+      } else if (!result.ok) {
+        setExportFeedback('Failed: try Copy');
+      } else {
+        setExportFeedback('Downloaded!');
+      }
       setTimeout(() => setExportFeedback(''), 2000);
     } catch {
       setExportFeedback('Failed: try Copy');
