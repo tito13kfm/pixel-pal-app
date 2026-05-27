@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual trigger for branch testing without creating a GitHub Release.
+  # Run from Actions tab → Release workflow → Run workflow. Installers land
+  # as downloadable workflow artifacts (14-day retention), not on the
+  # Releases page. Useful to smoke-test a PR build before merging.
+  workflow_dispatch:
+    inputs:
+      label:
+        description: 'Artifact label (e.g. rip-legacy-hsv)'
+        required: false
+        default: 'dev'
 
 jobs:
   release:
@@ -41,7 +51,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build and release
+      # Tag-push: build + publish to a GitHub Release entry.
+      - name: Build and release (tag push)
+        if: github.event_name == 'push'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -54,8 +66,20 @@ jobs:
           prerelease: false
           includeDebug: false
 
-      - name: Upload portable Windows .exe
-        if: matrix.platform == 'windows-latest'
+      # Manual dispatch: build only (no Release entry). Installers + portable
+      # exe are uploaded as workflow artifacts further below.
+      - name: Build (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          includeDebug: false
+
+      - name: Upload portable Windows .exe to Release (tag push)
+        if: matrix.platform == 'windows-latest' && github.event_name == 'push'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,3 +95,17 @@ jobs:
           OUT="PIXEL.PAL_${VER}_x64-portable.exe"
           cp "$EXE" "$OUT"
           gh release upload "${GITHUB_REF_NAME}" "$OUT" --repo "$GITHUB_REPOSITORY" --clobber
+
+      # Manual-dispatch artifact upload. Bundles installer output + Windows
+      # portable .exe into a per-platform workflow artifact for download from
+      # the Actions tab.
+      - name: Upload installer artifacts (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.platform }}-${{ inputs.label }}
+          path: |
+            src-tauri/target/release/bundle/**/*
+            src-tauri/target/release/pixel-pal-app.exe
+          if-no-files-found: warn
+          retention-days: 14

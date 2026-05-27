@@ -44,7 +44,7 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
-      - name: JS unit tests
+      - name: JS lint scripts (contrast etc.)
         shell: bash
         run: |
           if compgen -G "tests/test_*.js" > /dev/null 2>&1; then
@@ -53,8 +53,11 @@ jobs:
               node "$f"
             done
           else
-            echo "tests/ not tracked, skipping JS unit tests"
+            echo "tests/ not tracked, skipping JS lint scripts"
           fi
+
+      - name: Vitest unit tests
+        run: npm test
 
       - name: Cargo check
         working-directory: src-tauri
