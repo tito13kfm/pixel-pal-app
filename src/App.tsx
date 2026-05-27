@@ -4716,16 +4716,22 @@ export default function PixelPalGenerator() {
     return lines.join('\n') + '\n';
   };
 
-  const exportPaletteGpl = () => {
+  const exportPaletteGpl = async () => {
     try {
       const text = buildPaletteGpl(gplStyle);
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `pixel-pal-${gplStyle}.gpl`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      setExportFeedback(`Downloaded ${gplStyle}.gpl!`);
+      const result = await saveFile({
+        defaultName: `pixel-pal-${gplStyle}.gpl`,
+        filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
+        data: { text },
+        folderKey: 'gpl',
+      });
+      if (result.canceled) {
+        setExportFeedback('Save canceled');
+      } else if (!result.ok) {
+        setExportFeedback('GPL export failed');
+      } else {
+        setExportFeedback(`Downloaded ${gplStyle}.gpl!`);
+      }
       setTimeout(() => setExportFeedback(''), 2000);
     } catch {
       setExportFeedback('GPL export failed');
