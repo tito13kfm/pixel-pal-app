@@ -5,7 +5,6 @@ import {
   hexToHsl, hslToHex, hexToRgb, rgbToHex,
   rgbToHsl, hslToRgb, hexToHsv, hsvToHex, hsvToRgb,
   getShadowHueShift, getHighlightHueShift, seededRandom,
-  generateRamp as legacyHsvRampForSnapshot,
 } from './lib/color';
 import { generateRamp as generateRampNew } from './lib/ramp-engine';
 import { hexToOklch, deltaEOK } from './lib/oklch';
@@ -497,9 +496,18 @@ const estimateRemapCost = (w, h, paletteSize, dither) => {
 //   hiddenShades: { [baseIdx]: number[] }
 //   hardwareLock: null | string (HARDWARE_PALETTES id)
 //   hueShiftStrength: number (default 1.0; scales shadow/highlight hue shift)
+//   curvePerRamp: { [baseIdx]: 'linear'|'eased'|'s-curve'|'ease-in'|'ease-out' }
+//   gamutPerRamp: { [baseIdx]: 'auto'|'clip'|'chroma-preserve' }
 //
 // Returns array<array<hex>>, one inner array per baseColor, in the order
 // of baseColors, with hidden shades already filtered out.
+//
+// v0.6 perceptual engine: this function now uses generateRampNew (perceptual
+// OKLCH). The shuffle seed / rampShuffleOffsets are ignored by the engine —
+// they were jitter inputs to the old HSV engine. Snapshots produced before
+// v0.6 (history undo entries from older sessions) render via the new engine
+// and may look different than they did at capture time; this matches the
+// migration banner's "Keep new look" semantics.
 const buildRampsForSnapshot = (snapshot, style) => {
   if (!snapshot || !Array.isArray(snapshot.baseColors) || snapshot.baseColors.length === 0) {
     return [];
@@ -507,14 +515,14 @@ const buildRampsForSnapshot = (snapshot, style) => {
   const {
     baseColors,
     rampSize = 5,
-    shuffleSeed = 0,
     overrides = {},
     rampSizeOverrides = {},
     rampSatOverrides = {},
-    rampShuffleOffsets = {},
     hiddenShades = {},
     hardwareLock = null,
     hueShiftStrength = 1.0,
+    curvePerRamp = {},
+    gamutPerRamp = {},
   } = snapshot;
 
   const hardware = hardwareLock
@@ -586,8 +594,14 @@ const buildRampsForSnapshot = (snapshot, style) => {
   };
 
   return baseColors.map((c, i) => {
-    const seed = shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13;
-    const raw = legacyHsvRampForSnapshot(resolveBase(c, i), resolveSize(i), seed, style, hueShiftStrength);
+    const shades = generateRampNew(resolveBase(c, i), {
+      style,
+      size: resolveSize(i),
+      hueShiftStrength,
+      curve: curvePerRamp[i] ?? curvePerRamp[String(i)],
+      gamut: gamutPerRamp[i] ?? gamutPerRamp[String(i)],
+    });
+    const raw = shades.map(s => s.hex);
     const pinned = pinRamp(raw, i);
     const locked = snapHardware(pinned);
     return filterHidden(locked, i);
