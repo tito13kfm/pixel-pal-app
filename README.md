@@ -130,6 +130,7 @@ Windows 11 and most Windows 10 installations include WebView2 (required by Tauri
 ## AI Assistance
 
 This project was built with AI coding assistance. AI was used for code generation, refactoring, testing, and debugging throughout development.
+All artwork in project is human created by me, except that one diamond sprite.  I borrowed that from Stardew Valley.  I hope Concerned Ape doesn't mind.
 
 ## License
 
