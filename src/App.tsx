@@ -6,6 +6,8 @@ import {
   rgbToHsl, hslToRgb, hexToHsv, hsvToHex, hsvToRgb,
 } from './lib/color';
 import { generateRamp as generateRampNew } from './lib/ramp-engine';
+import { LIGHTNESS_PRESETS, SAT_PRESETS, presetToPoints } from './lib/curve';
+import type { CurvePoints } from './lib/curve';
 import { hexToOklch, deltaEOK } from './lib/oklch';
 import { saveFile } from './lib/save-file';
 import {
@@ -17,7 +19,7 @@ import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFr
 import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
-import type { CurvePresetSerialized, GamutStrategySerialized } from './lib/palette';
+import type { GamutStrategySerialized } from './lib/palette';
 import { ONBOARDING_TOUR, TASK_GUIDES } from './lib/tours';
 import type { UpdateInfo } from './lib/tauri-bridge';
 
@@ -493,7 +495,9 @@ const estimateRemapCost = (w, h, paletteSize, dither) => {
 //   hiddenShades: { [baseIdx]: number[] }
 //   hardwareLock: null | string (HARDWARE_PALETTES id)
 //   hueShiftStrength: number (default 1.0; scales shadow/highlight hue shift)
-//   curvePerRamp: { [baseIdx]: 'linear'|'eased'|'s-curve'|'ease-in'|'ease-out' }
+//   lightnessCurvePerRamp: { [baseIdx]: CurvePoints }
+//   satCurvePerRamp: { [baseIdx]: CurvePoints }
+//   curvePerRamp: legacy string preset map (migrated on load)
 //   gamutPerRamp: { [baseIdx]: 'auto'|'clip'|'chroma-preserve' }
 //
 // Returns array<array<hex>>, one inner array per baseColor, in the order
@@ -518,9 +522,18 @@ const buildRampsForSnapshot = (snapshot, style) => {
     hiddenShades = {},
     hardwareLock = null,
     hueShiftStrength = 1.0,
+    lightnessCurvePerRamp = {},
+    satCurvePerRamp = {},
     curvePerRamp = {},
     gamutPerRamp = {},
   } = snapshot;
+  // Migrate legacy string presets from curvePerRamp into lightnessCurvePerRamp.
+  const effectiveLightnessCurves = { ...lightnessCurvePerRamp };
+  for (const [id, val] of Object.entries(curvePerRamp)) {
+    if (!(id in effectiveLightnessCurves)) {
+      effectiveLightnessCurves[id] = typeof val === 'string' ? presetToPoints(val) : val;
+    }
+  }
 
   const hardware = hardwareLock
     ? (HARDWARE_PALETTES.find(hw => hw.id === hardwareLock) || null)
@@ -595,7 +608,8 @@ const buildRampsForSnapshot = (snapshot, style) => {
       style,
       size: resolveSize(i),
       hueShiftStrength,
-      curve: curvePerRamp[i] ?? curvePerRamp[String(i)],
+      lightnessCurve: effectiveLightnessCurves[i] ?? effectiveLightnessCurves[String(i)] ?? LIGHTNESS_PRESETS.eased,
+      satCurve: satCurvePerRamp[i] ?? satCurvePerRamp[String(i)] ?? SAT_PRESETS.flat,
       gamut: gamutPerRamp[i] ?? gamutPerRamp[String(i)],
     });
     const raw = shades.map(s => s.hex);
@@ -1245,7 +1259,8 @@ export default function PixelPalGenerator() {
   // render. Loading the full payload happens on demand when the user clicks
   // Load. Storage operations are best-effort; failures show in `savedError`.
   const [savedPalettes, setSavedPalettes] = useState([]);
-  const [curvePerRamp, setCurvePerRamp] = useState<Record<string, CurvePresetSerialized>>({});
+  const [lightnessCurvePerRamp, setLightnessCurvePerRamp] = useState<Record<string, CurvePoints>>({});
+  const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
   const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
@@ -1532,7 +1547,6 @@ export default function PixelPalGenerator() {
   // preserved. Seed 0 + no offset = zero jitter (deterministic baseline).
   const generateRamp = (baseHex: string, numColors: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number, rampIdx?: number): string[] => {
     const rampKey = rampIdx !== undefined ? String(rampIdx) : undefined;
-    const curve = rampKey !== undefined ? curvePerRamp[rampKey] : undefined;
     const gamut = rampKey !== undefined ? gamutPerRamp[rampKey] : undefined;
     let jitteredBase = baseHex;
     if (rampIdx !== undefined) {
@@ -1547,15 +1561,16 @@ export default function PixelPalGenerator() {
       style,
       size: numColors,
       hueShiftStrength,
-      curve,
+      lightnessCurve: rampKey !== undefined ? (lightnessCurvePerRamp[rampKey] ?? LIGHTNESS_PRESETS.eased) : LIGHTNESS_PRESETS.eased,
+      satCurve: rampKey !== undefined ? (satCurvePerRamp[rampKey] ?? SAT_PRESETS.flat) : SAT_PRESETS.flat,
       gamut,
     });
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
@@ -3531,7 +3546,8 @@ export default function PixelPalGenerator() {
       hiddenShades,
       hardwareLock,
       hueShiftStrength,
-      curvePerRamp,
+      lightnessCurvePerRamp,
+      satCurvePerRamp,
       gamutPerRamp,
     };
   };
@@ -3921,7 +3937,8 @@ export default function PixelPalGenerator() {
       // stored JSON; load order doesn't matter.
       lockedRamps: [...lockedRamps].sort((a, b) => a - b),
       // Perceptual ramp engine per-ramp settings.
-      curvePerRamp,
+      lightnessCurvePerRamp,
+      satCurvePerRamp,
       gamutPerRamp,
       advancedOpen,
     };
@@ -4140,8 +4157,17 @@ export default function PixelPalGenerator() {
       } else {
         setLockedRamps(new Set());
       }
-      // Per-ramp Advanced fields. Absent fields restore to empty.
-      setCurvePerRamp(parsed.curvePerRamp && typeof parsed.curvePerRamp === 'object' ? parsed.curvePerRamp : {});
+      // Per-ramp Advanced fields. Migrate legacy curvePerRamp (string presets) to lightnessCurvePerRamp (CurvePoints).
+      const migratedLightness = {};
+      if (parsed.lightnessCurvePerRamp && typeof parsed.lightnessCurvePerRamp === 'object') {
+        Object.assign(migratedLightness, parsed.lightnessCurvePerRamp);
+      } else if (parsed.curvePerRamp && typeof parsed.curvePerRamp === 'object') {
+        for (const [id, val] of Object.entries(parsed.curvePerRamp)) {
+          migratedLightness[id] = typeof val === 'string' ? presetToPoints(val) : val;
+        }
+      }
+      setLightnessCurvePerRamp(migratedLightness);
+      setSatCurvePerRamp(parsed.satCurvePerRamp && typeof parsed.satCurvePerRamp === 'object' ? parsed.satCurvePerRamp : {});
       setGamutPerRamp(parsed.gamutPerRamp && typeof parsed.gamutPerRamp === 'object' ? parsed.gamutPerRamp : {});
       setAdvancedOpen(parsed.advancedOpen && typeof parsed.advancedOpen === 'object' ? parsed.advancedOpen : {});
       setExportFeedback(`Loaded "${parsed.name || slug}"`);
@@ -6228,10 +6254,12 @@ export default function PixelPalGenerator() {
                       </div>
                       <RampAdvancedPanel
                         open={advancedOpen[String(i)] ?? false}
-                        curve={curvePerRamp[String(i)] ?? 'eased'}
+                        lightnessCurve={lightnessCurvePerRamp[String(i)] ?? LIGHTNESS_PRESETS.eased}
+                        satCurve={satCurvePerRamp[String(i)] ?? SAT_PRESETS.flat}
                         gamut={gamutPerRamp[String(i)] ?? 'auto'}
                         onToggle={() => setAdvancedOpen(prev => ({ ...prev, [String(i)]: !prev[String(i)] }))}
-                        onCurveChange={c => setCurvePerRamp(prev => ({ ...prev, [String(i)]: c }))}
+                        onLightnessCurveChange={pts => setLightnessCurvePerRamp(prev => ({ ...prev, [String(i)]: pts }))}
+                        onSatCurveChange={pts => setSatCurvePerRamp(prev => ({ ...prev, [String(i)]: pts }))}
                         onGamutChange={g => setGamutPerRamp(prev => ({ ...prev, [String(i)]: g }))}
                       />
                     </div>
