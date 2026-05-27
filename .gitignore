@@ -35,6 +35,8 @@ tests/*
 # Exception: the WCAG contrast lint is tracked so CI can run it
 # (the existing `tests/test_*.js` runner picks it up automatically).
 !tests/test_contrast.js
+# Exception: curve math unit test (TS, run via npx tsx)
+!tests/test_curve.ts
 # Exception: fixtures used by unit tests
 !tests/fixtures/
 !tests/fixtures/**/*.json
