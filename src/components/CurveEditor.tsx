@@ -181,8 +181,8 @@ export function CurveEditor({
           const { x, y } = toPx(p.t, p.v);
           const isFixed  = fixedEndpoints && (i === 0 || i === points.length - 1);
           return (
-            <circle key={i} cx={x} cy={y}
-              r={isFixed ? 3 : 5}
+            <circle key={p.t.toFixed(4)} cx={x} cy={y}
+              r={isFixed ? 3 : 6}
               fill={isFixed ? 'none' : '#fff'}
               stroke={color}
               strokeWidth={1.5}
