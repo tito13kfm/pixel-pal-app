@@ -15,6 +15,8 @@ export function getStamp(shape: BrushShape, size: BrushSize): BrushOffset[] {
     }
     return offsets;
   }
+  // size 1: formula (0.5^2+0.5^2=0.5) > r2=0.25, would return empty; special-case it
+  if (size === 1) return [{ dx: 0, dy: 0 }];
   // circle: pixel at (dx,dy) fills if center (dx+0.5, dy+0.5) within radius
   const r2 = (size / 2) ** 2;
   const half = Math.floor(size / 2);
