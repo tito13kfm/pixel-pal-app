@@ -2781,6 +2781,8 @@ export default function PixelPalGenerator() {
     setRemapOutput(null);
     setRemapOutputSignature(null);
     setRemapError('');
+    setLightnessCurvePerRamp({});
+    setSatCurvePerRamp({});
   };
 
   // resetToDefaults: user-visible "wipe my session and start fresh"
@@ -3764,6 +3766,8 @@ export default function PixelPalGenerator() {
     hueShiftStrength,
     lockedRamps: [...lockedRamps].sort((a, b) => a - b),
     collapsedRamps: [...collapsedRamps].sort((a, b) => a - b),
+    lightnessCurvePerRamp,
+    satCurvePerRamp,
   });
 
   // Apply a snapshot back to all state setters. Wraps the calls in the
@@ -3792,6 +3796,8 @@ export default function PixelPalGenerator() {
     setHueShiftStrength(snap.hueShiftStrength);
     setLockedRamps(new Set(snap.lockedRamps || []));
     setCollapsedRamps(new Set(snap.collapsedRamps || []));
+    setLightnessCurvePerRamp(snap.lightnessCurvePerRamp ?? {});
+    setSatCurvePerRamp(snap.satCurvePerRamp ?? {});
     // Side effects of applying: clear in-flight UI editor states that
     // could reference stale indices.
     setPinEditor(null);
