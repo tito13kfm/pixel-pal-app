@@ -2212,20 +2212,21 @@ export default function PixelPalGenerator() {
             const base = remapImageName ? sanitize(remapImageName) : '';
             const filename = (base || 'remapped') + '-remapped-' + scaleTag + '.png';
 
-            exportCanvas.toBlob((blob) => {
+            exportCanvas.toBlob(async (blob) => {
               if (!blob) {
                 setRemapError('Failed to encode PNG');
                 setRemapLoading(false);
                 return;
               }
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              setTimeout(() => URL.revokeObjectURL(url), 0);
+              const result = await saveFile({
+                defaultName: filename,
+                filters: [{ name: 'PNG image', extensions: ['png'] }],
+                data: { bytes: blob },
+                folderKey: 'png',
+              });
+              if (!result.ok && !result.canceled) {
+                setRemapError('Failed to save PNG');
+              }
               setRemapLoading(false);
             }, 'image/png');
           } catch (err) {
