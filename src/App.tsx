@@ -3501,6 +3501,8 @@ export default function PixelPalGenerator() {
     hiddenShades,
     hardwareLock,
     hueShiftStrength,
+    curvePerRamp,
+    gamutPerRamp,
   });
   // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
   // in getSnapshotForSlot above for the policy.
@@ -6571,10 +6573,24 @@ export default function PixelPalGenerator() {
             // plot and lightness strip get noisier without dedupe.
             const allColors = dedupeHexes(ramps.flat());
             const sortedByL = [...allColors].sort((a, b) => hexToHsl(a).l - hexToHsl(b).l);
-            // Per-row mosaic dedupe: each ramp's non-consecutive duplicates
-            // collapse, preserving the per-ramp grouping. The main editor UI
-            // still shows all positions.
-            const mosaicRamps = ramps.map(ramp => dedupeHexes(ramp));
+            // Per-row + cross-ramp mosaic dedupe: within-ramp duplicates
+            // collapse first, then cross-ramp duplicates are dropped so
+            // identical shades only appear in the first ramp that owns them.
+            // Empty rows (all colors already claimed by an earlier ramp) are
+            // hidden. originalIdx preserved so name tooltips stay correct.
+            // Main editor UI still shows all positions.
+            const _mosaicSeen = new Set<string>();
+            const mosaicRamps: { hexes: string[]; originalIdx: number }[] = ramps
+              .map((ramp, originalIdx) => ({
+                hexes: dedupeHexes(ramp).filter(hex => {
+                  const key = hex.toLowerCase();
+                  if (_mosaicSeen.has(key)) return false;
+                  _mosaicSeen.add(key);
+                  return true;
+                }),
+                originalIdx,
+              }))
+              .filter(({ hexes }) => hexes.length > 0);
             const namesSource = Array.isArray(snap.aiColorNames) ? snap.aiColorNames : aiColorNames;
             const plotSize = compact ? 200 : 280;
             const mosaicH = compact ? '28px' : '40px';
@@ -6666,10 +6682,10 @@ export default function PixelPalGenerator() {
                   </h4>
                   {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">All ramps side-by-side. Look for adjacent colors that clash or harmonize.</p>}
                   <div className="flex flex-col gap-1">
-                    {mosaicRamps.map((ramp, i) => (
-                      <div key={i} className="flex w-full rounded overflow-hidden border" style={{ height: mosaicH, borderColor: t.vizDataBorder }}>
-                        {ramp.map((hex, j) => (
-                          <div key={`${i}-${j}`} className="flex-1" style={{ background: hex }} title={`${(namesSource && namesSource[i]) || `Color ${i + 1}`} ${hex.toUpperCase()}`} />
+                    {mosaicRamps.map(({ hexes, originalIdx }) => (
+                      <div key={originalIdx} className="flex w-full rounded overflow-hidden border" style={{ height: mosaicH, borderColor: t.vizDataBorder }}>
+                        {hexes.map((hex, j) => (
+                          <div key={`${originalIdx}-${j}`} className="flex-1" style={{ background: hex }} title={`${(namesSource && namesSource[originalIdx]) || `Color ${originalIdx + 1}`} ${hex.toUpperCase()}`} />
                         ))}
                       </div>
                     ))}
