@@ -75,5 +75,6 @@ export function activePreset(
 // Migration: convert old CurvePreset string to CurvePoints.
 // Falls back to eased for unrecognised values.
 export function presetToPoints(preset: string): CurvePoints {
-  return LIGHTNESS_PRESETS[preset] ?? LIGHTNESS_PRESETS.eased;
+  const pts = LIGHTNESS_PRESETS[preset] ?? LIGHTNESS_PRESETS.eased;
+  return pts.map(p => ({ ...p }));
 }

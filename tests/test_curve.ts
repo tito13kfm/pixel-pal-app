@@ -1,5 +1,4 @@
-// Run: node --experimental-strip-types tests/test_curve.ts
-// Fallback if Node < 22.6: npx tsx tests/test_curve.ts
+// Run: npx tsx tests/test_curve.ts
 
 import { evalCurve, activePreset, presetToPoints, LIGHTNESS_PRESETS, SAT_PRESETS } from '../src/lib/curve.ts';
 
