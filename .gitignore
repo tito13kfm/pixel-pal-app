@@ -29,9 +29,15 @@ CLAUDE.md
 
 # Tests, docs, scripts — not needed to build
 tests/*
+# Exceptions: tracked tests
+!tests/unit/
+!tests/unit/**/*.spec.ts
 # Exception: the WCAG contrast lint is tracked so CI can run it
 # (the existing `tests/test_*.js` runner picks it up automatically).
 !tests/test_contrast.js
+# Exception: fixtures used by unit tests
+!tests/fixtures/
+!tests/fixtures/**/*.json
 # Exception: Playwright e2e specs are tracked so CI can run them
 !tests/e2e/
 tests/e2e/*
