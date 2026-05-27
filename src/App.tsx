@@ -4,11 +4,9 @@ import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image a
 import {
   hexToHsl, hslToHex, hexToRgb, rgbToHex,
   rgbToHsl, hslToRgb, hexToHsv, hsvToHex, hsvToRgb,
-  getShadowHueShift, getHighlightHueShift, seededRandom,
 } from './lib/color';
 import { generateRamp as generateRampNew } from './lib/ramp-engine';
 import { hexToOklch, deltaEOK } from './lib/oklch';
-import type { EngineVersion } from './lib/palette';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
@@ -17,9 +15,7 @@ import {
 import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFromPrompt } from './lib/ai';
 import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
-import { MigrationBanner } from './components/MigrationBanner';
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
-import { detectEngineVersion, promoteKeepNewLook, promoteRestoreOldLook } from './lib/migration';
 import type { CurvePresetSerialized, GamutStrategySerialized } from './lib/palette';
 import { ONBOARDING_TOUR, TASK_GUIDES } from './lib/tours';
 import type { UpdateInfo } from './lib/tauri-bridge';
@@ -158,10 +154,9 @@ const extractDominantColors = (imageData, targetCount = 4) => {
 // unchanged if paletteColors is empty or missing (degenerate input is a
 // no-op, not a crash).
 //
-// This function is also the workhorse for the image remap preview feature.
-// quantizeToHardware below is a thin wrapper that pulls colors from a
-// HARDWARE_PALETTES entry; the image remap calls quantizeToPalette directly
-// against the active visible palette.
+// This function is the workhorse for the image remap preview feature.
+// Hardware-lock snapping is handled separately by quantizeToHardware (OKLCH
+// perceptual distance, lives further down).
 const quantizeToPalette = (hex, paletteColors) => {
   if (!paletteColors || paletteColors.length === 0) return hex;
   const target = hexToHsl(hex);
@@ -194,11 +189,6 @@ const quantizeToPalette = (hex, paletteColors) => {
   return bestHex;
 };
 
-// quantizeToHardware: thin wrapper over quantizeToPalette that extracts the
-// colors array from a HARDWARE_PALETTES entry. Kept as a separate function
-// for readability at call sites and to preserve existing test surface.
-// Behavior is byte-identical to the pre-refactor version when given the
-// same hardware entry.
 // dedupeHexes: collapse duplicate hex strings preserving first occurrence
 // and original casing. Used for visualization, export, and copy where the
 // hardware-locked ramp can produce repeats (e.g. an 8-shade Game Boy ramp
@@ -218,12 +208,11 @@ const dedupeHexes = (hexes) => {
   return out;
 };
 
-// quantizeToHardwarePerceptual: same role as quantizeToHardware but uses
-// ΔE_OK (perceptual distance in OKLab) for nearest-color search instead of
-// the weighted HSL distance. Gated by engineVersion in the caller — only
-// active for oklch-v1 palettes. Pre-v0.6 (hsv-legacy) palettes keep the
-// existing HSL-based snap so loaded-not-yet-promoted palettes look unchanged.
-const quantizeToHardwarePerceptual = (hex, hardware) => {
+// quantizeToHardware: nearest hardware color search using ΔE_OK (perceptual
+// distance in OKLab). Used by applyHardwareLock and bakeHardwareLock for
+// every snap. The image-remap path uses quantizeToPalette directly with its
+// own HSL-weighted distance — that lives elsewhere and is unrelated.
+const quantizeToHardware = (hex, hardware) => {
   if (!hardware || !hardware.colors || hardware.colors.length === 0) return hex;
   const target = hexToOklch(hex);
   if (!target) return hardware.colors[0];
@@ -236,11 +225,6 @@ const quantizeToHardwarePerceptual = (hex, hardware) => {
     if (d < bestDist) { bestDist = d; bestHex = candidate; }
   }
   return bestHex;
-};
-
-const quantizeToHardware = (hex, hardware) => {
-  if (!hardware || !hardware.colors || hardware.colors.length === 0) return hex;
-  return quantizeToPalette(hex, hardware.colors);
 };
 
 // ---------- Image remap preview ----------
@@ -1243,17 +1227,9 @@ export default function PixelPalGenerator() {
   // render. Loading the full payload happens on demand when the user clicks
   // Load. Storage operations are best-effort; failures show in `savedError`.
   const [savedPalettes, setSavedPalettes] = useState([]);
-  const [legacyPaletteSlug, setLegacyPaletteSlug] = useState<string | null>(null);
-  const [legacyPaletteName, setLegacyPaletteName] = useState<string>('');
   const [curvePerRamp, setCurvePerRamp] = useState<Record<string, CurvePresetSerialized>>({});
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
   const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
-  const [restoreFrozen, setRestoreFrozen] = useState<Record<string, true>>({});
-  // engineVersion tracks the loaded palette's engine. Fresh sessions default
-  // to 'oklch-v1'. Loading a legacy palette sets it to 'hsv-legacy' until
-  // the user clicks Keep / Restore in the migration banner. Drives Hardware
-  // Lock's distance metric (ΔE_OK for oklch-v1, HSL-weighted for hsv-legacy).
-  const [engineVersion, setEngineVersion] = useState<EngineVersion>('oklch-v1');
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   // Side-by-side compare: dedicated section with two slots. Each slot
   // holds either null (empty), the string 'working' (the live working
@@ -1516,8 +1492,7 @@ export default function PixelPalGenerator() {
   // would be a lie.
   const applyHardwareLock = (ramp, hardware) => {
     if (!hardware || !hardware.colors || hardware.colors.length === 0) return ramp;
-    const quantize = engineVersion === 'oklch-v1' ? quantizeToHardwarePerceptual : quantizeToHardware;
-    const snapped = ramp.map(hex => quantize(hex, hardware));
+    const snapped = ramp.map(hex => quantizeToHardware(hex, hardware));
     // Dedupe consecutive duplicates while preserving lightness order. We
     // don't fully dedupe set-style because that could reorder things; the
     // input is already sorted by lightness (sortByLightness in generateRamp),
@@ -1531,11 +1506,12 @@ export default function PixelPalGenerator() {
     return deduped;
   };
 
-  // Adapter from legacy positional-args generateRamp(baseHex, numColors, seed, style, hueShiftStrength)
-  // to new opts-based generateRampNew. Returns hex[] to match the existing
-  // useMemo pipeline. `seed` is intentionally dropped — the new engine is
-  // deterministic from (base, style, size) and does not jitter.
-  const generateRamp = (baseHex: string, numColors: number, _seed: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number, rampIdx?: number): string[] => {
+  // Adapter over generateRampNew that returns hex[] (matches the rest of the
+  // pipeline, which works in flat hex arrays). Threads per-ramp curve + gamut
+  // from local state. The old HSV engine took a positional `seed`; the new
+  // perceptual engine is deterministic from (base, style, size, hueShift,
+  // curve, gamut, satMult) — no jitter source needed.
+  const generateRamp = (baseHex: string, numColors: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number, rampIdx?: number): string[] => {
     const rampKey = rampIdx !== undefined ? String(rampIdx) : undefined;
     const curve = rampKey !== undefined ? curvePerRamp[rampKey] : undefined;
     const gamut = rampKey !== undefined ? gamutPerRamp[rampKey] : undefined;
@@ -1549,9 +1525,9 @@ export default function PixelPalGenerator() {
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, engineVersion]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, engineVersion]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), shuffleSeed * 17 + i * 31 + (rampShuffleOffsets[i] || 0) * 13, 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, shuffleSeed, overrides, rampSizeOverrides, rampSatOverrides, rampShuffleOffsets, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp, engineVersion]);
+  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
+  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
+  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, curvePerRamp, gamutPerRamp]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
@@ -2637,14 +2613,6 @@ export default function PixelPalGenerator() {
       } else {
         next[baseIndex] = baseEntry;
       }
-      return next;
-    });
-    // Clearing a pin invalidates the Restore-freeze marker on that ramp, since
-    // the ramp is no longer fully pinned to the legacy renderer's output.
-    setRestoreFrozen(prev => {
-      if (!prev[String(baseIndex)]) return prev;
-      const next = { ...prev };
-      delete next[String(baseIndex)];
       return next;
     });
   };
@@ -3912,14 +3880,10 @@ export default function PixelPalGenerator() {
       // locked). Sorted purely for diff-friendliness when inspecting
       // stored JSON; load order doesn't matter.
       lockedRamps: [...lockedRamps].sort((a, b) => a - b),
-      // Perceptual ramp engine (v0.6+) fields. Always written as 'oklch-v1'
-      // for new saves; legacy palettes loaded and re-saved without the
-      // migration banner being acted on stay 'hsv-legacy'.
-      engineVersion: 'oklch-v1' as const,
+      // Perceptual ramp engine per-ramp settings.
       curvePerRamp,
       gamutPerRamp,
       advancedOpen,
-      restoreFrozen,
     };
     setSavedBusy(true);
     try {
@@ -3958,15 +3922,6 @@ export default function PixelPalGenerator() {
       if (!parsed || !Array.isArray(parsed.baseColors) || parsed.baseColors.length === 0) {
         setSavedError('Palette data is invalid');
         return;
-      }
-      const loadedEngine = detectEngineVersion(parsed);
-      setEngineVersion(loadedEngine);
-      if (loadedEngine === 'hsv-legacy') {
-        setLegacyPaletteSlug(slug);
-        setLegacyPaletteName(parsed.name ?? '(unnamed)');
-      } else {
-        setLegacyPaletteSlug(null);
-        setLegacyPaletteName('');
       }
       // Merge any saved custom sprites back in. We don't replace the current
       // custom library wholesale, since the user may have other sprites they
@@ -4145,12 +4100,10 @@ export default function PixelPalGenerator() {
       } else {
         setLockedRamps(new Set());
       }
-      // Perceptual ramp engine fields. All optional; absent fields restore
-      // to empty for backwards compatibility with pre-v0.6 payloads.
+      // Per-ramp Advanced fields. Absent fields restore to empty.
       setCurvePerRamp(parsed.curvePerRamp && typeof parsed.curvePerRamp === 'object' ? parsed.curvePerRamp : {});
       setGamutPerRamp(parsed.gamutPerRamp && typeof parsed.gamutPerRamp === 'object' ? parsed.gamutPerRamp : {});
       setAdvancedOpen(parsed.advancedOpen && typeof parsed.advancedOpen === 'object' ? parsed.advancedOpen : {});
-      setRestoreFrozen(parsed.restoreFrozen && typeof parsed.restoreFrozen === 'object' ? parsed.restoreFrozen : {});
       setExportFeedback(`Loaded "${parsed.name || slug}"`);
       setTimeout(() => setExportFeedback(''), 2000);
     } catch (err) {
@@ -4158,49 +4111,6 @@ export default function PixelPalGenerator() {
       setSavedError('Load failed: ' + (err && err.message ? err.message : 'unknown error'));
     } finally {
       setSavedBusy(false);
-    }
-  };
-
-  // Migration: promote a legacy palette to oklch-v1 by accepting the new
-  // engine's rendering. No override changes; new ramps drawn by the new engine.
-  const handleKeepNewLook = async () => {
-    if (!legacyPaletteSlug) return;
-    try {
-      const got = await window.storage.get(`palettes:${legacyPaletteSlug}`);
-      if (!got || !got.value) { setLegacyPaletteSlug(null); return; }
-      const parsed = JSON.parse(got.value);
-      const promoted = promoteKeepNewLook(parsed);
-      await window.storage.set(`palettes:${legacyPaletteSlug}`, JSON.stringify(promoted));
-      setEngineVersion('oklch-v1');
-    } catch (err) {
-      console.error('handleKeepNewLook failed', err);
-    } finally {
-      setLegacyPaletteSlug(null);
-    }
-    // TODO(Task 9 follow-up): retroactively re-tag in-memory undo snapshots as
-    // oklch-v1 so an Undo doesn't pop the banner back. Requires knowing the
-    // snapshot shape.
-  };
-
-  // Migration: promote a legacy palette to oklch-v1 by freezing the legacy
-  // renderer's output into overrides across all three styles. Locks size slider
-  // on those ramps via restoreFrozen marker.
-  const handleRestoreOldLook = async () => {
-    if (!legacyPaletteSlug) return;
-    if (!window.confirm('Restore freezes every shade in every style. The ramp size slider will lock for restored ramps until you clear pins. Proceed?')) return;
-    try {
-      const got = await window.storage.get(`palettes:${legacyPaletteSlug}`);
-      if (!got || !got.value) { setLegacyPaletteSlug(null); return; }
-      const parsed = JSON.parse(got.value);
-      const promoted = promoteRestoreOldLook(parsed);
-      await window.storage.set(`palettes:${legacyPaletteSlug}`, JSON.stringify(promoted));
-      if (promoted.overrides) setOverrides(promoted.overrides);
-      if (promoted.restoreFrozen) setRestoreFrozen(promoted.restoreFrozen);
-      setEngineVersion('oklch-v1');
-    } catch (err) {
-      console.error('handleRestoreOldLook failed', err);
-    } finally {
-      setLegacyPaletteSlug(null);
     }
   };
 
@@ -5597,13 +5507,6 @@ export default function PixelPalGenerator() {
           <h1 className="text-5xl font-bold mb-2" style={{ color: t.titleColor, textShadow: t.titleGlow, letterSpacing: '0.15em' }}>PIXEL.PAL</h1>
           <p className="text-sm tracking-widest" style={{ color: t.subtitleColor, textShadow: t.subtitleGlow }}>▓▒░ PIXEL ART PALETTE GENERATOR ░▒▓</p>
           <p className="text-[10px] mt-1 opacity-40 tracking-widest font-mono" style={{ color: t.subtitleColor }}>v{__APP_VERSION__} &middot; {__BUILD_DATE__}</p>
-          {legacyPaletteSlug && (
-            <MigrationBanner
-              paletteName={legacyPaletteName}
-              onKeep={handleKeepNewLook}
-              onRestore={handleRestoreOldLook}
-            />
-          )}
           {/* Top-right control cluster: CRT toggle on top, three theme
               icon buttons in a horizontal row directly below, sized to
               match the CRT button's overall width.
@@ -6219,10 +6122,9 @@ export default function PixelPalGenerator() {
                               <button
                                 key={n}
                                 onClick={() => setRampSizeOverrides(prev => ({ ...prev, [i]: n }))}
-                                disabled={restoreFrozen[String(i)] === true}
-                                className={`w-7 h-7 rounded text-xs font-bold border-2 transition-all ${isActive ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-100 border-yellow-700/50 hover:bg-purple-800/60'} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-purple-900/60`}
+                                className={`w-7 h-7 rounded text-xs font-bold border-2 transition-all ${isActive ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-100 border-yellow-700/50 hover:bg-purple-800/60'}`}
                                 style={isActive ? { boxShadow: '0 0 8px rgba(255, 255, 0, 0.5)' } : {}}
-                                title={restoreFrozen[String(i)] ? 'Size locked while old-engine shades are pinned. Clear pins to unlock.' : (isActive ? (isOverride ? `Currently overridden to ${n}` : `${n} (inheriting global)`) : `Override this ramp to ${n} shades`)}
+                                title={isActive ? (isOverride ? `Currently overridden to ${n}` : `${n} (inheriting global)`) : `Override this ramp to ${n} shades`}
                               >
                                 {n}
                               </button>
@@ -6257,7 +6159,6 @@ export default function PixelPalGenerator() {
                         open={advancedOpen[String(i)] ?? false}
                         curve={curvePerRamp[String(i)] ?? 'eased'}
                         gamut={gamutPerRamp[String(i)] ?? 'auto'}
-                        sizeLocked={restoreFrozen[String(i)] === true}
                         onToggle={() => setAdvancedOpen(prev => ({ ...prev, [String(i)]: !prev[String(i)] }))}
                         onCurveChange={c => setCurvePerRamp(prev => ({ ...prev, [String(i)]: c }))}
                         onGamutChange={g => setGamutPerRamp(prev => ({ ...prev, [String(i)]: g }))}

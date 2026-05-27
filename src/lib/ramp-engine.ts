@@ -1,11 +1,8 @@
 // Perceptual ramp engine.
 // Public surface: generateRamp(baseHex, opts) → Shade[]
-// Legacy HSV renderer kept here for one-shot palette migration.
 
 import { hexToOklch, oklchToHex, gamutMap } from './oklch';
 import type { Oklch, GamutStrategy } from './oklch';
-
-export { generateRamp as _legacyHsvRamp } from './color';
 
 export type Style = 'punchy' | 'balanced' | 'muted';
 export type CurvePreset = 'linear' | 'eased' | 's-curve' | 'ease-in' | 'ease-out';

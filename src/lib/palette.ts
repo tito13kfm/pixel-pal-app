@@ -16,7 +16,6 @@ export interface AIConfig {
 
 export type CurvePresetSerialized = 'linear' | 'eased' | 's-curve' | 'ease-in' | 'ease-out';
 export type GamutStrategySerialized = 'auto' | 'clip' | 'chroma-preserve';
-export type EngineVersion = 'hsv-legacy' | 'oklch-v1';
 
 export interface SavedPalettePayload {
   name: string
@@ -40,15 +39,10 @@ export interface SavedPalettePayload {
   hueShiftStrength?: number
   lockedRamps?: number[]
 
-  // Perceptual ramp engine fields. All optional for backwards compatibility.
-  // Omitted engineVersion === 'hsv-legacy'.
-  engineVersion?: EngineVersion
+  // Perceptual ramp engine per-ramp Advanced settings. All optional.
   curvePerRamp?: Record<string, CurvePresetSerialized>
   gamutPerRamp?: Record<string, GamutStrategySerialized>
   advancedOpen?: Record<string, boolean>
-  // restoreFrozen[rampSlot] === true marks a Restore-driven override freeze.
-  // Used to lock the per-ramp size slider. Manual pins do NOT set this.
-  restoreFrozen?: Record<string, true>
 }
 
 // The lightweight index record kept in memory for the saved-palettes list.
