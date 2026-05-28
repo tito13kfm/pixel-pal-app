@@ -31,6 +31,16 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
   const isDrawing = useRef(false);
   const strokeStart = useRef<(number | null)[] | null>(null);
 
+  // Clamp activeColor when ramps shrink to avoid silent lost strokes
+  useEffect(() => {
+    if (ramps.length === 0) return;
+    setActiveColor(prev => {
+      const r = Math.min(prev.r, ramps.length - 1);
+      const s = Math.min(prev.s, ramps[r].length - 1);
+      return prev.r === r && prev.s === s ? prev : { r, s };
+    });
+  }, [ramps]);
+
   // Render pixels to canvas whenever pixels or ramps change
   useEffect(() => {
     const canvas = canvasRef.current;
