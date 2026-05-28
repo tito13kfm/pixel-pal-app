@@ -69,7 +69,7 @@ export const TASK_GUIDES: TourGuide[] = [
       },
       {
         title: 'Ramps generated',
-        body: 'Your ramps appear below. Each ramp has H/S/V sliders to shift the base color, a per-ramp size button, and an Advanced disclosure for the OKLCH curve preset and gamut strategy.',
+        body: 'Your ramps appear below. Each ramp has H/S/V sliders to shift the base color, a per-ramp size button, and an Advanced disclosure with interactive lightness and saturation curve editors.',
       },
     ],
   },
