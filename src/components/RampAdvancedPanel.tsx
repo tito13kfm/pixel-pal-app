@@ -9,18 +9,22 @@ interface RampAdvancedPanelProps {
   lightnessCurve: CurvePoints;
   satCurve: CurvePoints;
   gamut: GamutStrategySerialized;
+  hueShift: number;
+  hueShiftOverridden: boolean;
   sizeLocked?: boolean;
   onToggle: () => void;
   onLightnessCurveChange: (pts: CurvePoints) => void;
   onSatCurveChange: (pts: CurvePoints) => void;
   onGamutChange: (g: GamutStrategySerialized) => void;
+  onHueShiftChange: (v: number) => void;
+  onHueShiftReset: () => void;
 }
 
 const GAMUTS: GamutStrategySerialized[] = ['auto', 'clip', 'chroma-preserve'];
 
 export const RampAdvancedPanel: React.FC<RampAdvancedPanelProps> = ({
-  open, lightnessCurve, satCurve, gamut, sizeLocked,
-  onToggle, onLightnessCurveChange, onSatCurveChange, onGamutChange,
+  open, lightnessCurve, satCurve, gamut, hueShift, hueShiftOverridden, sizeLocked,
+  onToggle, onLightnessCurveChange, onSatCurveChange, onGamutChange, onHueShiftChange, onHueShiftReset,
 }) => {
   return (
     <div style={{ marginTop: 8, borderTop: '1px dashed rgba(255,255,255,0.15)', paddingTop: 6 }}>
@@ -72,6 +76,30 @@ export const RampAdvancedPanel: React.FC<RampAdvancedPanelProps> = ({
                 {GAMUTS.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </label>
+          </div>
+
+          <div style={{ marginTop: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: '#bbb', flexShrink: 0 }}>Hue shift</span>
+              <input
+                type="range"
+                min={0}
+                max={200}
+                step={5}
+                value={Math.round(hueShift * 100)}
+                onChange={e => onHueShiftChange(Number(e.target.value) / 100)}
+                style={{ flex: 1, minWidth: 80 }}
+              />
+              <span style={{ color: '#ffea00', fontFamily: 'monospace', fontSize: 11, width: 38, textAlign: 'right' }}>{Math.round(hueShift * 100)}%</span>
+              {hueShiftOverridden && (
+                <button
+                  type="button"
+                  onClick={onHueShiftReset}
+                  title="Reset per-ramp hue shift to global default"
+                  style={{ fontSize: 10, padding: '2px 6px', background: '#4b2d7a', color: '#ffea00', border: '1px solid rgba(255,234,0,0.3)', borderRadius: 3, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                >Reset</button>
+              )}
+            </div>
           </div>
 
           {sizeLocked && (

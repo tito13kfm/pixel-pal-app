@@ -1161,6 +1161,7 @@ export default function PixelPalGenerator() {
   // removeRamp also shifts later keys down by 1.
   const [rampSizeOverrides, setRampSizeOverrides] = useState({});
   const [rampSatOverrides, setRampSatOverrides] = useState({});
+  const [hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp] = useState({});
 
   // Per-ramp shuffle offsets. Sparse map keyed by baseIndex; value is a
   // non-negative integer that the user has incremented by clicking the
@@ -1520,6 +1521,9 @@ export default function PixelPalGenerator() {
     return rampSize;
   };
 
+  const resolveHueShiftForRamp = (baseIndex) =>
+    hueShiftStrengthPerRamp[baseIndex] ?? hueShiftStrength;
+
   // Active hardware palette object when locked, otherwise null. Resolved
   // here once so the ramp useMemos don't re-do the find on every iteration.
   const activeHardware = useMemo(() => {
@@ -1579,9 +1583,9 @@ export default function PixelPalGenerator() {
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', hueShiftStrength, i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', hueShiftStrength, i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', hueShiftStrength, i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', resolveHueShiftForRamp(i), i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', resolveHueShiftForRamp(i), i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', resolveHueShiftForRamp(i), i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
@@ -2781,7 +2785,7 @@ export default function PixelPalGenerator() {
   // (and verify each of the 8 call sites still does the right thing).
   const resetPaletteState = () => {
     setOverrides({}); setPinEditor(null); setHarmonyAnchor(0);
-    setRampSizeOverrides({}); setRampSatOverrides({});
+    setRampSizeOverrides({}); setRampSatOverrides({}); setHueShiftStrengthPerRamp({});
     setHiddenShades({}); setRampShuffleOffsets({});
     setCompareAnchor(null); setCompareResult(null);
     setCollapsedRamps(new Set()); setLockedRamps(new Set());
@@ -3398,7 +3402,7 @@ export default function PixelPalGenerator() {
     return () => {};
   }, [
     baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
-    overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides,
+    overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
     hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
     lockedRamps, collapsedRamps,
   ]);
@@ -3775,6 +3779,7 @@ export default function PixelPalGenerator() {
     harmonyAnchor,
     rampSizeOverrides,
     rampSatOverrides,
+    hueShiftStrengthPerRamp,
     hiddenShades,
     rampShuffleOffsets,
     hardwareLock,
@@ -3805,6 +3810,7 @@ export default function PixelPalGenerator() {
     setHarmonyAnchor(snap.harmonyAnchor);
     setRampSizeOverrides(snap.rampSizeOverrides);
     setRampSatOverrides(snap.rampSatOverrides);
+    setHueShiftStrengthPerRamp(snap.hueShiftStrengthPerRamp ?? {});
     setHiddenShades(snap.hiddenShades);
     setRampShuffleOffsets(snap.rampShuffleOffsets);
     setHardwareLock(snap.hardwareLock);
@@ -3840,6 +3846,7 @@ export default function PixelPalGenerator() {
     if (JSON.stringify(prev.lockedRamps) !== JSON.stringify(next.lockedRamps)) return 'Lock / unlock ramp';
     if (JSON.stringify(prev.rampShuffleOffsets) !== JSON.stringify(next.rampShuffleOffsets)) return 'Shuffle ramp';
     if (JSON.stringify(prev.rampSatOverrides) !== JSON.stringify(next.rampSatOverrides)) return 'Adjust saturation';
+    if (JSON.stringify(prev.hueShiftStrengthPerRamp) !== JSON.stringify(next.hueShiftStrengthPerRamp)) return 'Adjust ramp hue shift';
     if (JSON.stringify(prev.rampSizeOverrides) !== JSON.stringify(next.rampSizeOverrides)) return 'Change ramp size';
     if (prev.rampSize !== next.rampSize) return 'Change shade count';
     if (prev.hueShiftStrength !== next.hueShiftStrength) return 'Adjust hue shift';
@@ -3947,6 +3954,7 @@ export default function PixelPalGenerator() {
       harmonyAnchor, // index into baseColors used as the harmony source
       rampSizeOverrides, // per-ramp shade count overrides; absent in older payloads
       rampSatOverrides, // per-ramp saturation multipliers; absent in older payloads
+      hueShiftStrengthPerRamp, // per-ramp hue shift strength overrides; absent in older payloads
       hiddenShades, // per-base array of hidden shade indices; absent in older payloads
       rampShuffleOffsets, // per-ramp shuffle counter; absent in older payloads
       hardwareLock, // null | 'nes' | 'gameboy' | 'cga16' | 'ega64' | 'c64'; persistent hardware lock; absent in older payloads
@@ -4112,6 +4120,20 @@ export default function PixelPalGenerator() {
         setRampSatOverrides(cleaned);
       } else {
         setRampSatOverrides({});
+      }
+      // Restore per-ramp hue shift overrides. Schema: { [baseIndex]: number }.
+      // Validate: key in range, value a finite number in [0, 2]. Out-of-range values are clamped.
+      if (parsed.hueShiftStrengthPerRamp && typeof parsed.hueShiftStrengthPerRamp === 'object' && !Array.isArray(parsed.hueShiftStrengthPerRamp)) {
+        const cleaned = {};
+        for (const k of Object.keys(parsed.hueShiftStrengthPerRamp)) {
+          const idx = Number(k);
+          if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
+          const v = Number(parsed.hueShiftStrengthPerRamp[k]);
+          if (Number.isFinite(v)) cleaned[idx] = Math.max(0, Math.min(2, v));
+        }
+        setHueShiftStrengthPerRamp(cleaned);
+      } else {
+        setHueShiftStrengthPerRamp({});
       }
       // Restore hiddenShades. Schema: { [baseIndex]: number[] of shade indices }.
       // Validation: numeric baseIndex in range, value an array of non-negative
@@ -6307,10 +6329,14 @@ export default function PixelPalGenerator() {
                         lightnessCurve={lightnessCurvePerRamp[String(i)] ?? LIGHTNESS_PRESETS.eased}
                         satCurve={satCurvePerRamp[String(i)] ?? SAT_PRESETS.flat}
                         gamut={gamutPerRamp[String(i)] ?? 'auto'}
+                        hueShift={resolveHueShiftForRamp(i)}
+                        hueShiftOverridden={hueShiftStrengthPerRamp[i] !== undefined}
                         onToggle={() => setAdvancedOpen(prev => ({ ...prev, [String(i)]: !prev[String(i)] }))}
                         onLightnessCurveChange={pts => setLightnessCurvePerRamp(prev => ({ ...prev, [String(i)]: pts }))}
                         onSatCurveChange={pts => setSatCurvePerRamp(prev => ({ ...prev, [String(i)]: pts }))}
                         onGamutChange={g => setGamutPerRamp(prev => ({ ...prev, [String(i)]: g }))}
+                        onHueShiftChange={v => setHueShiftStrengthPerRamp(prev => ({ ...prev, [i]: v }))}
+                        onHueShiftReset={() => setHueShiftStrengthPerRamp(prev => { const n = { ...prev }; delete n[i]; return n; })}
                       />
                     </div>
                   </div>
