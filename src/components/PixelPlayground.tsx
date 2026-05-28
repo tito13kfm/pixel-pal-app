@@ -92,13 +92,10 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
   }, []);
 
   const handleUndo = useCallback(() => {
-    setUndoStack(prev => {
-      if (prev.length === 0) return prev;
-      const next = prev.slice(0, -1);
-      setPixels(prev[prev.length - 1]);
-      return next;
-    });
-  }, []);
+    if (undoStack.length === 0) return;
+    setPixels(undoStack[undoStack.length - 1]);
+    setUndoStack(s => s.slice(0, -1));
+  }, [undoStack]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -145,7 +142,7 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
         ))}
         <div className="flex-1" />
         <button onClick={handleUndo} disabled={!canUndo}
-          className={`${buttonBase} ${canUndo ? btnActive : 'opacity-30 cursor-not-allowed ' + btnActive}`}>
+          className={`${buttonBase} ${canUndo ? btnActive : `opacity-30 cursor-not-allowed ${btnActive}`}`}>
           Undo
         </button>
         <button onClick={handleClear} className={`${buttonBase} ${btnActive}`}>
