@@ -102,6 +102,12 @@ export function AISettingsPanel({ onClose }: Props) {
           placeholder="https://api.example.com/v1"
           className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm font-mono mb-3 text-zinc-100"
         />
+        {IS_WEB && provider === 'custom' && (
+          <p className="text-xs text-amber-400/80 font-mono mb-3 -mt-2">
+            Note: browser CORS may block your endpoint. If requests fail,
+            use the desktop app for this provider.
+          </p>
+        )}
 
         {/* API Key */}
         <label className="block text-xs text-zinc-400 mb-1 font-mono">API KEY</label>
