@@ -6569,19 +6569,17 @@ export default function PixelPalGenerator() {
         </div>
 
         {/* ---------- Pixel Playground (collapsible) ---------- */}
-        <div className={`rounded-2xl shadow-lg overflow-hidden ${t.card}`}>
+        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgGreen, borderColor: themedAccentBorder('#00ff88'), boxShadow: accentGlow('#00ff88', 0.3) }}>
           <button
             onClick={() => setPgOpen(o => !o)}
             title={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
             className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
           >
-            <span className={`font-semibold text-lg ${t.glowStrong > 0.5 ? 'text-white' : 'text-gray-800'}`}>
-              Pixel Playground
-            </span>
+            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ff88'), textShadow: accentTextGlow('#00ff88') }}>Pixel Playground</h2>
             <span className="text-cyan-200">{pgOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
           </button>
           {pgOpen && (
-            <div className="p-4 border-t border-white/10">
+            <div className="p-6 pt-2">
               <PixelPlayground
                 ramps={vizStyle === 'balanced' ? rampsBalanced : vizStyle === 'muted' ? rampsMuted : rampsPunchy}
                 theme={{ glowStrong: t.glowStrong, text: t.text }}
