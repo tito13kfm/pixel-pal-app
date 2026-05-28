@@ -36,29 +36,34 @@ export const RampAdvancedPanel: React.FC<RampAdvancedPanelProps> = ({
       {open && (
         <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)', padding: 8, marginTop: 6, fontSize: 12, fontFamily: 'monospace' }}>
 
-          <div style={{ color: '#666', fontSize: 11, marginBottom: 4 }}>LIGHTNESS CURVE</div>
-          <CurveEditor
-            points={lightnessCurve}
-            onChange={onLightnessCurveChange}
-            presets={LIGHTNESS_PRESETS}
-            color="#ffea00"
-            yMin={0}
-            yMax={1}
-            fixedEndpoints={true}
-            height={120}
-          />
-
-          <div style={{ color: '#666', fontSize: 11, marginBottom: 4, marginTop: 12 }}>SATURATION CURVE</div>
-          <CurveEditor
-            points={satCurve}
-            onChange={onSatCurveChange}
-            presets={SAT_PRESETS}
-            color="#ff9966"
-            yMin={0}
-            yMax={2}
-            fixedEndpoints={false}
-            height={100}
-          />
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: '#666', fontSize: 11, marginBottom: 4 }}>LIGHTNESS CURVE</div>
+              <CurveEditor
+                points={lightnessCurve}
+                onChange={onLightnessCurveChange}
+                presets={LIGHTNESS_PRESETS}
+                color="#ffea00"
+                yMin={0}
+                yMax={1}
+                fixedEndpoints={true}
+                height={120}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: '#666', fontSize: 11, marginBottom: 4 }}>SATURATION CURVE</div>
+              <CurveEditor
+                points={satCurve}
+                onChange={onSatCurveChange}
+                presets={SAT_PRESETS}
+                color="#ff9966"
+                yMin={0}
+                yMax={2}
+                fixedEndpoints={false}
+                height={120}
+              />
+            </div>
+          </div>
 
           <div style={{ marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
             <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
