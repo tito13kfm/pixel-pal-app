@@ -17,6 +17,7 @@ import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFr
 import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
+import { PixelPlayground } from './components/PixelPlayground';
 import type { CurvePresetSerialized, GamutStrategySerialized } from './lib/palette';
 import { ONBOARDING_TOUR, TASK_GUIDES } from './lib/tours';
 import type { UpdateInfo } from './lib/tauri-bridge';
@@ -879,7 +880,7 @@ const buildRandomHex = () => {
 
 // ---------- Panel state persistence ----------
 const PANEL_STORAGE_KEY = 'ui:panels'
-const PANEL_DEFAULTS = { harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: true, historyOpen: false, savedOpen: false, sbsOpen: false }
+const PANEL_DEFAULTS = { harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: true, historyOpen: false, savedOpen: false, sbsOpen: false, pgOpen: false }
 function loadPanelState() {
   try {
     const raw = localStorage.getItem(PANEL_STORAGE_KEY)
@@ -1259,6 +1260,7 @@ export default function PixelPalGenerator() {
   // Named sbsLeft/sbsRight rather than compareLeft/compareRight to avoid
   // confusion with the existing WCAG Check (formerly "Compare Mode") picker.
   const [sbsOpen, setSbsOpen] = useState(_panels.sbsOpen);
+  const [pgOpen, setPgOpen] = useState(_panels.pgOpen);
   const [sbsLeft, setSbsLeft] = useState('working');
   const [sbsRight, setSbsRight] = useState(null);
   // Per-slot async payload cache. When a slot points at a saved palette
@@ -1773,8 +1775,8 @@ export default function PixelPalGenerator() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen }))
-  }, [harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen]);
+    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen }))
+  }, [harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen]);
 
   function handleAISettingsClose() {
     setShowAISettings(false);
@@ -6564,6 +6566,28 @@ export default function PixelPalGenerator() {
             );
           })()}
           </div>}
+        </div>
+
+        {/* ---------- Pixel Playground (collapsible) ---------- */}
+        <div className={`rounded-2xl shadow-lg overflow-hidden ${t.card}`}>
+          <button
+            onClick={() => setPgOpen(o => !o)}
+            title={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
+            className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+          >
+            <span className={`font-semibold text-lg ${t.glowStrong > 0.5 ? 'text-white' : 'text-gray-800'}`}>
+              Pixel Playground
+            </span>
+            <span className="text-cyan-200">{pgOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+          </button>
+          {pgOpen && (
+            <div className="p-4 border-t border-white/10">
+              <PixelPlayground
+                ramps={vizStyle === 'balanced' ? rampsBalanced : vizStyle === 'muted' ? rampsMuted : rampsPunchy}
+                theme={{ glowStrong: t.glowStrong, text: t.text }}
+              />
+            </div>
+          )}
         </div>
 
         {/* ---------- Visualize & Compare (collapsible) ---------- */}
