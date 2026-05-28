@@ -893,7 +893,7 @@ const buildRandomHex = () => {
 
 // ---------- Panel state persistence ----------
 const PANEL_STORAGE_KEY = 'ui:panels'
-const PANEL_DEFAULTS = { harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: true, historyOpen: false, savedOpen: false, sbsOpen: false }
+const PANEL_DEFAULTS = { harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: false, historyOpen: false, savedOpen: false, sbsOpen: false }
 function loadPanelState() {
   try {
     const raw = localStorage.getItem(PANEL_STORAGE_KEY)
