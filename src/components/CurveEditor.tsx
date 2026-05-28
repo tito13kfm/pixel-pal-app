@@ -204,7 +204,7 @@ export function CurveEditor({
               padding:     '2px 5px',
               borderRadius: 3,
               color:       active ? color : '#777',
-              fontSize:    9,
+              fontSize:    11,
               cursor:      'pointer',
               fontFamily:  'monospace',
             }}>
