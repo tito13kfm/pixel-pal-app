@@ -1,7 +1,6 @@
 import OpenAI from 'openai'
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions'
 import type { AIConfig } from './palette'
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 
 export interface AIResponse {
   colors: string[]         // array of hex color strings (mapped from colors[].hex)
@@ -145,14 +144,43 @@ export async function saveAIConfigAsync(config: AIConfig): Promise<{ encrypted: 
   return { encrypted: false }
 }
 
+let _tauriFetch: typeof globalThis.fetch | null = null
+let _tauriFetchLoaded = false
+
+async function loadTauriFetch(): Promise<typeof globalThis.fetch | null> {
+  if (_tauriFetchLoaded) return _tauriFetch
+  _tauriFetchLoaded = true
+  if (!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+    return null
+  }
+  try {
+    const mod = await import('@tauri-apps/plugin-http')
+    _tauriFetch = mod.fetch as unknown as typeof globalThis.fetch
+    return _tauriFetch
+  } catch (e) {
+    console.warn('[ai] failed to load @tauri-apps/plugin-http:', e)
+    return null
+  }
+}
+
+// Public: call once during app boot so the dynamic import has time to
+// resolve before the first AI call. No-op in plain browser.
+export async function ensureTauriFetchLoaded(): Promise<void> {
+  await loadTauriFetch()
+}
+
 export function createAIClient(config: AIConfig): OpenAI {
+  // Note: fetch is resolved synchronously for compatibility with the OpenAI
+  // SDK constructor. In Tauri windows, the import will have been kicked off
+  // by `ensureTauriFetchLoaded()` during app boot (main.tsx); by the time
+  // createAIClient is called from a user-initiated AI request, the cached
+  // _tauriFetch is populated. In plain browser, _tauriFetch stays null and
+  // OpenAI SDK falls back to globalThis.fetch.
   return new OpenAI({
     baseURL: config.baseUrl,
     apiKey: config.apiKey,
     dangerouslyAllowBrowser: true,
-    fetch: (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
-      ? (tauriFetch as unknown as typeof globalThis.fetch)
-      : undefined,
+    fetch: _tauriFetch ?? undefined,
   })
 }
 
