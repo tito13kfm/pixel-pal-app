@@ -44,6 +44,9 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
+      - name: Build web target
+        run: npm run build:web
+
       - name: JS lint scripts (contrast etc.)
         shell: bash
         run: |
@@ -74,3 +77,7 @@ jobs:
       - name: E2E tests
         if: matrix.platform == 'ubuntu-latest'
         run: npx playwright test
+
+      - name: E2E tests (web build)
+        if: matrix.platform == 'ubuntu-latest'
+        run: npx playwright test --config=playwright.web.config.ts
