@@ -5,12 +5,15 @@ import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const pkg = require('./package.json')
 
+const IS_WEB = process.env.VITE_BUILD_TARGET === 'web'
+
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  base: IS_WEB ? '/pixel-pal-app/' : './',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    'import.meta.env.VITE_WEB': JSON.stringify(IS_WEB),
   },
   build: {
     outDir: 'dist',
