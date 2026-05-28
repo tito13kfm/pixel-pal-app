@@ -62,6 +62,17 @@ export const PROVIDER_PRESETS: Record<string, { baseUrl: string; label: string; 
   },
 }
 
+export const DROPPED_WEB_PROVIDERS = new Set(['anthropic', 'ollama'])
+
+export function getProviderPresets(isWeb: boolean): typeof PROVIDER_PRESETS {
+  if (!isWeb) return PROVIDER_PRESETS
+  const out = {} as Record<string, typeof PROVIDER_PRESETS[keyof typeof PROVIDER_PRESETS]>
+  for (const [key, val] of Object.entries(PROVIDER_PRESETS)) {
+    if (!DROPPED_WEB_PROVIDERS.has(key)) out[key] = val
+  }
+  return out as typeof PROVIDER_PRESETS
+}
+
 const AI_CONFIG_KEY = 'ai:config'
 
 export function loadAIConfig(): AIConfig | null {
