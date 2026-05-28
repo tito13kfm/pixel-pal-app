@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   PROVIDER_PRESETS,
   getCachedAIConfig,
   saveAIConfigAsync,
+  getProviderPresets,
+  migrateStaleProvider,
 } from '../lib/ai'
 import type { AIConfig } from '../lib/palette'
+import { IS_WEB } from '../lib/env'
+import { WebKeyWarning } from '../components/WebKeyWarning'
 
 interface Props {
   onClose: () => void
@@ -18,8 +22,23 @@ export function AISettingsPanel({ onClose }: Props) {
   const [model, setModel] = useState(saved?.model ?? PROVIDER_PRESETS.openai.modelExample)
   const [showInstructions, setShowInstructions] = useState(false)
   const [saved_, setSaved_] = useState(false)
+  const [migrationNotice, setMigrationNotice] = useState<string | null>(null)
 
-  const preset = PROVIDER_PRESETS[provider] ?? PROVIDER_PRESETS.custom
+  useEffect(() => {
+    if (!IS_WEB || !saved) return
+    const { config: migrated, migrated: didMigrate } = migrateStaleProvider(saved, true)
+    if (didMigrate && migrated) {
+      setProvider(migrated.provider)
+      setBaseUrl(migrated.baseUrl)
+      setModel(migrated.model)
+      setMigrationNotice(
+        `${saved.provider === 'anthropic' ? 'Anthropic' : 'Ollama'} isn't available in the browser. Switched to OpenAI. Your API key is unchanged; update it if needed.`,
+      )
+    }
+  }, [saved])
+
+  const presets = getProviderPresets(IS_WEB)
+  const preset = presets[provider] ?? PROVIDER_PRESETS.custom
 
   function handleProviderChange(p: string) {
     setProvider(p)
@@ -49,6 +68,19 @@ export function AISettingsPanel({ onClose }: Props) {
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 text-lg leading-none">✕</button>
         </div>
 
+        {IS_WEB && <WebKeyWarning />}
+        {migrationNotice && (
+          <div className="bg-cyan-950/40 border border-cyan-600/40 rounded p-3 mb-3 text-xs text-cyan-200 font-mono">
+            {migrationNotice}
+            <button
+              onClick={() => setMigrationNotice(null)}
+              className="ml-2 text-cyan-400/70 hover:text-cyan-300"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Provider selector */}
         <label className="block text-xs text-zinc-400 mb-1 font-mono">PROVIDER</label>
         <select
@@ -56,7 +88,7 @@ export function AISettingsPanel({ onClose }: Props) {
           onChange={e => handleProviderChange(e.target.value)}
           className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm font-mono mb-3 text-zinc-100"
         >
-          {Object.entries(PROVIDER_PRESETS).map(([key, p]) => (
+          {Object.entries(presets).map(([key, p]) => (
             <option key={key} value={key}>{p.label}</option>
           ))}
         </select>
