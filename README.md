@@ -34,7 +34,7 @@ Pre-built installers for Windows, macOS, and Linux are on the [Releases page](ht
 - Pin individual shades to a fixed hex across all three styles
 - Right-click a shade to hide it across all three styles
 - Lock ramp from global operations
-- **Advanced disclosure** (closed by default): curve preset (linear / eased / s-curve / ease-in / ease-out) and gamut strategy (auto / clip / chroma-preserve)
+- **Advanced disclosure** (closed by default): interactive lightness curve editor and saturation curve editor (drag anchors, click to add, preset chips for one-click shapes), plus gamut strategy (auto / clip / chroma-preserve)
 
 **Global tools**
 - Harmonize: rotate unlocked ramps to color-theory positions relative to an anchor ramp

@@ -1,3 +1,5 @@
+import type { CurvePoints } from './curve';
+
 // ---------- AI Configuration ----------
 // Defined here (shared type layer) since it lives in the data layer.
 // The actual AI client code lives in src/lib/ai.ts.
@@ -40,7 +42,13 @@ export interface SavedPalettePayload {
   lockedRamps?: number[]
 
   // Perceptual ramp engine per-ramp Advanced settings. All optional.
-  curvePerRamp?: Record<string, CurvePresetSerialized>
+  // Legacy: read-only for migration, not written on save
+  curvePerRamp?: Record<string, string | CurvePoints>
+
+  // Current curve state
+  lightnessCurvePerRamp?: Record<string, CurvePoints>
+  satCurvePerRamp?: Record<string, CurvePoints>
+
   gamutPerRamp?: Record<string, GamutStrategySerialized>
   advancedOpen?: Record<string, boolean>
 }

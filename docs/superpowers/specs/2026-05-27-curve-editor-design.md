@@ -1,7 +1,7 @@
 # Curve Editor Design
 
 **Date:** 2026-05-27
-**Branch:** feature/curve-editor (to be created)
+**Branch:** feature/curve-editor
 **Scope:** Lightness curve editor + saturation curve editor per ramp
 
 ---
@@ -47,19 +47,28 @@ export const LIGHTNESS_PRESETS: Record<string, CurvePoints> = {
 };
 
 export const SAT_PRESETS: Record<string, CurvePoints> = {
-  flat: [],                                              // midpoints only; endpoints injected by CurveEditor
-  bell: [{ t: 0.5, v: 1.6 }],
-  rise: [{ t: 0.5, v: 0.6 }, { t: 0.9, v: 1.5 }],
-  dip:  [{ t: 0.5, v: 0.5 }],
+  flat: [{ t: 0, v: 1 }, { t: 1, v: 1 }],
+  bell: [{ t: 0, v: 1 }, { t: 0.5, v: 1.6 }, { t: 1, v: 1 }],
+  rise: [{ t: 0, v: 1 }, { t: 0.5, v: 0.6 }, { t: 0.9, v: 1.5 }, { t: 1, v: 1 }],
+  dip:  [{ t: 0, v: 1 }, { t: 0.5, v: 0.5 }, { t: 1, v: 1 }],
 };
 ```
 
-Sat curve `points` in state always has the form `[endpoint0, ...midpoints, endpoint1]` where endpoints are `{ t: 0, v }` and `{ t: 1, v }`. Preset chips replace only the midpoints; clicking a preset resets endpoints to `(0, 1.0)` and `(1, 1.0)`.
+Sat presets include the two endpoints. Clicking a preset replaces the full `points` array (endpoints + midpoints). Dragging endpoints updates only those points in-place. `activePreset` on sat curve compares full arrays including endpoints.
+
+Sat curve state default: `SAT_PRESETS.flat` (two-element array). No special "unset" state.
 
 ### Functions
 
 `evalCurve(points: CurvePoints, t: number, yMin: number, yMax: number): number`
-Catmull-Rom spline with clamped endpoints. For lightness: prepends (0,0), appends (1,1) before interpolation. For sat: endpoints stored in `points` array (first and last elements). Clamps output to [yMin, yMax]. Sampled at t in [0,1].
+Catmull-Rom spline. For lightness: prepends (0,0) and appends (1,1) to the midpoints before interpolation. For sat: `points` already includes endpoints as first/last elements.
+
+Degenerate cases:
+- 0 interior segments (lightness with 0 midpoints = 2 total points, sat with 0 midpoints = 2 total points): linear interpolation between first and last point.
+- 1 interior segment (3 total points): use phantom endpoint extrapolation — reflect the adjacent interior point through each endpoint to synthesize 4 control points for Catmull-Rom.
+- 2+ segments: standard Catmull-Rom with phantom endpoints at both ends.
+
+Output clamped to [yMin, yMax].
 
 `activePreset(points: CurvePoints, presets: Record<string, CurvePoints>, eps = 0.01): string | null`
 Returns the key of the matching preset within epsilon tolerance, or null (custom).
@@ -123,11 +132,13 @@ interface CurveEditorProps {
 
 | Action | Result |
 |--------|--------|
-| Click empty canvas | Add anchor at position (max 4 midpoints) |
+| Click empty canvas | Add anchor at position (max 4 midpoints for both L and sat) |
 | Drag anchor | Reposition |
-| Right-click anchor | Delete |
-| Drag anchor off edge >10px | Delete (secondary path) |
-| Sat endpoints | Drag only, no delete |
+| Right-click anchor | Delete (midpoints only; sat endpoints not deletable) |
+| Drag anchor off edge >10px | Delete (midpoints only; secondary path) |
+| Sat endpoints | Drag only, no delete, clamped to t=0 and t=1 |
+
+Click vs drag disambiguation: movement of less than 3px between `pointerdown` and `pointerup` on empty canvas counts as a click (add anchor). Movement of 3px or more on an existing anchor starts a drag. This threshold prevents accidental anchor creation when trying to drag.
 
 ### Rendering
 
@@ -198,7 +209,7 @@ const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoint
 
 ```ts
 lightnessCurve: lightnessCurvePerRamp[rampId] ?? cfg.defaultLightnessCurve,
-satCurve: satCurvePerRamp[rampId] ?? SAT_PRESETS.flat,
+satCurve: satCurvePerRamp[rampId] ?? SAT_PRESETS.flat,  // [{t:0,v:1},{t:1,v:1}]
 ```
 
 ### `resetPaletteState`
