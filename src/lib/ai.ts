@@ -73,6 +73,25 @@ export function getProviderPresets(isWeb: boolean): typeof PROVIDER_PRESETS {
   return out as typeof PROVIDER_PRESETS
 }
 
+export function migrateStaleProvider(
+  config: AIConfig | null,
+  isWeb: boolean,
+): { config: AIConfig | null; migrated: boolean } {
+  if (!config) return { config: null, migrated: false }
+  if (!isWeb) return { config, migrated: false }
+  if (!DROPPED_WEB_PROVIDERS.has(config.provider)) return { config, migrated: false }
+  const fallback = PROVIDER_PRESETS.openai
+  return {
+    config: {
+      provider: 'openai',
+      baseUrl: fallback.baseUrl,
+      model: fallback.modelExample,
+      apiKey: config.apiKey,
+    },
+    migrated: true,
+  }
+}
+
 const AI_CONFIG_KEY = 'ai:config'
 
 export function loadAIConfig(): AIConfig | null {
