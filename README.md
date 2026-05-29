@@ -2,14 +2,24 @@
 
 Color palette generator for pixel art. Takes a base color, text description, or image and produces sorted color ramps in three contrast styles: Punchy, Balanced, and Muted.
 
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
+![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ![PIXEL.PAL screenshot](media/screenshot-main.png)
 
-## Download
+## Try It In Your Browser
+
+No install, no download: **[tito13kfm.github.io/pixel-pal-app](https://tito13kfm.github.io/pixel-pal-app/)**
+
+The web version is feature-complete for everything except a few desktop-only conveniences (see [Web vs Desktop](#web-vs-desktop) below). Open the link, paste a hex color or an image, generate ramps, export `.txt` or `.gpl`. Your palettes save to browser local storage, so they persist across visits on the same browser profile.
+
+The hosted build is rebuilt and deployed on every tagged release.
+
+## Download (Desktop)
 
 Pre-built installers for Windows, macOS, and Linux are on the [Releases page](https://github.com/tito13kfm/pixel-pal-app/releases). A standalone portable Windows `.exe` (no installer, no auto-update) ships in each release as `PIXEL.PAL_<version>_x64-portable.exe`.
+
+The desktop build adds OS-keychain key storage, native Save As dialogs, in-app auto-update, and support for AI providers the browser can't reach (Anthropic, local Ollama).
 
 ## Features
 
@@ -61,7 +71,7 @@ Pre-built installers for Windows, macOS, and Linux are on the [Releases page](ht
 - Up to 100 saved palettes in local storage
 - 20-entry session history with undo, redo, and direct jump to any point
 - Three themes: Dark, Neutral, Light (persists across sessions)
-- Auto-updates: the app checks for new releases and prompts you to install
+- Auto-updates: desktop checks for new releases and prompts you to install; web reflects the latest deploy on refresh
 - Export: plain text or GIMP .gpl with Punchy, Balanced, or Muted style selectable
 
 ## Getting Started
@@ -85,22 +95,41 @@ npm install
 # Desktop app
 npm run tauri:dev
 
-# Browser only (no keychain, no updater)
+# Browser dev server (plain browser, no Tauri)
 npm run dev
 ```
 
 ### Build
 
 ```bash
-npm run build    # type-check + web build
-npm run dist     # packaged desktop installer, output to src-tauri/target/release/bundle/
+npm run build         # type-check + Tauri-targeted web assets (base './')
+npm run build:web     # static build for GH Pages hosting (base '/pixel-pal-app/')
+npm run dist          # packaged desktop installer, output to src-tauri/target/release/bundle/
 ```
 
 ## AI Assist
 
-AI Assist sends your prompt to a language model of your choice and extracts a palette from the response. Your API key never leaves your machine; it is stored in the OS keychain (Windows Credential Manager on Windows, Keychain on macOS, Secret Service on Linux).
+AI Assist sends your prompt to a language model of your choice and extracts a palette from the response. Your API key never leaves your machine.
 
-Supported providers: OpenAI, Anthropic, Google Gemini, xAI Grok, OpenRouter, Ollama (local), and any OpenAI-compatible endpoint. Configure in Settings on first launch.
+**Desktop:** key stored in the OS keychain (Windows Credential Manager on Windows, Keychain on macOS, Secret Service on Linux). Supported providers: OpenAI, Anthropic, Google Gemini, xAI Grok, OpenRouter, Ollama (local), and any OpenAI-compatible endpoint.
+
+**Browser:** key stored in browser local storage on the device (the app shows a notice). Supported providers in the browser dropdown: OpenAI, Google Gemini, xAI Grok, OpenRouter, and custom OpenAI-compatible endpoints. Anthropic is omitted because its API does not allow direct browser calls; Ollama is omitted because the hosted site is HTTPS and cannot reach `http://localhost:11434`. Use the desktop app for those two.
+
+Configure in Settings on first launch.
+
+## Web vs Desktop
+
+| Feature | Web | Desktop |
+| --- | --- | --- |
+| Generate ramps, edit, save palettes | yes | yes |
+| Export `.txt` / `.gpl` | yes (anchor download to Downloads folder) | yes (native Save As, remembers folder per file type) |
+| AI providers: OpenAI / Gemini / xAI / OpenRouter / custom | yes | yes |
+| AI providers: Anthropic | no (CORS) | yes |
+| AI providers: Ollama (local) | no (mixed-content) | yes |
+| API key storage | browser localStorage (plaintext, per-profile) | OS keychain |
+| Auto-update | automatic on page refresh (always the latest deploy) | in-app update prompt |
+| Offline use | no | yes (once installed) |
+| Install required | no | yes |
 
 ## What This Is Not
 
