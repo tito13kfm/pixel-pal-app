@@ -3812,6 +3812,7 @@ export default function PixelPalGenerator() {
     collapsedRamps: [...collapsedRamps].sort((a, b) => a - b),
     lightnessCurvePerRamp,
     satCurvePerRamp,
+    stylePresets,
   });
 
   // Apply a snapshot back to all state setters. Wraps the calls in the
@@ -3843,6 +3844,7 @@ export default function PixelPalGenerator() {
     setCollapsedRamps(new Set(snap.collapsedRamps || []));
     setLightnessCurvePerRamp(snap.lightnessCurvePerRamp ?? {});
     setSatCurvePerRamp(snap.satCurvePerRamp ?? {});
+    setStylePresets(snap.stylePresets ?? DEFAULT_STYLE_PRESETS);
     // Side effects of applying: clear in-flight UI editor states that
     // could reference stale indices.
     setPinEditor(null);
@@ -3994,6 +3996,7 @@ export default function PixelPalGenerator() {
       satCurvePerRamp,
       gamutPerRamp,
       advancedOpen,
+      stylePresets,
     };
     setSavedBusy(true);
     try {
@@ -4237,6 +4240,13 @@ export default function PixelPalGenerator() {
       setSatCurvePerRamp(parsed.satCurvePerRamp && typeof parsed.satCurvePerRamp === 'object' ? parsed.satCurvePerRamp : {});
       setGamutPerRamp(parsed.gamutPerRamp && typeof parsed.gamutPerRamp === 'object' ? parsed.gamutPerRamp : {});
       setAdvancedOpen(parsed.advancedOpen && typeof parsed.advancedOpen === 'object' ? parsed.advancedOpen : {});
+      const sp = parsed.stylePresets;
+      const validPreset = (x) => x && typeof x.reach === 'number' && typeof x.chromaFalloff === 'number';
+      setStylePresets(
+        sp && validPreset(sp.punchy) && validPreset(sp.balanced) && validPreset(sp.muted)
+          ? { punchy: sp.punchy, balanced: sp.balanced, muted: sp.muted }
+          : DEFAULT_STYLE_PRESETS
+      );
       setExportFeedback(`Loaded "${parsed.name || slug}"`);
       setTimeout(() => setExportFeedback(''), 2000);
     } catch (err) {

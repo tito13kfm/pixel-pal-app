@@ -51,6 +51,11 @@ export interface SavedPalettePayload {
 
   gamutPerRamp?: Record<string, GamutStrategySerialized>
   advancedOpen?: Record<string, boolean>
+  stylePresets?: {
+    punchy:   { reach: number; chromaFalloff: number }
+    balanced: { reach: number; chromaFalloff: number }
+    muted:    { reach: number; chromaFalloff: number }
+  }
 }
 
 // The lightweight index record kept in memory for the saved-palettes list.
