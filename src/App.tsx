@@ -1279,15 +1279,18 @@ export default function PixelPalGenerator() {
   // confusion with the existing WCAG Check (formerly "Compare Mode") picker.
   const [sbsOpen, setSbsOpen] = useState(_panels.sbsOpen);
   const [pgOpen, setPgOpen] = useState(_panels.pgOpen);
+  const DEFAULT_SECTION_ORDER = ['playground', 'viz', 'saved', 'history', 'export'];
   const [sectionOrder, setSectionOrder] = useState(() => {
-    const DEFAULT_ORDER = ['playground', 'viz', 'saved', 'history', 'export'];
     const loaded = JSON.parse(localStorage.getItem('ui:sectionOrder') || 'null');
     const valid = Array.isArray(loaded)
-      && loaded.length === DEFAULT_ORDER.length
-      && DEFAULT_ORDER.every(k => loaded.includes(k));
-    return valid ? loaded : DEFAULT_ORDER;
+      && loaded.length === DEFAULT_SECTION_ORDER.length
+      && DEFAULT_SECTION_ORDER.every(k => loaded.includes(k));
+    return valid ? loaded : DEFAULT_SECTION_ORDER;
   });
-  const [dragOverKey, setDragOverKey] = useState(null);
+  const resetSectionOrder = () => setSectionOrder(DEFAULT_SECTION_ORDER);
+  // { key, pos: 'before'|'after' } — drop target + which edge, from cursor half
+  const [dragOver, setDragOver] = useState(null);
+  const [draggingKey, setDraggingKey] = useState(null);
   const [sbsLeft, setSbsLeft] = useState('working');
   const [sbsRight, setSbsRight] = useState(null);
   // Per-slot async payload cache. When a slot points at a saved palette
@@ -5079,7 +5082,7 @@ export default function PixelPalGenerator() {
             <button
               onClick={(e) => { e.stopPropagation(); togglePinEditor(baseIndex, shadeIndex, style, hex); }}
               title={pinned ? `Unpin this ${style} shade` : `Pin this ${style} shade`}
-              className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full border flex items-center justify-center transition-all hover:scale-110 ${pinned ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/80 text-cyan-200 border-cyan-500/60 opacity-60 hover:opacity-100'} ${pinEditorOpenHere ? 'ring-2 ring-yellow-200' : ''}`}
+              className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full border flex items-center justify-center transition-all hover:scale-110 ${pinned ? 'bg-yellow-300 text-purple-900 border-yellow-100' : `bg-purple-900/80 text-cyan-200 border-cyan-500/60 ${pinEditorOpenHere ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} ${pinEditorOpenHere ? 'ring-2 ring-yellow-200' : ''}`}
               style={pinned ? { boxShadow: '0 0 6px rgba(255, 255, 0, 0.7)' } : {}}
             >
               <Pin size={10} strokeWidth={pinned ? 3 : 2} />
@@ -5547,26 +5550,53 @@ export default function PixelPalGenerator() {
   // so callers don't have to change names. They do exactly the same thing.
   const sectionHeadColor = themedAccent;
 
+  const dropPos = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return (e.clientY - rect.top) < rect.height / 2 ? 'before' : 'after';
+  };
   const makeSectionDragHandlers = (sectionKey) => ({
-    onDragOver: (e) => { e.preventDefault(); setDragOverKey(sectionKey); },
-    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverKey(null); },
+    onDragOver: (e) => {
+      e.preventDefault();
+      const pos = dropPos(e);
+      setDragOver(prev => (prev && prev.key === sectionKey && prev.pos === pos) ? prev : { key: sectionKey, pos });
+    },
+    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(prev => (prev && prev.key === sectionKey) ? null : prev); },
     onDrop: (e) => {
       e.preventDefault();
       const from = e.dataTransfer.getData('text/plain');
-      if (from === sectionKey) { setDragOverKey(null); return; }
+      const pos = dropPos(e);
+      setDragOver(null);
+      if (!from || from === sectionKey) return;
       setSectionOrder(prev => {
         const next = prev.filter(k => k !== from);
-        next.splice(next.indexOf(sectionKey), 0, from);
+        let idx = next.indexOf(sectionKey);
+        if (pos === 'after') idx += 1;
+        next.splice(idx, 0, from);
         return next;
       });
-      setDragOverKey(null);
     },
   });
+  // Accent color per section (viz mirrors the live vizStyle accent).
+  const sectionAccent = (key) =>
+    key === 'playground' ? '#00ff88'
+    : key === 'viz' ? (vizStyle === 'balanced' ? '#00ffff' : vizStyle === 'muted' ? '#a855f7' : '#ff00ff')
+    : key === 'saved' ? '#ffff00'
+    : key === 'history' ? '#a855f7'
+    : '#00ffff';
+  // Glowing insertion line on the hovered edge, colored to the dragged card.
+  const dropLine = (sectionKey) => {
+    if (!dragOver || dragOver.key !== sectionKey || !draggingKey) return null;
+    const c = sectionAccent(draggingKey);
+    return dragOver.pos === 'before'
+      ? `inset 0 6px 0 -2px ${c}, 0 0 14px ${c}`
+      : `inset 0 -6px 0 -2px ${c}, 0 0 14px ${c}`;
+  };
 
   const sectionGrip = (sectionKey) => (
     <span
       draggable
-      onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', sectionKey); }}
+      onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', sectionKey); setDraggingKey(sectionKey); }}
+      onDragEnd={() => { setDraggingKey(null); setDragOver(null); }}
       onClick={e => e.stopPropagation()}
       style={{ cursor: 'grab' }}
       className="opacity-40 hover:opacity-80 transition-opacity"
@@ -6682,10 +6712,23 @@ export default function PixelPalGenerator() {
           </div>}
         </div>
 
+        {sectionOrder.join() !== DEFAULT_SECTION_ORDER.join() && (
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={resetSectionOrder}
+              title="Restore the sections below to their default order"
+              className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}
+            >
+              <RotateCcw size={14} />
+              Reset Layout
+            </button>
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column' }}>
 
         {/* ---------- Pixel Playground (collapsible) ---------- */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('playground')} style={{ order: sectionOrder.indexOf('playground'), background: t.cardBgGreen, borderColor: themedAccentBorder('#00ff88'), boxShadow: accentGlow('#00ff88', 0.3), outline: dragOverKey === 'playground' ? '2px dashed rgba(0,255,255,0.6)' : undefined, outlineOffset: '2px' }}>
+        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('playground')} style={{ order: sectionOrder.indexOf('playground'), background: t.cardBgGreen, borderColor: themedAccentBorder('#00ff88'), boxShadow: [accentGlow('#00ff88', 0.3), dropLine('playground')].filter(Boolean).join(', ') }}>
           <button
             onClick={() => setPgOpen(o => !o)}
             title={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
@@ -6909,7 +6952,7 @@ export default function PixelPalGenerator() {
             </>
           );
           return (
-            <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('viz')} style={{ order: sectionOrder.indexOf('viz'), background: t.cardBgViz, borderColor: themedAccentBorder(styleAccent), boxShadow: accentGlow(styleAccent, 0.4), outline: dragOverKey === 'viz' ? '2px dashed rgba(0,255,255,0.6)' : undefined, outlineOffset: '2px' }}>
+            <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('viz')} style={{ order: sectionOrder.indexOf('viz'), background: t.cardBgViz, borderColor: themedAccentBorder(styleAccent), boxShadow: [accentGlow(styleAccent, 0.4), dropLine('viz')].filter(Boolean).join(', ') }}>
               <button onClick={() => setSbsOpen(o => !o)} title={sbsOpen ? "Collapse the Visualize & Compare section" : "Expand the Visualize & Compare section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
                 <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor(styleAccent), textShadow: accentTextGlow(styleAccent) }}><BarChart3 size={22} />Visualize & Compare</h2>
                 <div className="flex items-center gap-2">
@@ -7119,7 +7162,7 @@ export default function PixelPalGenerator() {
         })()}
 
         {/* ---------- Saved Palettes (collapsible) ---------- */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('saved')} style={{ order: sectionOrder.indexOf('saved'), background: t.cardBgYellow, borderColor: themedAccentBorder('#ffff00'), boxShadow: accentGlow('#ffff00', 0.25), outline: dragOverKey === 'saved' ? '2px dashed rgba(0,255,255,0.6)' : undefined, outlineOffset: '2px' }}>
+        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('saved')} style={{ order: sectionOrder.indexOf('saved'), background: t.cardBgYellow, borderColor: themedAccentBorder('#ffff00'), boxShadow: [accentGlow('#ffff00', 0.25), dropLine('saved')].filter(Boolean).join(', ') }}>
           <button onClick={() => setSavedOpen(o => !o)} title={savedOpen ? "Collapse the Saved Palettes section" : "Expand the Saved Palettes section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ffff00'), textShadow: accentTextGlow('#ffff00') }}><FolderOpen size={22} />Saved Palettes <span className="text-xs normal-case tracking-normal" style={{ color: theme === 'dark' ? 'rgba(254, 240, 138, 0.7)' : theme === 'neutral' ? '#2a1a00' : '#713f12' }}>({savedPalettes.length})</span></h2>
             <div className="flex items-center gap-2">
@@ -7307,7 +7350,7 @@ export default function PixelPalGenerator() {
             through the same list regardless of whether the panel is open.
             Collapsed by default per user preference (matches Photoshop's
             History panel which sits in a sidebar drawer). */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('history')} style={{ order: sectionOrder.indexOf('history'), background: t.cardBgViz, borderColor: themedAccentBorder('#a855f7'), boxShadow: accentGlow('#a855f7', 0.25), outline: dragOverKey === 'history' ? '2px dashed rgba(0,255,255,0.6)' : undefined, outlineOffset: '2px' }}>
+        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('history')} style={{ order: sectionOrder.indexOf('history'), background: t.cardBgViz, borderColor: themedAccentBorder('#a855f7'), boxShadow: [accentGlow('#a855f7', 0.25), dropLine('history')].filter(Boolean).join(', ') }}>
           <button onClick={() => setHistoryOpen(o => !o)} title={historyOpen ? "Collapse the History panel" : "Expand the History panel (undo/redo)"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#a855f7'), textShadow: accentTextGlow('#a855f7') }}>
               <History size={22} />History
@@ -7373,7 +7416,7 @@ export default function PixelPalGenerator() {
         </div>
 
         {/* Export & Tools — collapsible card matching section card pattern */}
-        <div className={`rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden${activeTourTarget === 'export-panel' ? ' tour-highlight' : ''}`} data-tour-id="export-panel" {...makeSectionDragHandlers('export')} style={{ order: sectionOrder.indexOf('export'), background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.3), outline: dragOverKey === 'export' ? '2px dashed rgba(0,255,255,0.6)' : undefined, outlineOffset: '2px' }}>
+        <div className={`rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden${activeTourTarget === 'export-panel' ? ' tour-highlight' : ''}`} data-tour-id="export-panel" {...makeSectionDragHandlers('export')} style={{ order: sectionOrder.indexOf('export'), background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.3), dropLine('export')].filter(Boolean).join(', ') }}>
           <button onClick={() => setExportOpen(o => !o)} title={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Download size={22} />Export &amp; Tools</h2>
             <div className="flex items-center gap-2">
