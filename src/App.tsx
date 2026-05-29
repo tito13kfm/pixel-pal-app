@@ -962,7 +962,7 @@ export default function PixelPalGenerator() {
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
   const imageRef = useRef(null);
   const [hoveredColor, setHoveredColor] = useState(null);
-  const [rampSize, setRampSize] = useState(4);
+  const [rampSize, setRampSize] = useState(6);
   // hueShiftStrength scales the shadow/highlight hue shifts applied
   // inside generateRamp. 1.0 = default (current behavior, byte-identical
   // to pre-E saved palettes). 0.0 = no hue shift (flatter ramps).
