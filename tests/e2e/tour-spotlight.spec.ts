@@ -174,29 +174,26 @@ test('image-import: starts, then From Image tab click auto-advances to step 2', 
   await expect(page.getByText('Load an image')).toBeVisible({ timeout: 2000 })
 })
 
-test('harmonize: Next past mode step, then adding a 2nd base auto-advances', async ({ page }) => {
+test('harmonize: Next past mode step, then Complementary swatch adds a 2nd ramp', async ({ page }) => {
   await openLauncher(page)
   await page.getByText('Harmonize ramps').click()
 
   // Step 1 "Switch to Single Color": detector mode === 'color', which is the
   // DEFAULT mode, so it is pre-satisfied on entry → engine surfaces a manual
-  // Next. Click through to reach the original first step.
+  // Next. Click through to reach step 2.
   await expect(page.getByRole('heading', { name: 'Switch to Single Color' })).toBeVisible()
   await page.getByRole('button', { name: 'Next →' }).click()
 
-  // Step 2 "Generate two or more ramps": detector baseColors.length >= 2. Default
-  // is a single base, so it starts false (not pre-satisfied → no Next; the
-  // forward path is the detector). Spotlight target is add-base-btn.
-  await expect(page.getByText('Generate two or more ramps')).toBeVisible()
+  // Step 2 "Add a second ramp": detector baseColors.length >= 2. Default is a
+  // single '#ff00ff' base, so it starts false. setup:'harmony' opens Harmony
+  // Colors; the spotlight target is the Complementary swatch (base hue + 180 deg,
+  // always distinct from the base). One click adds it as a 2nd base, no hex
+  // pre-fill, exercising the default-collision path the old Add-base flow stuck on.
+  await expect(page.getByRole('heading', { name: 'Add a second ramp' })).toBeVisible()
   await expect(page.locator('.tour-popover')).toBeVisible()
 
-  // Default colorInput is '#ff00ff' which equals baseColors[0], so Add base would
-  // dedup. Fill a distinct hex first (.fill bypasses the dim's receives-events
-  // check), then click the spotlighted Add base through the cutout → length 2 →
-  // detector edge fires.
-  await page.locator('input[title="Type a hex color (e.g. #ff6b35)"]').fill('#3b82f6')
-  await page.getByRole('button', { name: 'Add base', exact: true }).click()
-  // "Click Harmonize" also appears in step 2's body + hint, so match the popover
+  await page.locator('[data-tour-id="harmony-complementary-swatch"]').click()
+  // "Click Harmonize" also appears in step 3's body + hint, so match the popover
   // heading specifically.
   await expect(page.getByRole('heading', { name: 'Click Harmonize' })).toBeVisible({ timeout: 2000 })
 
@@ -213,7 +210,7 @@ test('pin-shade: starts pre-satisfied, Next walks through to step 3', async ({ p
   // (baseColors[0] !== '#ff00ff' || imageDataUrl !== null), NOT advance:'next'.
   // From the pristine default it is false and undrivable through the cutout
   // (ramp-area is spotlighted; New palette sits outside it and the dim swallows
-  // the click). So generate a palette BEFORE launching the guide — then step 1's
+  // the click). So generate a palette BEFORE launching the guide, then step 1's
   // detector is pre-satisfied on entry and the engine surfaces a manual Next.
   await page.locator('input[title="Type a hex color (e.g. #ff6b35)"]').fill('#3b82f6')
   await page.getByRole('button', { name: 'New palette', exact: true }).click()

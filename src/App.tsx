@@ -5156,11 +5156,12 @@ export default function PixelPalGenerator() {
     );
   };
 
-  const HarmonySwatch = ({ hex, name }) => {
+  const HarmonySwatch = ({ hex, name, tourId }) => {
     const isAdded = baseColors.includes(hex);
     return (
       <button
         onClick={() => addHarmonyColor(hex, name)}
+        data-tour-id={tourId}
         disabled={isAdded}
         title={isAdded ? `${name} (${hex.toUpperCase()}) is already in the palette` : `Add ${name} (${hex.toUpperCase()}) as a new base`}
         className={`relative w-14 h-14 rounded border-2 border-pink-400 transition-all cursor-pointer group ${isAdded ? 'opacity-60 cursor-not-allowed' : 'hover:scale-110 hover:ring-2 hover:ring-cyan-400'}`}
@@ -6765,7 +6766,7 @@ export default function PixelPalGenerator() {
                 {/* Complementary: single color. No add button (use the swatch click). */}
                 <div className="flex flex-col items-center p-3 bg-black/30 rounded border border-pink-500/40">
                   <span title={tips.complementary} className="text-xs font-bold text-pink-200 mb-2 uppercase tracking-wider cursor-help border-b border-dashed border-pink-400/40">Complementary</span>
-                  <HarmonySwatch hex={harmony.complementary} name="complementary" />
+                  <HarmonySwatch hex={harmony.complementary} name="complementary" tourId="harmony-complementary-swatch" />
                   <span className="text-[10px] font-mono text-cyan-200 mt-1">{harmony.complementary.toUpperCase()}</span>
                 </div>
                 <PairCard
