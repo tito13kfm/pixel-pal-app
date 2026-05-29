@@ -44,6 +44,10 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
+      - name: Clean dist before web build
+        shell: bash
+        run: rm -rf dist
+
       - name: Build web target
         run: npm run build:web
 
