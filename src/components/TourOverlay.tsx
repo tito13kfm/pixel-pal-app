@@ -26,6 +26,7 @@ export function TourOverlay({
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number; arrowX: number | null; arrowY: number | null } | null>(null)
   const [targetMissing, setTargetMissing] = useState(false)
   const detectorBaseline = useRef<boolean | null>(null)
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const guide: TourGuide | null = guideId ? ALL_GUIDES.find(g => g.id === guideId) ?? null : null
   const current: TourStep | null = guide?.steps[step] ?? null
@@ -92,6 +93,7 @@ export function TourOverlay({
       cancelled = true
       cancelAnimationFrame(raf)
       cleanupAuto?.()
+      if (advanceTimer.current) { clearTimeout(advanceTimer.current); advanceTimer.current = null }
     }
     // appState intentionally NOT a dep: baseline captured at step entry only
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,7 +108,7 @@ export function TourOverlay({
     if (detectorBaseline.current === false && now === true) {
       detectorBaseline.current = true
       const last = guide ? step === guide.steps.length - 1 : false
-      setTimeout(() => { last ? onExit() : onSetStep(step + 1) }, 400)
+      advanceTimer.current = setTimeout(() => { last ? onExit() : onSetStep(step + 1) }, 400)
     }
   }, [appState, open, current, guide, step, onExit, onSetStep])
 
