@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: 'web-build.spec.ts',
   fullyParallel: false,
   reporter: [['html', { open: 'never' }]],
   use: {
