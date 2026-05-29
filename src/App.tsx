@@ -1289,6 +1289,8 @@ export default function PixelPalGenerator() {
   const [lightnessCurvePerRamp, setLightnessCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
+  const [stylePresets, setStylePresets] = useState(DEFAULT_STYLE_PRESETS);
+  const resetStylePresets = () => setStylePresets(DEFAULT_STYLE_PRESETS);
   const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   // Side-by-side compare: dedicated section with two slots. Each slot
@@ -1582,28 +1584,27 @@ export default function PixelPalGenerator() {
     return deduped;
   };
 
-  // Adapter over generateRampNew that returns hex[] (matches the rest of the
-  // pipeline, which works in flat hex arrays). Threads per-ramp curve + gamut
-  // from local state. Applies a small seeded hue jitter to the base color so
-  // that global reshuffle and per-ramp reshuffle produce visible variation.
-  // Jitter is base-level (not per-shade) so the smooth OKLCH graduation is
-  // preserved. Seed 0 + no offset = zero jitter (deterministic baseline).
+  // Adapter over generateRampNew that returns hex[] (the rest of the pipeline
+  // works in flat hex arrays). Resolves the style name + editable stylePresets
+  // to the engine's { reach, chromaFalloff } scalars, threads per-ramp curve +
+  // gamut, and passes a seeded hueJitter (global reshuffle + per-ramp offset)
+  // so reshuffles vary while the base slot stays anchored. Seed 0 + no offset
+  // = zero jitter (deterministic baseline).
   const generateRamp = (baseHex: string, numColors: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number, rampIdx?: number): string[] => {
     const rampKey = rampIdx !== undefined ? String(rampIdx) : undefined;
     const gamut = rampKey !== undefined ? gamutPerRamp[rampKey] : undefined;
-    let jitteredBase = baseHex;
+    const { reach, chromaFalloff } = styleToScalars(style, stylePresets);
+    let hueJitter = 0;
     if (rampIdx !== undefined) {
       const effectiveSeed = shuffleSeed + (rampShuffleOffsets[rampIdx] || 0);
-      if (effectiveSeed !== 0) {
-        const hDelta = seededHueDelta(effectiveSeed, rampIdx);
-        const hsl = hexToHsl(jitteredBase);
-        jitteredBase = hslToHex({ h: (hsl.h + hDelta + 360) % 360, s: hsl.s, l: hsl.l });
-      }
+      if (effectiveSeed !== 0) hueJitter = seededHueDelta(effectiveSeed, rampIdx);
     }
-    const shades = generateRampNew(jitteredBase, {
-      style,
+    const shades = generateRampNew(baseHex, {
+      reach,
+      chromaFalloff,
       size: numColors,
       hueShiftStrength,
+      hueJitter,
       lightnessCurve: rampKey !== undefined ? (lightnessCurvePerRamp[rampKey] ?? LIGHTNESS_PRESETS.eased) : LIGHTNESS_PRESETS.eased,
       satCurve: rampKey !== undefined ? (satCurvePerRamp[rampKey] ?? SAT_PRESETS.flat) : SAT_PRESETS.flat,
       gamut,
@@ -1611,9 +1612,9 @@ export default function PixelPalGenerator() {
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', resolveHueShiftForRamp(i), i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', resolveHueShiftForRamp(i), i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', resolveHueShiftForRamp(i), i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', resolveHueShiftForRamp(i), i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', resolveHueShiftForRamp(i), i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', resolveHueShiftForRamp(i), i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
