@@ -77,11 +77,18 @@ export const TASK_GUIDES: TourGuide[] = [
       },
       {
         title: 'Enter a hex color',
-        body: 'Type a hex color or use the color picker, then click New palette to generate ramps.',
+        body: 'Type a hex color or use the color picker. Then continue.',
         hint: 'e.g. #3b82f6',
         target: 'hex-input',
-        advance: 'detector',
-        detector: (s) => s.baseColors[0] !== '#ff00ff',
+        advance: 'next',
+        placement: 'bottom',
+      },
+      {
+        title: 'Generate the ramps',
+        body: 'Click New palette to build ramps from your color.',
+        hint: '→ click New palette',
+        target: 'new-palette-btn',
+        advance: 'next',
         placement: 'bottom',
       },
       {
@@ -117,10 +124,10 @@ export const TASK_GUIDES: TourGuide[] = [
       },
       {
         title: 'Generate from a prompt',
-        body: 'Close settings, type a description (e.g. "sunset over ocean"), then press Enter or click Execute.',
-        target: 'ai-prompt-input',
-        advance: 'detector',
-        detector: (s) => s.aiLoading,
+        body: 'Type a description (e.g. "sunset over ocean") in the field, then click Execute.',
+        hint: '→ click Execute',
+        target: 'ai-execute-btn',
+        advance: 'next',
         placement: 'bottom',
       },
       {
