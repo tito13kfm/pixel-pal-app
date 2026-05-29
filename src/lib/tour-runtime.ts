@@ -19,6 +19,8 @@ export interface PopoverPlacementResult {
   x: number
   y: number
   placement: Placement
+  /** The popover edge the arrow sits on (opposite the side facing the target). */
+  arrowSide: 'top' | 'bottom' | 'left' | 'right'
   arrowX: number | null
   arrowY: number | null
 }
@@ -56,10 +58,17 @@ export async function positionPopover(
   const clampedX = vw ? Math.min(Math.max(x, 8), Math.max(8, vw - pw - 8)) : x
   const clampedY = vh ? Math.min(Math.max(y, 8), Math.max(8, vh - ph - 8)) : y
 
+  // The arrow sits on the popover edge OPPOSITE the side facing the target.
+  // floating-ui's final placement names the side facing the target (e.g.
+  // 'bottom' = popover below target, so the arrow is on the popover's TOP edge).
+  const side = finalPlacement.split('-')[0] as 'top' | 'bottom' | 'left' | 'right'
+  const arrowSide = ({ top: 'bottom', bottom: 'top', left: 'right', right: 'left' } as const)[side]
+
   return {
     x: clampedX,
     y: clampedY,
     placement: finalPlacement,
+    arrowSide,
     arrowX: middlewareData.arrow?.x ?? null,
     arrowY: middlewareData.arrow?.y ?? null,
   }

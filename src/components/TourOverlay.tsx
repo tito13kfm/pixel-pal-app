@@ -23,7 +23,7 @@ export function TourOverlay({
   const popoverRef = useRef<HTMLDivElement>(null)
   const arrowRef = useRef<HTMLDivElement>(null)
   const [cutout, setCutout] = useState<CutoutRect | null>(null)
-  const [popoverPos, setPopoverPos] = useState<{ x: number; y: number; arrowX: number | null; arrowY: number | null } | null>(null)
+  const [popoverPos, setPopoverPos] = useState<{ x: number; y: number; arrowSide: 'top' | 'bottom' | 'left' | 'right'; arrowX: number | null; arrowY: number | null } | null>(null)
   const [targetMissing, setTargetMissing] = useState(false)
   const [baselineSatisfied, setBaselineSatisfied] = useState(false)
   const detectorBaseline = useRef<boolean | null>(null)
@@ -78,7 +78,7 @@ export function TourOverlay({
           setCutout(cutoutRectFrom(r, 6))
           const p = await positionPopover(el, popoverRef.current, arrowRef.current,
             current.placement ?? 'auto')
-          if (!cancelled) setPopoverPos({ x: p.x, y: p.y, arrowX: p.arrowX, arrowY: p.arrowY })
+          if (!cancelled) setPopoverPos({ x: p.x, y: p.y, arrowSide: p.arrowSide, arrowX: p.arrowX, arrowY: p.arrowY })
         }
         void recompute()
         cleanupAuto = autoUpdate(el, popoverRef.current!, recompute)
@@ -166,8 +166,17 @@ export function TourOverlay({
         <div ref={arrowRef} className="tour-arrow"
              style={{
                display: cutout ? undefined : 'none',
-               left: popoverPos?.arrowX != null ? popoverPos.arrowX : undefined,
-               top: popoverPos?.arrowY != null ? popoverPos.arrowY : undefined,
+               // floating-ui gives the offset along ONE axis (arrowX for
+               // top/bottom placements, arrowY for left/right). The other axis is
+               // pinned to the popover edge facing the target (arrowSide) at -6px
+               // (half the 12px box) so the arrow straddles the border and pokes
+               // out, instead of landing inside the box over the title.
+               left: popoverPos?.arrowX != null ? popoverPos.arrowX
+                     : popoverPos?.arrowSide === 'left' ? -6 : undefined,
+               top: popoverPos?.arrowY != null ? popoverPos.arrowY
+                    : popoverPos?.arrowSide === 'top' ? -6 : undefined,
+               right: popoverPos?.arrowSide === 'right' ? -6 : undefined,
+               bottom: popoverPos?.arrowSide === 'bottom' ? -6 : undefined,
              }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
           <h3 style={{ color: '#e9d5ff', fontWeight: 600, fontSize: 14 }}>{current.title}</h3>

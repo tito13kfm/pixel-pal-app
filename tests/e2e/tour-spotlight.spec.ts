@@ -24,6 +24,31 @@ test.beforeEach(async ({ page }) => {
   await page.waitForLoadState('networkidle')
 })
 
+test('popover arrow sits on the outer edge, not inside over the title', async ({ page }) => {
+  // Regression: a bottom-placed popover got arrowX from floating-ui but arrowY
+  // was null, so the arrow fell at the top INSIDE the box, covering the title.
+  // The arrow must straddle the popover's target-facing edge and poke outside.
+  await openLauncher(page)
+  await page.getByText('Quick tour').click()
+  await expect(page.getByText('Welcome to PIXEL.PAL')).toBeVisible()
+  const boxes = await page.evaluate(() => {
+    const pop = document.querySelector('.tour-popover') as HTMLElement | null
+    const arrow = document.querySelector('.tour-arrow') as HTMLElement | null
+    const title = pop?.querySelector('h3') as HTMLElement | null
+    if (!pop || !arrow || !title) return null
+    const a = arrow.getBoundingClientRect()
+    const t = title.getBoundingClientRect()
+    const p = pop.getBoundingClientRect()
+    return { aBottom: a.bottom, aTop: a.top, tTop: t.top, pTop: p.top }
+  })
+  expect(boxes).not.toBeNull()
+  // The bug: arrow landed inside the box over the title. Assert it does NOT
+  // overlap the title text (arrow bottom is at/above the title top), and that it
+  // straddles the popover's top edge rather than sitting deep inside.
+  expect(boxes!.aBottom).toBeLessThanOrEqual(boxes!.tTop)
+  expect(boxes!.aTop).toBeLessThanOrEqual(boxes!.pTop)
+})
+
 test('overlay portals to document.body, not inside a transformed ancestor', async ({ page }) => {
   await openLauncher(page)
   await page.getByText('Quick tour').click()
