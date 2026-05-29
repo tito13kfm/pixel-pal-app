@@ -51,6 +51,7 @@ docs/*
 !docs/superpowers/
 docs/superpowers/*
 !docs/superpowers/specs/
+!docs/superpowers/plans/
 scripts/
 playwright-report/
 test-results/
