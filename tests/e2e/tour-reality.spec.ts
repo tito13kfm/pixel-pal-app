@@ -126,33 +126,34 @@ test.describe('tour auto-advance detectors fire correctly', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  // SKIPPED — genuine tour dead-end, not a test gap. The hex-palette guide's
-  // step 2 detector (baseColors[0] !== '#ff00ff') only flips when "New palette"
-  // commits the hex input. But New palette is the spotlight target of NO step in
-  // this guide (step 1 → mode-single, step 2 → hex-input, step 3 → ramp-area).
-  // The full-screen dim (pointerEvents:auto) swallows every click outside the
-  // cutout hole, so a real user on step 2 is told "click New palette" and
-  // physically cannot. .fill() on the hex input works (fill skips the
-  // receives-events check) but the required New palette click is intercepted by
-  // tour-overlay-dim. Fix is a tours.ts/anchor change (retarget step 2 to the
-  // input row, or add an anchor covering New palette) — Task 3 territory, out of
-  // scope for this test-only task. Reported as a concern.
-  test.skip('hex-palette: New palette advances step 2', async ({ page }) => {
-    await page.getByRole('button', { name: 'AI Assist', exact: true }).click()
+  // hex-palette is a fully Next-driven walk now. Step 1 ("Switch to Single
+  // Color") is a detector step (mode==='color') but 'color' is the DEFAULT mode,
+  // so it is pre-satisfied on entry → the engine surfaces a manual Next (no dead-
+  // end). Steps 2–4 are advance:'next'. So: Next, Next, Next, Done. Mode must NOT
+  // be switched away from 'color' before starting, or step 1 loses its pre-
+  // satisfaction. (Old test clicked AI Assist + expected a "Ramps generated"
+  // detector auto-advance that no longer exists in the restructured 4-step guide.)
+  test('hex-palette: Next-driven walk reaches Done', async ({ page }) => {
     await openGuides(page)
     await page.getByText('Generate from a hex color').click()
 
-    // Step 1: "Switch to Single Color" — mode-single is the spotlight target.
+    // Step 1: pre-satisfied detector → manual Next.
     await expect(page.getByText('Switch to Single Color')).toBeVisible()
-    await page.getByRole('button', { name: 'Single Color', exact: true }).click()
-    await expect(page.getByText('Enter a hex color')).toBeVisible({ timeout: 2000 })
+    await page.getByRole('button', { name: 'Next →' }).click()
 
-    // Step 2 wants New palette clicked, but it is not the spotlight target, so
-    // the dim intercepts the click. This is the dead-end being reported.
-    const hexInput = page.locator('input[title="Type a hex color (e.g. #ff6b35)"]')
-    await hexInput.fill('#3b82f6')
-    await page.getByRole('button', { name: 'New palette', exact: true }).click()
+    // Step 2: "Enter a hex color" (advance:'next').
+    await expect(page.getByText('Enter a hex color')).toBeVisible({ timeout: 2000 })
+    await page.getByRole('button', { name: 'Next →' }).click()
+
+    // Step 3: "Generate the ramps" (advance:'next').
+    await expect(page.getByText('Generate the ramps')).toBeVisible({ timeout: 2000 })
+    await page.getByRole('button', { name: 'Next →' }).click()
+
+    // Step 4 (last): "Tune the ramp" → final button is Done.
     await expect(page.getByText('Tune the ramp')).toBeVisible({ timeout: 2000 })
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+
+    await expect(page.locator('.tour-popover')).not.toBeAttached()
   })
 
   test('export-gpl: Export & Tools header advances step 1', async ({ page }) => {
