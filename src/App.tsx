@@ -22,7 +22,6 @@ import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
-import { ONBOARDING_TOUR, TASK_GUIDES } from './lib/tours';
 import type { UpdateInfo } from './lib/tauri-bridge';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
@@ -1866,7 +1865,7 @@ export default function PixelPalGenerator() {
   };
 
   const startTour = (id) => {
-    snapshotTourState();
+    if (!tourSnapshot.current) snapshotTourState();
     setLauncherOpen(false);
     setTourGuideId(id);
     setTourStep(0);
