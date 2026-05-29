@@ -12,7 +12,7 @@ export default defineConfig({
   base: IS_WEB ? '/pixel-pal-app/' : './',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
-    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    __BUILD_DATE__: JSON.stringify(new Date().toLocaleDateString('en-CA')),
     'import.meta.env.VITE_WEB': JSON.stringify(IS_WEB),
   },
   build: {
