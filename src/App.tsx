@@ -1246,7 +1246,7 @@ export default function PixelPalGenerator() {
   // Architecture: whole-state snapshots, NOT diff patches. Each entry
   // holds a JSON-serializable snapshot of every undoable state field
   // (the working-palette fields, plus lockedRamps and collapsedRamps;
-  // see buildUndoSnapshot below for the full list). 20-entry cap;
+  // see buildUndoSnapshot below for the full list). 50-entry cap;
   // overflow drops the oldest. Session-only (NOT persisted to storage):
   // a page reload starts fresh with a single "Initial state" entry.
   //
@@ -1269,7 +1269,7 @@ export default function PixelPalGenerator() {
   // the new entry's label. Anything that mutates state without setting
   // this gets a label inferred by diffing the new snapshot against
   // the current one.
-  const HISTORY_DEPTH_CAP = 20;
+  const HISTORY_DEPTH_CAP = 50;
   const HISTORY_DEBOUNCE_MS = 300;
   const [historyEntries, setHistoryEntries] = useState(() => [
     { snapshot: null, label: 'Initial state', timestamp: Date.now() },
