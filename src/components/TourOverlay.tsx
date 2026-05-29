@@ -25,6 +25,7 @@ export function TourOverlay({
   const [cutout, setCutout] = useState<CutoutRect | null>(null)
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number; arrowX: number | null; arrowY: number | null } | null>(null)
   const [targetMissing, setTargetMissing] = useState(false)
+  const [baselineSatisfied, setBaselineSatisfied] = useState(false)
   const detectorBaseline = useRef<boolean | null>(null)
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -47,6 +48,7 @@ export function TourOverlay({
     // post-mount baseline.
     detectorBaseline.current = null
     setTargetMissing(false)
+    setBaselineSatisfied(false)
 
     if (current.setup) runSetup(current.setup)
 
@@ -67,7 +69,9 @@ export function TourOverlay({
       const rect = el?.getBoundingClientRect()
       if (el && rect && rect.width > 0 && rect.height > 0) {
         el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-        detectorBaseline.current = current.detector ? current.detector(appState) : null
+        const baseline = current.detector ? current.detector(appState) : null
+        detectorBaseline.current = baseline
+        if (baseline === true) setBaselineSatisfied(true)
         const recompute = async () => {
           if (cancelled || !popoverRef.current || !arrowRef.current) return
           const r = el.getBoundingClientRect()
@@ -124,7 +128,7 @@ export function TourOverlay({
 
   const advanceMode = effectiveAdvance(current)
   // Show Next for passive steps, no-target steps, and the target-absent fallback.
-  const showNext = advanceMode === 'next' || !current.target || targetMissing
+  const showNext = advanceMode === 'next' || !current.target || targetMissing || baselineSatisfied
   const W = typeof window !== 'undefined' ? window.innerWidth : 0
   const H = typeof window !== 'undefined' ? window.innerHeight : 0
 
