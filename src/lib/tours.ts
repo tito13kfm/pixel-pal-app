@@ -14,7 +14,10 @@ export interface TourStep {
   body: string
   hint?: string
   target?: string
+  setup?: string
+  advance?: 'next' | 'detector'
   detector?: (s: TourAppState) => boolean
+  placement?: 'top' | 'bottom' | 'left' | 'right' | 'auto'
 }
 
 export interface TourGuide {
@@ -224,3 +227,8 @@ export const TASK_GUIDES: TourGuide[] = [
     ],
   },
 ]
+
+export function effectiveAdvance(step: TourStep): 'next' | 'detector' {
+  if (step.advance) return step.advance
+  return step.detector ? 'detector' : 'next'
+}
