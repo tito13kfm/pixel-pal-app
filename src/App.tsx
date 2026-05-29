@@ -3433,7 +3433,7 @@ export default function PixelPalGenerator() {
     baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
     overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
     hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
-    lockedRamps, collapsedRamps,
+    lockedRamps, collapsedRamps, stylePresets,
   ]);
 
   // Keyboard shortcuts for undo/redo. Bound at the window level so they
