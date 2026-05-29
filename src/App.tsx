@@ -515,16 +515,18 @@ const estimateRemapCost = (w, h, paletteSize, dither) => {
 //   satCurvePerRamp: { [baseIdx]: CurvePoints }
 //   curvePerRamp: legacy string preset map (migrated on load)
 //   gamutPerRamp: { [baseIdx]: 'auto'|'clip'|'chroma-preserve' }
+//   stylePresets: { punchy|balanced|muted: { reach, chromaFalloff } } (default DEFAULT_STYLE_PRESETS)
 //
 // Returns array<array<hex>>, one inner array per baseColor, in the order
 // of baseColors, with hidden shades already filtered out.
 //
 // v0.6 perceptual engine: this function now uses generateRampNew (perceptual
-// OKLCH). The shuffle seed / rampShuffleOffsets are ignored by the engine —
-// they were jitter inputs to the old HSV engine. Snapshots produced before
-// v0.6 (history undo entries from older sessions) render via the new engine
-// and may look different than they did at capture time; this matches the
-// migration banner's "Keep new look" semantics.
+// OKLCH). shuffleSeed + rampShuffleOffsets feed the engine's hueJitter (a
+// per-ramp hue offset that leaves the base slot anchored), replacing the old
+// HSV base pre-jitter. Snapshots produced before v0.6 (history undo entries
+// from older sessions) render via the new engine and may look different than
+// they did at capture time; this matches the migration banner's "Keep new
+// look" semantics.
 const buildRampsForSnapshot = (snapshot, style) => {
   if (!snapshot || !Array.isArray(snapshot.baseColors) || snapshot.baseColors.length === 0) {
     return [];
