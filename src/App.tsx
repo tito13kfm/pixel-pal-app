@@ -1,6 +1,6 @@
 ﻿﻿// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical } from 'lucide-react';
+import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
 import {
   hexToHsl, hslToHex, hexToRgb, rgbToHex,
   rgbToHsl, hslToRgb, hexToHsv, hsvToHex, hsvToRgb,
@@ -224,6 +224,19 @@ const seededHueDelta = (effectiveSeed: number, rampIdx: number): number => {
   if (effectiveSeed === 0) return 0;
   const n = Math.imul(effectiveSeed * 17 + rampIdx * 31, 0x45d9f3b) >>> 0;
   return (n / 0x100000000 - 0.5) * 16;
+};
+
+// Editable style presets: each style is two scalars consumed by the engine.
+// Defaults reproduce the approved Punchy/Balanced/Muted look.
+const DEFAULT_STYLE_PRESETS = {
+  punchy:   { reach: 1.00, chromaFalloff: 0.10 },
+  balanced: { reach: 0.575, chromaFalloff: 0.475 },
+  muted:    { reach: 0.15, chromaFalloff: 0.85 },
+};
+
+const styleToScalars = (style, presets) => {
+  const p = (presets && presets[style]) || DEFAULT_STYLE_PRESETS[style] || DEFAULT_STYLE_PRESETS.punchy;
+  return { reach: p.reach, chromaFalloff: p.chromaFalloff };
 };
 
 // quantizeToHardware: nearest hardware color search using ΔE_OK (perceptual
@@ -502,16 +515,18 @@ const estimateRemapCost = (w, h, paletteSize, dither) => {
 //   satCurvePerRamp: { [baseIdx]: CurvePoints }
 //   curvePerRamp: legacy string preset map (migrated on load)
 //   gamutPerRamp: { [baseIdx]: 'auto'|'clip'|'chroma-preserve' }
+//   stylePresets: { punchy|balanced|muted: { reach, chromaFalloff } } (default DEFAULT_STYLE_PRESETS)
 //
 // Returns array<array<hex>>, one inner array per baseColor, in the order
 // of baseColors, with hidden shades already filtered out.
 //
 // v0.6 perceptual engine: this function now uses generateRampNew (perceptual
-// OKLCH). The shuffle seed / rampShuffleOffsets are ignored by the engine —
-// they were jitter inputs to the old HSV engine. Snapshots produced before
-// v0.6 (history undo entries from older sessions) render via the new engine
-// and may look different than they did at capture time; this matches the
-// migration banner's "Keep new look" semantics.
+// OKLCH). shuffleSeed + rampShuffleOffsets feed the engine's hueJitter (a
+// per-ramp hue offset that leaves the base slot anchored), replacing the old
+// HSV base pre-jitter. Snapshots produced before v0.6 (history undo entries
+// from older sessions) render via the new engine and may look different than
+// they did at capture time; this matches the migration banner's "Keep new
+// look" semantics.
 const buildRampsForSnapshot = (snapshot, style) => {
   if (!snapshot || !Array.isArray(snapshot.baseColors) || snapshot.baseColors.length === 0) {
     return [];
@@ -529,6 +544,9 @@ const buildRampsForSnapshot = (snapshot, style) => {
     satCurvePerRamp = {},
     curvePerRamp = {},
     gamutPerRamp = {},
+    shuffleSeed = 0,
+    rampShuffleOffsets = {},
+    stylePresets = DEFAULT_STYLE_PRESETS,
   } = snapshot;
   // Migrate legacy string presets from curvePerRamp into lightnessCurvePerRamp.
   const effectiveLightnessCurves = { ...lightnessCurvePerRamp };
@@ -607,10 +625,15 @@ const buildRampsForSnapshot = (snapshot, style) => {
   };
 
   return baseColors.map((c, i) => {
+    const { reach, chromaFalloff } = styleToScalars(style, stylePresets);
+    const effectiveSeed = (shuffleSeed || 0) + (rampShuffleOffsets[i] || 0);
+    const hueJitter = effectiveSeed !== 0 ? seededHueDelta(effectiveSeed, i) : 0;
     const shades = generateRampNew(resolveBase(c, i), {
-      style,
+      reach,
+      chromaFalloff,
       size: resolveSize(i),
       hueShiftStrength,
+      hueJitter,
       lightnessCurve: effectiveLightnessCurves[i] ?? effectiveLightnessCurves[String(i)] ?? LIGHTNESS_PRESETS.eased,
       satCurve: satCurvePerRamp[i] ?? satCurvePerRamp[String(i)] ?? SAT_PRESETS.flat,
       gamut: gamutPerRamp[i] ?? gamutPerRamp[String(i)],
@@ -1223,7 +1246,7 @@ export default function PixelPalGenerator() {
   // Architecture: whole-state snapshots, NOT diff patches. Each entry
   // holds a JSON-serializable snapshot of every undoable state field
   // (the working-palette fields, plus lockedRamps and collapsedRamps;
-  // see buildUndoSnapshot below for the full list). 20-entry cap;
+  // see buildUndoSnapshot below for the full list). 50-entry cap;
   // overflow drops the oldest. Session-only (NOT persisted to storage):
   // a page reload starts fresh with a single "Initial state" entry.
   //
@@ -1246,7 +1269,7 @@ export default function PixelPalGenerator() {
   // the new entry's label. Anything that mutates state without setting
   // this gets a label inferred by diffing the new snapshot against
   // the current one.
-  const HISTORY_DEPTH_CAP = 20;
+  const HISTORY_DEPTH_CAP = 50;
   const HISTORY_DEBOUNCE_MS = 300;
   const [historyEntries, setHistoryEntries] = useState(() => [
     { snapshot: null, label: 'Initial state', timestamp: Date.now() },
@@ -1266,6 +1289,8 @@ export default function PixelPalGenerator() {
   const [lightnessCurvePerRamp, setLightnessCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
+  const [stylePresets, setStylePresets] = useState(DEFAULT_STYLE_PRESETS);
+  const resetStylePresets = () => setStylePresets(DEFAULT_STYLE_PRESETS);
   const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   // Side-by-side compare: dedicated section with two slots. Each slot
@@ -1559,28 +1584,27 @@ export default function PixelPalGenerator() {
     return deduped;
   };
 
-  // Adapter over generateRampNew that returns hex[] (matches the rest of the
-  // pipeline, which works in flat hex arrays). Threads per-ramp curve + gamut
-  // from local state. Applies a small seeded hue jitter to the base color so
-  // that global reshuffle and per-ramp reshuffle produce visible variation.
-  // Jitter is base-level (not per-shade) so the smooth OKLCH graduation is
-  // preserved. Seed 0 + no offset = zero jitter (deterministic baseline).
+  // Adapter over generateRampNew that returns hex[] (the rest of the pipeline
+  // works in flat hex arrays). Resolves the style name + editable stylePresets
+  // to the engine's { reach, chromaFalloff } scalars, threads per-ramp curve +
+  // gamut, and passes a seeded hueJitter (global reshuffle + per-ramp offset)
+  // so reshuffles vary while the base slot stays anchored. Seed 0 + no offset
+  // = zero jitter (deterministic baseline).
   const generateRamp = (baseHex: string, numColors: number, style: 'punchy' | 'balanced' | 'muted', hueShiftStrength: number, rampIdx?: number): string[] => {
     const rampKey = rampIdx !== undefined ? String(rampIdx) : undefined;
     const gamut = rampKey !== undefined ? gamutPerRamp[rampKey] : undefined;
-    let jitteredBase = baseHex;
+    const { reach, chromaFalloff } = styleToScalars(style, stylePresets);
+    let hueJitter = 0;
     if (rampIdx !== undefined) {
       const effectiveSeed = shuffleSeed + (rampShuffleOffsets[rampIdx] || 0);
-      if (effectiveSeed !== 0) {
-        const hDelta = seededHueDelta(effectiveSeed, rampIdx);
-        const hsl = hexToHsl(jitteredBase);
-        jitteredBase = hslToHex({ h: (hsl.h + hDelta + 360) % 360, s: hsl.s, l: hsl.l });
-      }
+      if (effectiveSeed !== 0) hueJitter = seededHueDelta(effectiveSeed, rampIdx);
     }
-    const shades = generateRampNew(jitteredBase, {
-      style,
+    const shades = generateRampNew(baseHex, {
+      reach,
+      chromaFalloff,
       size: numColors,
       hueShiftStrength,
+      hueJitter,
       lightnessCurve: rampKey !== undefined ? (lightnessCurvePerRamp[rampKey] ?? LIGHTNESS_PRESETS.eased) : LIGHTNESS_PRESETS.eased,
       satCurve: rampKey !== undefined ? (satCurvePerRamp[rampKey] ?? SAT_PRESETS.flat) : SAT_PRESETS.flat,
       gamut,
@@ -1588,9 +1612,9 @@ export default function PixelPalGenerator() {
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', resolveHueShiftForRamp(i), i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', resolveHueShiftForRamp(i), i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', resolveHueShiftForRamp(i), i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets]);
+  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', resolveHueShiftForRamp(i), i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', resolveHueShiftForRamp(i), i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', resolveHueShiftForRamp(i), i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
@@ -3409,7 +3433,7 @@ export default function PixelPalGenerator() {
     baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
     overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
     hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
-    lockedRamps, collapsedRamps,
+    lockedRamps, collapsedRamps, stylePresets,
   ]);
 
   // Keyboard shortcuts for undo/redo. Bound at the window level so they
@@ -3554,15 +3578,8 @@ export default function PixelPalGenerator() {
   //   - <slug>            -> the cached payload from sbs*Payload, or null
   //                          while loading or on error.
   const buildWorkingSnapshot = () => {
-    const jitteredBaseColors = baseColors.map((hex, i) => {
-      const effectiveSeed = shuffleSeed + (rampShuffleOffsets[i] || 0);
-      if (effectiveSeed === 0) return hex;
-      const hDelta = seededHueDelta(effectiveSeed, i);
-      const hsl = hexToHsl(hex);
-      return hslToHex({ h: (hsl.h + hDelta + 360) % 360, s: hsl.s, l: hsl.l });
-    });
     return {
-      baseColors: jitteredBaseColors,
+      baseColors,
       rampSize,
       shuffleSeed,
       overrides,
@@ -3575,6 +3592,7 @@ export default function PixelPalGenerator() {
       lightnessCurvePerRamp,
       satCurvePerRamp,
       gamutPerRamp,
+      stylePresets,
     };
   };
   // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
@@ -3586,6 +3604,7 @@ export default function PixelPalGenerator() {
       baseColors: classic.baseColors,
       aiColorNames: classic.names || [],
       rampSize,
+      stylePresets,
       shuffleSeed: 0,
       overrides: {},
       rampSizeOverrides: {},
@@ -3793,6 +3812,7 @@ export default function PixelPalGenerator() {
     collapsedRamps: [...collapsedRamps].sort((a, b) => a - b),
     lightnessCurvePerRamp,
     satCurvePerRamp,
+    stylePresets,
   });
 
   // Apply a snapshot back to all state setters. Wraps the calls in the
@@ -3824,6 +3844,7 @@ export default function PixelPalGenerator() {
     setCollapsedRamps(new Set(snap.collapsedRamps || []));
     setLightnessCurvePerRamp(snap.lightnessCurvePerRamp ?? {});
     setSatCurvePerRamp(snap.satCurvePerRamp ?? {});
+    setStylePresets(snap.stylePresets ?? DEFAULT_STYLE_PRESETS);
     // Side effects of applying: clear in-flight UI editor states that
     // could reference stale indices.
     setPinEditor(null);
@@ -3975,6 +3996,7 @@ export default function PixelPalGenerator() {
       satCurvePerRamp,
       gamutPerRamp,
       advancedOpen,
+      stylePresets,
     };
     setSavedBusy(true);
     try {
@@ -4218,6 +4240,13 @@ export default function PixelPalGenerator() {
       setSatCurvePerRamp(parsed.satCurvePerRamp && typeof parsed.satCurvePerRamp === 'object' ? parsed.satCurvePerRamp : {});
       setGamutPerRamp(parsed.gamutPerRamp && typeof parsed.gamutPerRamp === 'object' ? parsed.gamutPerRamp : {});
       setAdvancedOpen(parsed.advancedOpen && typeof parsed.advancedOpen === 'object' ? parsed.advancedOpen : {});
+      const sp = parsed.stylePresets;
+      const validPreset = (x) => x && typeof x.reach === 'number' && typeof x.chromaFalloff === 'number';
+      setStylePresets(
+        sp && validPreset(sp.punchy) && validPreset(sp.balanced) && validPreset(sp.muted)
+          ? { punchy: sp.punchy, balanced: sp.balanced, muted: sp.muted }
+          : DEFAULT_STYLE_PRESETS
+      );
       setExportFeedback(`Loaded "${parsed.name || slug}"`);
       setTimeout(() => setExportFeedback(''), 2000);
     } catch (err) {
@@ -6130,6 +6159,39 @@ export default function PixelPalGenerator() {
               </button>
             </div>
           </div>
+          <div className="mb-4 p-3 rounded border-2 border-cyan-700/40 bg-black/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style Tuning</span>
+              {JSON.stringify(stylePresets) !== JSON.stringify(DEFAULT_STYLE_PRESETS) && (
+                <button
+                  onClick={resetStylePresets}
+                  title="Restore Punchy/Balanced/Muted to their default reach and chroma falloff"
+                  className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}
+                >
+                  <RotateCcw size={14} /> Reset Styles
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {(['punchy', 'balanced', 'muted'] as const).map((sk) => (
+                <div key={sk} className="p-2 rounded bg-purple-900/30 border border-purple-700/40">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-cyan-100 mb-1">{sk}</div>
+                  <label className="block text-[10px] text-cyan-300 uppercase tracking-wider">Reach: {Math.round(stylePresets[sk].reach * 100)}%</label>
+                  <input
+                    type="range" min={0} max={100} value={Math.round(stylePresets[sk].reach * 100)}
+                    onChange={(e) => setStylePresets(prev => ({ ...prev, [sk]: { ...prev[sk], reach: Number(e.target.value) / 100 } }))}
+                    className="w-full"
+                  />
+                  <label className="block text-[10px] text-cyan-300 uppercase tracking-wider mt-1">Chroma falloff: {Math.round(stylePresets[sk].chromaFalloff * 100)}%</label>
+                  <input
+                    type="range" min={0} max={100} value={Math.round(stylePresets[sk].chromaFalloff * 100)}
+                    onChange={(e) => setStylePresets(prev => ({ ...prev, [sk]: { ...prev[sk], chromaFalloff: Number(e.target.value) / 100 } }))}
+                    className="w-full"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
           {activeHardware && (
             <div className="mb-4 p-2 rounded border-2 border-yellow-400 bg-yellow-900/30 flex items-center gap-2 text-xs" style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.4)' }}>
               <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
@@ -6734,7 +6796,7 @@ export default function PixelPalGenerator() {
             title={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
             className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
           >
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ff88'), textShadow: accentTextGlow('#00ff88') }}>Pixel Playground</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ff88'), textShadow: accentTextGlow('#00ff88') }}><Gamepad2 size={22} />Pixel Playground</h2>
             <div className="flex items-center gap-2">
               {sectionGrip('playground')}
               <span className="text-cyan-200">{pgOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>

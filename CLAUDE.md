@@ -29,7 +29,7 @@ palette comparison
 **Accessibility:** WCAG contrast check with Compare Mode picker, CVD
 simulation (protanopia, deuteranopia, tritanopia)
 
-**State:** up to 100 palettes in localStorage, 20-entry session history
+**State:** up to 100 palettes in localStorage, 50-entry session history
 (undo/redo/jump). Theme persists via Tauri plugin-store (desktop) or
 localStorage (web).
 

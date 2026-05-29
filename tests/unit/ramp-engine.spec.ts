@@ -1,21 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { generateRamp } from '../../src/lib/ramp-engine';
-import type { Shade } from '../../src/lib/ramp-engine';
+import { hexToOklch } from '../../src/lib/oklch';
 
-describe('generateRamp (perceptual)', () => {
+const PUNCHY   = { reach: 1.00, chromaFalloff: 0.10 };
+const BALANCED = { reach: 0.575, chromaFalloff: 0.475 };
+const MUTED    = { reach: 0.15, chromaFalloff: 0.85 };
+
+const baseOpts = (extra: object) => ({ size: 5, hueShiftStrength: 1.0, ...extra });
+
+describe('generateRamp base-anchored shape', () => {
   it('returns exactly `size` shades', () => {
-    const shades = generateRamp('#c45c3a', {
-      style: 'punchy',
-      size: 6,
-      hueShiftStrength: 1.0,
-    });
-    expect(shades).toHaveLength(6);
+    expect(generateRamp('#c45c3a', baseOpts(PUNCHY))).toHaveLength(5);
   });
 
   it('each shade has hex, oklch, pinned, gamutClipped', () => {
-    const shades = generateRamp('#c45c3a', { style: 'punchy', size: 6, hueShiftStrength: 1.0 });
-    for (const s of shades) {
-      expect(typeof s.hex).toBe('string');
+    for (const s of generateRamp('#c45c3a', baseOpts(PUNCHY))) {
       expect(s.hex).toMatch(/^#[0-9a-f]{6}$/);
       expect(typeof s.oklch.L).toBe('number');
       expect(typeof s.pinned).toBe('boolean');
@@ -23,93 +22,130 @@ describe('generateRamp (perceptual)', () => {
     }
   });
 
-  it('pure function: same opts → same output', () => {
-    const opts = { style: 'punchy' as const, size: 6, hueShiftStrength: 1.0 };
-    const a = generateRamp('#c45c3a', opts);
-    const b = generateRamp('#c45c3a', opts);
+  it('pure function: same opts -> same output', () => {
+    const a = generateRamp('#c45c3a', baseOpts(PUNCHY));
+    const b = generateRamp('#c45c3a', baseOpts(PUNCHY));
     expect(a).toEqual(b);
   });
 
-  it('punchy style: shadow L* < 0.20, highlight L* > 0.85 for #c45c3a', () => {
-    const shades = generateRamp('#c45c3a', { style: 'punchy', size: 6, hueShiftStrength: 1.0 });
-    expect(shades[0].oklch.L).toBeLessThan(0.20);
-    expect(shades[shades.length - 1].oklch.L).toBeGreaterThan(0.85);
-  });
-
-  it('saturated cyan #00b3b3 punchy: all shades are valid sRGB, highlight L* > 0.85', () => {
-    const shades = generateRamp('#00b3b3', { style: 'punchy', size: 6, hueShiftStrength: 1.0, gamut: 'auto' });
-    // auto strategy KEEPS shades in sRGB by reducing chroma at lightness extremes.
-    // So gamutClipped may be true for cyan-at-low-L (correct behavior), but every
-    // output must still be a valid 7-char hex (in-sRGB by construction).
-    for (const s of shades) {
-      expect(s.hex).toMatch(/^#[0-9a-f]{6}$/);
-    }
-    expect(shades[shades.length - 1].oklch.L).toBeGreaterThan(0.85);
-  });
-
-  it('achromatic base: all shades chroma < 0.02', () => {
-    const shades = generateRamp('#808080', { style: 'punchy', size: 6, hueShiftStrength: 1.0 });
-    for (const s of shades) {
-      expect(s.oklch.C).toBeLessThan(0.02);
-    }
-  });
-
-  it('linear curve: L* values linearly spaced', () => {
-    const shades = generateRamp('#c45c3a', { style: 'punchy', size: 5, hueShiftStrength: 1.0, curve: 'linear' });
-    const deltas = [];
-    for (let i = 1; i < shades.length; i++) {
-      deltas.push(shades[i].oklch.L - shades[i - 1].oklch.L);
-    }
-    for (let i = 1; i < deltas.length; i++) {
-      expect(Math.abs(deltas[i] - deltas[0])).toBeLessThan(0.005);
-    }
-  });
-
-  it('pin overrides engine output at the pinned index', () => {
-    const shades = generateRamp('#c45c3a', {
-      style: 'punchy', size: 6, hueShiftStrength: 1.0,
-      pins: { 2: '#abcdef' },
-    });
-    expect(shades[2].hex).toBe('#abcdef');
-    expect(shades[2].pinned).toBe(true);
-  });
-
-  it('hidden indices dropped from output', () => {
-    const shades = generateRamp('#c45c3a', {
-      style: 'punchy', size: 6, hueShiftStrength: 1.0,
-      hidden: [1, 4],
-    });
-    expect(shades).toHaveLength(4);
-  });
-
   it('invalid hex: returns N copies of input, no throw', () => {
-    const shades = generateRamp('not-a-hex', { style: 'punchy', size: 4, hueShiftStrength: 1.0 });
-    expect(shades).toHaveLength(4);
-    for (const s of shades) {
-      expect(s.hex).toBe('not-a-hex');
+    const shades = generateRamp('not-a-hex', baseOpts(PUNCHY));
+    expect(shades).toHaveLength(5);
+    for (const s of shades) expect(s.hex).toBe('not-a-hex');
+  });
+});
+
+describe('base fidelity (the core guarantee)', () => {
+  const bases = ['#c45c3a', '#3a5fc4', '#00b3b3', '#7a3a8e', '#e8e2d0', '#1a1420'];
+
+  for (const base of bases) {
+    it(`base hex appears verbatim and identically across styles for ${base}`, () => {
+      const found: string[] = [];
+      for (const preset of [PUNCHY, BALANCED, MUTED]) {
+        const shades = generateRamp(base, baseOpts(preset));
+        const hit = shades.find(s => s.hex === base.toLowerCase());
+        expect(hit, `base ${base} missing in ramp`).toBeTruthy();
+        found.push(hit!.hex);
+      }
+      expect(new Set(found).size).toBe(1); // identical in all three styles
+    });
+  }
+
+  it('shuffle (hueJitter) never moves the base slot', () => {
+    const base = '#c45c3a';
+    const plain = generateRamp(base, baseOpts({ ...PUNCHY }));
+    const jittered = generateRamp(base, baseOpts({ ...PUNCHY, hueJitter: 8 }));
+    const plainBase = plain.find(s => s.hex === base.toLowerCase());
+    const jitterBase = jittered.find(s => s.hex === base.toLowerCase());
+    expect(plainBase).toBeTruthy();
+    expect(jitterBase).toBeTruthy();
+  });
+});
+
+describe('distribution guarantees', () => {
+  for (const n of [4, 5, 6, 7, 8]) {
+    it(`near-white base keeps >=1 shade each side at size ${n}`, () => {
+      const shades = generateRamp('#f4f0e8', baseOpts({ ...BALANCED, size: n }));
+      const baseIdx = shades.findIndex(s => s.hex === '#f4f0e8');
+      expect(baseIdx).toBeGreaterThanOrEqual(1);
+      expect(baseIdx).toBeLessThanOrEqual(n - 2);
+    });
+    it(`near-black base keeps >=1 shade each side at size ${n}`, () => {
+      const shades = generateRamp('#140f1a', baseOpts({ ...BALANCED, size: n }));
+      const baseIdx = shades.findIndex(s => s.hex === '#140f1a');
+      expect(baseIdx).toBeGreaterThanOrEqual(1);
+      expect(baseIdx).toBeLessThanOrEqual(n - 2);
+    });
+  }
+
+  it('lightness is non-decreasing across the ramp', () => {
+    const shades = generateRamp('#c45c3a', baseOpts(BALANCED));
+    for (let i = 1; i < shades.length; i++) {
+      expect(shades[i].oklch.L).toBeGreaterThanOrEqual(shades[i - 1].oklch.L - 1e-6);
     }
   });
 });
 
-describe('generateRamp slider monotonicity', () => {
-  const bases = ['#3a5fc4', '#c45c3a', '#00b3b3', '#7a3a8e', '#808080'];
+describe('style semantics', () => {
+  const base = '#c45c3a';
 
-  for (const base of bases) {
-    it(`mean chroma is monotonically non-decreasing with S slider for ${base}`, () => {
-      const means: number[] = [];
-      for (const s of [0, 25, 50, 75, 100]) {
-        const shades = generateRamp(base, {
-          style: 'punchy',
-          size: 6,
-          hueShiftStrength: 1.0,
-          satMultiplier: 1 + s / 100,
-        });
-        const meanC = shades.reduce((acc, sh) => acc + sh.oklch.C, 0) / shades.length;
-        means.push(meanC);
-      }
-      for (let i = 1; i < means.length; i++) {
-        expect(means[i]).toBeGreaterThanOrEqual(means[i - 1] - 1e-6);
-      }
-    });
-  }
+  it('reach ordering: punchy span >= balanced >= muted', () => {
+    const span = (preset: object) => {
+      const s = generateRamp(base, baseOpts(preset));
+      return s[s.length - 1].oklch.L - s[0].oklch.L;
+    };
+    expect(span(PUNCHY)).toBeGreaterThanOrEqual(span(BALANCED) - 1e-6);
+    expect(span(BALANCED)).toBeGreaterThanOrEqual(span(MUTED) - 1e-6);
+  });
+
+  it('chroma falloff: muted midtones grayer than balanced grayer than punchy', () => {
+    // Measured at the shades adjacent to the base (the midtones), not the ends:
+    // wide-reach styles push their end shades into gamut-clip territory, which
+    // confounds end chroma. Neighbor chroma reflects the falloff rate directly.
+    const neighborChroma = (preset: object) => {
+      const s = generateRamp(base, baseOpts(preset));
+      const bi = s.findIndex(x => x.hex === base.toLowerCase());
+      return (s[bi - 1].oklch.C + s[bi + 1].oklch.C) / 2;
+    };
+    expect(neighborChroma(PUNCHY)).toBeGreaterThan(neighborChroma(BALANCED));
+    expect(neighborChroma(BALANCED)).toBeGreaterThan(neighborChroma(MUTED));
+  });
+
+  it('base chroma is identical across styles (anchor is full chroma)', () => {
+    const baseC = hexToOklch(base)!.C;
+    for (const preset of [PUNCHY, BALANCED, MUTED]) {
+      const s = generateRamp(base, baseOpts(preset));
+      const hit = s.find(x => x.hex === base.toLowerCase())!;
+      expect(Math.abs(hit.oklch.C - baseC)).toBeLessThan(1e-6);
+    }
+  });
+
+  it('achromatic base: no hue shift, no NaN, chroma stays tiny', () => {
+    const shades = generateRamp('#808080', baseOpts({ ...PUNCHY, hueJitter: 8 }));
+    for (const s of shades) {
+      expect(Number.isNaN(s.oklch.H)).toBe(false);
+      expect(s.oklch.C).toBeLessThan(0.02);
+    }
+  });
+});
+
+describe('pins and hidden', () => {
+  it('pin overrides output at the pinned index', () => {
+    const shades = generateRamp('#c45c3a', baseOpts({ ...PUNCHY, pins: { 1: '#abcdef' } }));
+    expect(shades[1].hex).toBe('#abcdef');
+    expect(shades[1].pinned).toBe(true);
+  });
+
+  it('pinned shade carries the pin hex oklch, not the base oklch', () => {
+    const shades = generateRamp('#c45c3a', baseOpts({ ...PUNCHY, pins: { 1: '#abcdef' } }));
+    const pinOklch = hexToOklch('#abcdef')!;
+    expect(shades[1].oklch.L).toBeCloseTo(pinOklch.L, 6);
+    expect(shades[1].oklch.C).toBeCloseTo(pinOklch.C, 6);
+    expect(shades[1].oklch.H).toBeCloseTo(pinOklch.H, 6);
+  });
+
+  it('hidden indices dropped from output', () => {
+    const shades = generateRamp('#c45c3a', baseOpts({ ...PUNCHY, hidden: [0, 4] }));
+    expect(shades).toHaveLength(3);
+  });
 });

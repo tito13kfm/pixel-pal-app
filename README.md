@@ -69,7 +69,7 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 
 **State and export**
 - Up to 100 saved palettes in local storage
-- 20-entry session history with undo, redo, and direct jump to any point
+- 50-entry session history with undo, redo, and direct jump to any point
 - Three themes: Dark, Neutral, Light (persists across sessions)
 - Auto-updates: desktop checks for new releases and prompts you to install; web reflects the latest deploy on refresh
 - Export: plain text or GIMP .gpl with Punchy, Balanced, or Muted style selectable
