@@ -1,6 +1,6 @@
 ﻿﻿// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical } from 'lucide-react';
+import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
 import {
   hexToHsl, hslToHex, hexToRgb, rgbToHex,
   rgbToHsl, hslToRgb, hexToHsv, hsvToHex, hsvToRgb,
@@ -6796,7 +6796,7 @@ export default function PixelPalGenerator() {
             title={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
             className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
           >
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ff88'), textShadow: accentTextGlow('#00ff88') }}>Pixel Playground</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ff88'), textShadow: accentTextGlow('#00ff88') }}><Gamepad2 size={22} />Pixel Playground</h2>
             <div className="flex items-center gap-2">
               {sectionGrip('playground')}
               <span className="text-cyan-200">{pgOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
