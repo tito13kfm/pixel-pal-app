@@ -5679,13 +5679,15 @@ export default function PixelPalGenerator() {
           <p className="text-sm tracking-widest" style={{ color: t.subtitleColor, textShadow: t.subtitleGlow }}>▓▒░ PIXEL ART PALETTE GENERATOR ░▒▓</p>
           <p className="text-[10px] mt-1 opacity-40 tracking-widest font-mono" style={{ color: t.subtitleColor }}>
             v{__APP_VERSION__} &middot; {__BUILD_DATE__}
-            {IS_WEB && (
-              <>
-                <span className="ml-3 text-zinc-600">&middot;</span>{' '}
-                <DesktopAppLink />
-              </>
-            )}
           </p>
+          {IS_WEB && (
+            <p className="mt-1">
+              <DesktopAppLink
+                textClassName={t.bodyText}
+                hoverClassName={theme === 'light' ? 'hover:text-pink-600' : 'hover:text-cyan-300'}
+              />
+            </p>
+          )}
           {/* Top-right control cluster: CRT toggle on top, three theme
               icon buttons in a horizontal row directly below, sized to
               match the CRT button's overall width.
