@@ -54,7 +54,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     {
       title: 'Export',
       body: 'Click the Export & Tools header to expand it. Use Download .txt for plain text, or .gpl (Piskel/Aseprite/GIMP) for app-ready palette format.',
-      target: 'export-panel',
+      target: 'export-header',
       advance: 'next',
       placement: 'auto',
     },
@@ -206,7 +206,7 @@ export const TASK_GUIDES: TourGuide[] = [
         setup: 'export',
         advance: 'detector',
         detector: (s) => s.hwPickerOpen,
-        placement: 'right',
+        placement: 'bottom',
       },
       {
         title: 'Shades snapped',
