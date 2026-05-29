@@ -5897,18 +5897,18 @@ export default function PixelPalGenerator() {
 
         <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" style={{ background: t.cardBgPinkBright, borderColor: themedAccentBorder('#ff00ff'), boxShadow: t.glowStrong > 0.5 ? '0 0 30px rgba(255, 0, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.2)' : accentGlow('#ff00ff', 0.5) }}>
           <div className={`flex flex-wrap gap-2 mb-4 justify-center${activeTourTarget === 'mode-tabs' ? ' tour-highlight' : ''}`} data-tour-id="mode-tabs">
-            <button onClick={() => setMode('color')} title="Build a palette from a single hex color" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm ${mode === 'color' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={mode === 'color' ? { boxShadow: '0 0 15px #00ffff' } : {}}>Single Color</button>
-            <button onClick={() => setMode('ai')} title="Describe a subject, mood, or scene and let AI pick the palette" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'ai' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-pink-900/60 text-pink-200 border-pink-700/50 hover:bg-pink-800/60'}`} style={mode === 'ai' ? { boxShadow: '0 0 15px #ff00ff' } : {}}><Wand2 size={16} />AI Assist</button>
-            <button onClick={() => setMode('image')} title="Extract a palette from an uploaded image" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'image' ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-yellow-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-800/60'}`} style={mode === 'image' ? { boxShadow: '0 0 15px #ffff00' } : {}}><ImageIcon size={16} />From Image</button>
+            <button onClick={() => setMode('color')} data-tour-id="mode-single" title="Build a palette from a single hex color" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm ${mode === 'color' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={mode === 'color' ? { boxShadow: '0 0 15px #00ffff' } : {}}>Single Color</button>
+            <button onClick={() => setMode('ai')} data-tour-id="mode-ai" title="Describe a subject, mood, or scene and let AI pick the palette" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'ai' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-pink-900/60 text-pink-200 border-pink-700/50 hover:bg-pink-800/60'}`} style={mode === 'ai' ? { boxShadow: '0 0 15px #ff00ff' } : {}}><Wand2 size={16} />AI Assist</button>
+            <button onClick={() => setMode('image')} data-tour-id="mode-image" title="Extract a palette from an uploaded image" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'image' ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-yellow-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-800/60'}`} style={mode === 'image' ? { boxShadow: '0 0 15px #ffff00' } : {}}><ImageIcon size={16} />From Image</button>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-center mb-4 flex-wrap">
             {mode === 'color' && (
               <div className="flex gap-2 items-center flex-wrap">
                 <input type="color" value={colorInput} onChange={(e) => setColorInput(e.target.value)} title="Pick a base color from the OS color picker" className="w-14 h-14 rounded border-2 border-cyan-400 cursor-pointer" style={{ boxShadow: '0 0 10px #00ffff' }} />
-                <input type="text" value={colorInput} onChange={(e) => { const v = e.target.value; if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColorInput(v); }} title="Type a hex color (e.g. #ff6b35)" className="px-3 py-2 rounded bg-black/60 text-cyan-200 font-mono border-2 border-cyan-400 w-32 focus:outline-none" />
+                <input type="text" value={colorInput} onChange={(e) => { const v = e.target.value; if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColorInput(v); }} data-tour-id="hex-input" title="Type a hex color (e.g. #ff6b35)" className="px-3 py-2 rounded bg-black/60 text-cyan-200 font-mono border-2 border-cyan-400 w-32 focus:outline-none" />
                 <button onClick={randomizeColor} title="Roll a random hex into the input. Does not change the palette. Click Add base to append it, or New palette to replace the palette with it." className="px-3 py-2 rounded font-bold bg-pink-500 text-white border-2 border-pink-300 hover:bg-pink-400 hover:scale-105 transition-all" style={{ boxShadow: '0 0 12px #ff00ff' }}><Dice5 size={18} /></button>
-                <button onClick={addColorAsBase} title="Append this color to the palette as a new base. Stays on this tab so you can keep building. Non-destructive: existing ramps, pins, and customizations are preserved." className="px-4 py-2 rounded font-bold bg-cyan-300 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-200 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 15px #00ffff' }}>
+                <button onClick={addColorAsBase} data-tour-id="add-base-btn" title="Append this color to the palette as a new base. Stays on this tab so you can keep building. Non-destructive: existing ramps, pins, and customizations are preserved." className="px-4 py-2 rounded font-bold bg-cyan-300 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-200 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 15px #00ffff' }}>
                   <Plus size={18} />Add base
                 </button>
                 {addBaseFeedback && (
@@ -5918,13 +5918,13 @@ export default function PixelPalGenerator() {
             )}
             {mode === 'ai' && (
               <div className="flex gap-2 items-center w-full sm:w-auto">
-                <input type="text" value={aiInput} onChange={(e) => setAiInput(e.target.value)} placeholder="describe anything..." title="Describe a subject, mood, or scene. Press Enter to generate." className="px-3 py-2 rounded bg-black/60 text-pink-200 border-2 border-pink-400 w-full sm:w-96 focus:outline-none" onKeyDown={(e) => e.key === 'Enter' && !aiLoading && handleAiGenerate()} disabled={aiLoading} />
+                <input type="text" value={aiInput} onChange={(e) => setAiInput(e.target.value)} data-tour-id="ai-prompt-input" placeholder="describe anything..." title="Describe a subject, mood, or scene. Press Enter to generate." className="px-3 py-2 rounded bg-black/60 text-pink-200 border-2 border-pink-400 w-full sm:w-96 focus:outline-none" onKeyDown={(e) => e.key === 'Enter' && !aiLoading && handleAiGenerate()} disabled={aiLoading} />
                 <button onClick={() => setAiInput(buildRandomDescription())} disabled={aiLoading} title="Roll a random description (does not call AI)" className="px-3 py-2 rounded font-bold bg-pink-500 text-white border-2 border-pink-300 hover:bg-pink-400 hover:scale-105 transition-all flex-shrink-0 disabled:opacity-60" style={{ boxShadow: '0 0 12px #ff00ff' }}><Dice5 size={18} /></button>
               </div>
             )}
             {mode === 'image' && (
               <div className="flex flex-col items-center gap-3 w-full">
-                <div onDragOver={handleDragOver} onDragEnter={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`w-full rounded-lg border-4 border-dashed transition-all p-6 ${isDragging ? 'border-yellow-300 bg-yellow-500/20 scale-[1.02]' : 'border-yellow-500/60 bg-yellow-900/20 hover:bg-yellow-900/30'}`} style={isDragging ? { boxShadow: '0 0 30px #ffff00' } : {}}>
+                <div onDragOver={handleDragOver} onDragEnter={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} data-tour-id="image-dropzone" className={`w-full rounded-lg border-4 border-dashed transition-all p-6 ${isDragging ? 'border-yellow-300 bg-yellow-500/20 scale-[1.02]' : 'border-yellow-500/60 bg-yellow-900/20 hover:bg-yellow-900/30'}`} style={isDragging ? { boxShadow: '0 0 30px #ffff00' } : {}}>
                   <div className="flex flex-col items-center gap-3">
                     <Upload size={32} className={`transition-all ${isDragging ? 'text-yellow-200 scale-125' : 'text-yellow-300'}`} style={{ filter: 'drop-shadow(0 0 8px #ffff00)' }} />
                     <div className="text-center text-yellow-100">
@@ -6011,14 +6011,15 @@ export default function PixelPalGenerator() {
 
             {mode === 'ai' ? (
               <>
-                <button onClick={handleAiGenerate} disabled={aiLoading} title="Send the description to AI and generate a palette" className="px-5 py-2 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-200 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-60 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 15px #ff00ff' }}>
+                <button onClick={handleAiGenerate} disabled={aiLoading} data-tour-id="ai-execute-btn" title="Send the description to AI and generate a palette" className="px-5 py-2 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-200 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-60 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 15px #ff00ff' }}>
                   <Wand2 size={18} className={aiLoading ? 'animate-spin' : ''} />{aiLoading ? 'Processing...' : 'Execute'}
                 </button>
-                <button onClick={handleAiRandom} disabled={aiLoading} title="AI invents a random subject and generates its palette" className="px-5 py-2 rounded font-bold bg-purple-500 text-cyan-100 border-2 border-purple-200 hover:bg-purple-400 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-60 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 15px #a855f7' }}>
+                <button onClick={handleAiRandom} disabled={aiLoading} data-tour-id="ai-surprise-btn" title="AI invents a random subject and generates its palette" className="px-5 py-2 rounded font-bold bg-purple-500 text-cyan-100 border-2 border-purple-200 hover:bg-purple-400 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-60 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 15px #a855f7' }}>
                   <Dice5 size={18} className={aiLoading ? 'animate-spin' : ''} />Surprise Me
                 </button>
                 <button
                   onClick={() => setShowAISettings(true)}
+                  data-tour-id="ai-settings-btn"
                   title="AI Settings"
                   className={`px-4 py-2 rounded font-bold border-2 font-mono text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all hover:scale-105 ${aiConfigured === false ? 'bg-purple-950 text-purple-300 border-purple-500 ai-setup-pulse' : 'bg-purple-900 text-purple-200 border-purple-700'}`}
                   style={aiConfigured !== false ? { boxShadow: '0 0 8px rgba(126,34,206,0.4)' } : undefined}
@@ -6027,7 +6028,7 @@ export default function PixelPalGenerator() {
                 </button>
               </>
             ) : mode === 'image' ? null : (
-              <button onClick={handleGenerate} title="Replace the palette with a new single-ramp palette built from the hex above. Destructive: wipes pins, hidden shades, ramp locks, side-by-side slots, harmony anchor, and per-ramp customizations. To keep your existing palette, click Add base instead." className="px-4 py-2 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 10px #ffff00' }}>
+              <button onClick={handleGenerate} data-tour-id="new-palette-btn" title="Replace the palette with a new single-ramp palette built from the hex above. Destructive: wipes pins, hidden shades, ramp locks, side-by-side slots, harmony anchor, and per-ramp customizations. To keep your existing palette, click Add base instead." className="px-4 py-2 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 10px #ffff00' }}>
                 <Sparkles size={18} />New palette
               </button>
             )}
@@ -6581,7 +6582,7 @@ export default function PixelPalGenerator() {
         </div>
 
         <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgPink, borderColor: themedAccentBorder('#ff00ff'), boxShadow: accentGlow('#ff00ff', 0.4) }}>
-          <button onClick={() => setHarmonyOpen(o => !o)} title={harmonyOpen ? 'Collapse Harmony Colors' : 'Expand Harmony Colors'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+          <button onClick={() => setHarmonyOpen(o => !o)} data-tour-id="harmony-header" title={harmonyOpen ? 'Collapse Harmony Colors' : 'Expand Harmony Colors'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ff00ff'), textShadow: accentTextGlow('#ff00ff') }}><Sparkles size={22} />Harmony Colors</h2>
             <span style={{ color: sectionHeadColor('#ff00ff') }}>{harmonyOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
           </button>
@@ -6663,6 +6664,7 @@ export default function PixelPalGenerator() {
                           )}
                           <button
                             onClick={harmonize}
+                            data-tour-id="harmonize-btn"
                             disabled={disabled}
                             title={disabled
                               ? 'Nothing to harmonize: every non-anchor ramp is locked.'
@@ -7493,7 +7495,7 @@ export default function PixelPalGenerator() {
 
         {/* Export & Tools — collapsible card matching section card pattern */}
         <div className={`rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden${activeTourTarget === 'export-panel' ? ' tour-highlight' : ''}`} data-tour-id="export-panel" {...makeSectionDragHandlers('export')} style={{ order: sectionOrder.indexOf('export'), background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.3), dropLine('export')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setExportOpen(o => !o)} title={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+          <button onClick={() => setExportOpen(o => !o)} data-tour-id="export-header" title={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Download size={22} />Export &amp; Tools</h2>
             <div className="flex items-center gap-2">
               {sectionGrip('export')}
@@ -7509,6 +7511,7 @@ export default function PixelPalGenerator() {
                   <button onClick={copyPaletteToClipboard} title="Copy the active palette to the clipboard as plain text" className="px-4 py-1.5 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-100 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ff00ff' }}><Copy size={14} />Copy</button>
                   <button
                     onClick={toggleCompareMode}
+                    data-tour-id="wcag-check-btn"
                     title={compareMode ? 'Exit WCAG Check' : 'Enter WCAG Check: click any two ramp swatches to see their WCAG contrast ratio'}
                     className={`px-4 py-1.5 rounded font-bold border-2 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs ${compareMode ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-500/50 hover:bg-purple-800/60'}`}
                     style={compareMode ? { boxShadow: '0 0 12px #ffff00' } : {}}
@@ -7573,7 +7576,7 @@ export default function PixelPalGenerator() {
                 <button onClick={() => setGplStyle('punchy')} title="Export the .gpl using high-contrast Punchy ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
                 <button onClick={() => setGplStyle('balanced')} title="Export the .gpl using mid-contrast Balanced ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={gplStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
                 <button onClick={() => setGplStyle('muted')} title="Export the .gpl using low-contrast Muted ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
-                <button onClick={exportPaletteGpl} title="GIMP Palette format. Compatible with Piskel, Aseprite, GIMP, Krita, Inkscape, and other pixel art tools." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Download size={14} />.gpl (Piskel/Aseprite/GIMP)</button>
+                <button onClick={exportPaletteGpl} data-tour-id="gpl-export-btn" title="GIMP Palette format. Compatible with Piskel, Aseprite, GIMP, Krita, Inkscape, and other pixel art tools." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Download size={14} />.gpl (Piskel/Aseprite/GIMP)</button>
                 <button onClick={() => gplFileInputRef.current?.click()} title="Import a .gpl palette file from Piskel, Aseprite, GIMP, Krita, or any GIMP-compatible tool. Replaces the current palette." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Upload size={14} />Import .gpl</button>
                 <input ref={gplFileInputRef} type="file" accept=".gpl,text/plain" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGplFile(f); e.target.value = ''; }} className="hidden" />
               </div>
