@@ -158,13 +158,17 @@ export function TourOverlay({
           ? { left: popoverPos.x, top: popoverPos.y }
           : { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
       >
-        {cutout && (
-          <div ref={arrowRef} className="tour-arrow"
-               style={{
-                 left: popoverPos?.arrowX != null ? popoverPos.arrowX : undefined,
-                 top: popoverPos?.arrowY != null ? popoverPos.arrowY : undefined,
-               }} />
-        )}
+        {/* Arrow is mounted unconditionally so arrowRef attaches before the first
+            recompute. recompute() bails if arrowRef.current is null, and cutout is
+            only set inside recompute — gating the arrow on `cutout` deadlocked the
+            spotlight (no cutout ever formed, full-screen dim swallowed all clicks).
+            Hidden when there is no cutout. */}
+        <div ref={arrowRef} className="tour-arrow"
+             style={{
+               display: cutout ? undefined : 'none',
+               left: popoverPos?.arrowX != null ? popoverPos.arrowX : undefined,
+               top: popoverPos?.arrowY != null ? popoverPos.arrowY : undefined,
+             }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
           <h3 style={{ color: '#e9d5ff', fontWeight: 600, fontSize: 14 }}>{current.title}</h3>
           <button onClick={onExit} title="Exit tour"

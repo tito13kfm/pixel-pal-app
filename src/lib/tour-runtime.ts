@@ -31,17 +31,34 @@ export async function positionPopover(
   preferred: 'top' | 'bottom' | 'left' | 'right' | 'auto',
 ): Promise<PopoverPlacementResult> {
   const placement: Placement = preferred === 'auto' ? 'bottom' : preferred
+  // strategy:'fixed' returns viewport-relative coords. The popover is
+  // position:fixed in CSS, so the default 'absolute' strategy (document-relative)
+  // placed it at the target's document offset — e.g. y≈1868 for a target deep in
+  // a scrolling page — rendering it far below the viewport. Must match the CSS.
   const { x, y, placement: finalPlacement, middlewareData } = await computePosition(
     targetEl,
     popoverEl,
     {
+      strategy: 'fixed',
       placement,
       middleware: [offset(12), flip(), shift({ padding: 8 }), arrow({ element: arrowEl })],
     },
   )
+  // Clamp into the viewport. flip()/shift() handle the common cases, but a target
+  // taller than the viewport (e.g. ramp-area) leaves no fitting side, so the
+  // popover overflows the bottom edge and its Next/Done button falls off-screen.
+  // Clamp y (and x) so the popover box is always fully visible; the arrow may
+  // then point slightly off the target edge, which is acceptable.
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 0
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 0
+  const pw = popoverEl.offsetWidth
+  const ph = popoverEl.offsetHeight
+  const clampedX = vw ? Math.min(Math.max(x, 8), Math.max(8, vw - pw - 8)) : x
+  const clampedY = vh ? Math.min(Math.max(y, 8), Math.max(8, vh - ph - 8)) : y
+
   return {
-    x,
-    y,
+    x: clampedX,
+    y: clampedY,
     placement: finalPlacement,
     arrowX: middlewareData.arrow?.x ?? null,
     arrowY: middlewareData.arrow?.y ?? null,
