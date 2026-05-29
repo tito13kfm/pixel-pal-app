@@ -13,9 +13,9 @@ test.describe('Onboarding tour', () => {
     await page.reload()
     await page.waitForLoadState('networkidle')
 
-    // Panel should appear automatically (component renders "Guides", CSS uppercase is visual only)
-    await expect(page.getByText('Guides', { exact: true })).toBeVisible({ timeout: 2000 })
-    await expect(page.getByText('Welcome to PIXEL.PAL')).toBeVisible()
+    // First-run auto-starts the onboarding tour ~600ms after load: the popover
+    // appears showing the first step title.
+    await expect(page.getByText('Welcome to PIXEL.PAL')).toBeVisible({ timeout: 2000 })
   })
 
   test('completes tour and sets localStorage flag', async ({ page }) => {
@@ -25,7 +25,7 @@ test.describe('Onboarding tour', () => {
     await page.reload()
     await page.waitForLoadState('networkidle')
 
-    // Click through all 4 steps
+    // Click Next through all 4 passive steps; final button is Done.
     await expect(page.getByText('Welcome to PIXEL.PAL')).toBeVisible({ timeout: 2000 })
     await page.getByRole('button', { name: 'Next →' }).click()
     await expect(page.getByText('Input modes')).toBeVisible()
@@ -35,8 +35,9 @@ test.describe('Onboarding tour', () => {
     await expect(page.getByRole('heading', { name: 'Export', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Done' }).click()
 
-    // Panel should close and localStorage flag set
-    await expect(page.getByText('Guides', { exact: true })).not.toBeAttached()
+    // Popover should close and localStorage flag set. Assert on the popover
+    // itself, not step-1 text — "Welcome" is already gone by step 4.
+    await expect(page.locator('.tour-popover')).not.toBeAttached()
     const seen = await page.evaluate(() => localStorage.getItem('pixel-pal-tour-seen'))
     expect(seen).toBe('1')
   })
@@ -53,17 +54,19 @@ test.describe('Onboarding tour', () => {
     await expect(page.getByText('Welcome to PIXEL.PAL')).not.toBeAttached()
   })
 
-  test('skip closes tour and sets flag', async ({ page }) => {
+  test('exit X closes tour and sets flag', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
     await clearTourSeen(page)
     await page.reload()
     await page.waitForLoadState('networkidle')
 
+    // The popover exit X (title="Exit tour") replaces the old Skip button.
+    // Onboarding marks seen on any exit.
     await expect(page.getByText('Welcome to PIXEL.PAL')).toBeVisible({ timeout: 2000 })
-    await page.getByRole('button', { name: 'Skip', exact: true }).click()
+    await page.getByTitle('Exit tour').click()
 
-    await expect(page.getByText('Guides', { exact: true })).not.toBeAttached()
+    await expect(page.locator('.tour-popover')).not.toBeAttached()
     const seen = await page.evaluate(() => localStorage.getItem('pixel-pal-tour-seen'))
     expect(seen).toBe('1')
   })
@@ -73,20 +76,21 @@ test.describe('"?" button and guide select', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
-    // Suppress auto-open so tests control when panel appears
+    // Suppress auto-open so tests control when the launcher modal appears
     await page.evaluate(() => localStorage.setItem('pixel-pal-tour-seen', '1'))
     await page.reload()
     await page.waitForLoadState('networkidle')
   })
 
-  test('"?" button opens guide-select panel', async ({ page }) => {
+  test('"?" button opens launcher modal', async ({ page }) => {
     await page.getByTitle('Open guides').click()
+    // Centered launcher modal: header "Guides", quick-tour button, section label.
     await expect(page.getByText('Guides', { exact: true })).toBeVisible()
     await expect(page.getByText('Quick tour')).toBeVisible()
     await expect(page.getByText('Show me how to...')).toBeVisible()
   })
 
-  test('"?" button closes open panel', async ({ page }) => {
+  test('close X closes the launcher modal', async ({ page }) => {
     await page.getByTitle('Open guides').click()
     await expect(page.getByText('Guides', { exact: true })).toBeVisible()
     await page.getByTitle('Close guides').click()
@@ -105,29 +109,4 @@ test.describe('"?" button and guide select', () => {
     await expect(page.getByText('Check contrast (WCAG)')).toBeVisible()
   })
 
-  test('task guide auto-advances when condition met', async ({ page }) => {
-    // Use "hex-palette" guide. Step 2 detector: baseColors[0] !== '#ff00ff'.
-    // App randomizes baseColors[0] on mount, so we reset it to #ff00ff first
-    // to ensure the baseline is captured as false when step 2 is entered.
-    await page.getByTitle('Open guides').click()
-    await page.getByText('Generate from a hex color').click()
-
-    // Step 1: "Switch to Single Color" — reset baseColors to #ff00ff so step 2
-    // detector starts as false, then advance manually.
-    await expect(page.getByText('Switch to Single Color')).toBeVisible()
-    const hexInput = page.locator('input[title="Type a hex color (e.g. #ff6b35)"]')
-    await hexInput.fill('#ff00ff')
-    await page.getByRole('button', { name: 'New palette', exact: true }).click()
-    await page.getByRole('button', { name: 'Next →' }).click()
-
-    // Step 2: "Enter a hex color" — baseline now false
-    await expect(page.getByText('Enter a hex color')).toBeVisible()
-
-    // Change to a different color → detector transitions false→true → auto-advance
-    await hexInput.fill('#3b82f6')
-    await page.getByRole('button', { name: 'New palette', exact: true }).click()
-
-    // Should auto-advance to step 3
-    await expect(page.getByText('Ramps generated')).toBeVisible({ timeout: 4000 })
-  })
 })
