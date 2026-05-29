@@ -126,24 +126,34 @@ test.describe('tour auto-advance detectors fire correctly', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  test('hex-palette: New palette advances step 2', async ({ page }) => {
+  // hex-palette is a fully Next-driven walk now. Step 1 ("Switch to Single
+  // Color") is a detector step (mode==='color') but 'color' is the DEFAULT mode,
+  // so it is pre-satisfied on entry → the engine surfaces a manual Next (no dead-
+  // end). Steps 2–4 are advance:'next'. So: Next, Next, Next, Done. Mode must NOT
+  // be switched away from 'color' before starting, or step 1 loses its pre-
+  // satisfaction. (Old test clicked AI Assist + expected a "Ramps generated"
+  // detector auto-advance that no longer exists in the restructured 4-step guide.)
+  test('hex-palette: Next-driven walk reaches Done', async ({ page }) => {
     await openGuides(page)
     await page.getByText('Generate from a hex color').click()
 
-    // Reset to default magenta so step 2 detector starts false
+    // Step 1: pre-satisfied detector → manual Next.
     await expect(page.getByText('Switch to Single Color')).toBeVisible()
-    const hexInput = page.locator('input[title="Type a hex color (e.g. #ff6b35)"]')
-    await hexInput.fill('#ff00ff')
-    await page.getByRole('button', { name: 'New palette', exact: true }).click()
     await page.getByRole('button', { name: 'Next →' }).click()
 
-    await expect(page.getByText('Enter a hex color')).toBeVisible()
+    // Step 2: "Enter a hex color" (advance:'next').
+    await expect(page.getByText('Enter a hex color')).toBeVisible({ timeout: 2000 })
+    await page.getByRole('button', { name: 'Next →' }).click()
 
-    // Documented action: type hex + click New palette
-    await hexInput.fill('#3b82f6')
-    await page.getByRole('button', { name: 'New palette', exact: true }).click()
+    // Step 3: "Generate the ramps" (advance:'next').
+    await expect(page.getByText('Generate the ramps')).toBeVisible({ timeout: 2000 })
+    await page.getByRole('button', { name: 'Next →' }).click()
 
-    await expect(page.getByText('Ramps generated')).toBeVisible({ timeout: 2000 })
+    // Step 4 (last): "Tune the ramp" → final button is Done.
+    await expect(page.getByText('Tune the ramp')).toBeVisible({ timeout: 2000 })
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+
+    await expect(page.locator('.tour-popover')).not.toBeAttached()
   })
 
   test('export-gpl: Export & Tools header advances step 1', async ({ page }) => {
@@ -160,18 +170,24 @@ test.describe('tour auto-advance detectors fire correctly', () => {
     await expect(page.getByText('Choose a contrast style')).toBeVisible({ timeout: 2000 })
   })
 
-  test('wcag-compare: WCAG Check button advances step 1', async ({ page }) => {
-    // compareMode starts false — guide opens with baseline false
+  test('wcag-compare: Export panel then WCAG Check advances both steps', async ({ page }) => {
+    // wcag-compare gained a step: step 1 "Open the Export panel" (detector
+    // exportOpen), step 2 "Enable WCAG Check" (detector compareMode).
+    // Ensure Export & Tools CLOSED so step 1 detector starts false on entry.
+    await ensureExportToolsClosed(page)
+
     await openGuides(page)
     await page.getByText('Check contrast (WCAG)').click()
-    await expect(page.getByText('Enable WCAG Check')).toBeVisible()
+    await expect(page.getByText('Open the Export panel')).toBeVisible()
 
-    // Ensure WCAG Check button is accessible (Export & Tools must be open)
-    await ensureExportToolsOpen(page)
+    // Step 1 action: click Export & Tools header (export-header is the target) →
+    // exportOpen edge fires.
+    await page.getByRole('button', { name: /Export & Tools/ }).click()
+    await expect(page.getByText('Enable WCAG Check')).toBeVisible({ timeout: 2000 })
 
-    // Documented action: click WCAG Check
+    // Step 2 action: click WCAG Check (wcag-check-btn is the target) →
+    // compareMode edge fires.
     await page.getByRole('button', { name: 'WCAG Check', exact: true }).click()
-
     await expect(page.getByText('Pick two swatches')).toBeVisible({ timeout: 2000 })
   })
 
@@ -187,15 +203,10 @@ test.describe('tour auto-advance detectors fire correctly', () => {
     await page.getByRole('button', { name: /Export & Tools/ }).click()
     await expect(page.getByText('Open the hardware picker')).toBeVisible({ timeout: 2000 })
 
-    // Small wait for React useEffect to capture step 2 baseline before clicking
-    await page.waitForTimeout(300)
-    // Use JS dispatch to bypass guide panel z-index overlay interception
-    await page.evaluate(() => {
-      const btn = Array.from(document.querySelectorAll('button')).find(
-        b => b.textContent?.trim() === 'Hardware Lock'
-      ) as HTMLButtonElement | undefined
-      btn?.click()
-    })
-    await expect(page.getByText('Shades snapped')).toBeVisible({ timeout: 2000 })
+    // Step 2 action: click Hardware Lock. It is step 2's spotlight target
+    // (hardware-lock-btn), so the cutout passes the click through — no JS
+    // dispatch needed. hwPickerOpen edge fires → auto-advance.
+    await page.getByRole('button', { name: 'Hardware Lock', exact: true }).click()
+    await expect(page.getByText('Pick a platform')).toBeVisible({ timeout: 2000 })
   })
 })
