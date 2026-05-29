@@ -109,37 +109,4 @@ test.describe('"?" button and guide select', () => {
     await expect(page.getByText('Check contrast (WCAG)')).toBeVisible()
   })
 
-  // SKIPPED: detector-driven spotlight interaction belongs to Task 12 (new
-  // spotlight e2e). Two blockers under the new shell:
-  //   1. hex-palette step 1 detector is mode === 'color', which is the default
-  //      mode, so the baseline captures true on entry — no false→true edge, and
-  //      a detector step with a present target renders no Next button. The tour
-  //      dead-ends on step 1. (Suspected app bug: any task guide whose step-1
-  //      detector is already satisfied on entry cannot advance.)
-  //   2. "New palette" is not the step target, so it sits under the dim overlay
-  //      (pointerEvents:auto); only the cutout hole passes clicks through.
-  // Driving the cutout/detector machinery is the subject of Task 12.
-  test.skip('task guide auto-advances when condition met', async ({ page }) => {
-    // Use "hex-palette" guide. Step 2 detector: baseColors[0] !== '#ff00ff'.
-    // App randomizes baseColors[0] on mount, so we reset it to #ff00ff first
-    // to ensure the baseline is captured as false when step 2 is entered.
-    await page.getByTitle('Open guides').click()
-    await page.getByText('Generate from a hex color').click()
-
-    // Step 1: "Switch to Single Color" — detector advances when mode === 'color'.
-    await expect(page.getByText('Switch to Single Color')).toBeVisible()
-    const hexInput = page.locator('input[title="Type a hex color (e.g. #ff6b35)"]')
-    await hexInput.fill('#ff00ff')
-    await page.getByRole('button', { name: 'New palette', exact: true }).click()
-
-    // Step 2: "Enter a hex color" — baseline now false
-    await expect(page.getByText('Enter a hex color')).toBeVisible()
-
-    // Change to a different color → detector transitions false→true → auto-advance
-    await hexInput.fill('#3b82f6')
-    await page.getByRole('button', { name: 'New palette', exact: true }).click()
-
-    // Should auto-advance to step 3
-    await expect(page.getByText('Tune the ramp')).toBeVisible({ timeout: 4000 })
-  })
 })

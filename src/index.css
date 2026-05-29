@@ -14,11 +14,6 @@
   0%, 100% { box-shadow: 0 0 0 2px rgba(0,255,255,0.4), 0 0 16px rgba(0,255,255,0.3); }
   50% { box-shadow: 0 0 0 4px rgba(0,255,255,0.8), 0 0 32px rgba(0,255,255,0.6); }
 }
-.tour-highlight {
-  animation: tour-pulse 1.4s ease-in-out infinite;
-  border-radius: 0.5rem;
-}
-
 /* Tour spotlight overlay */
 .tour-overlay-svg {
   position: fixed;

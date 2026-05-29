@@ -5,7 +5,6 @@ export interface TourAppState {
   exportOpen: boolean
   compareMode: boolean
   hwPickerOpen: boolean
-  aiLoading: boolean
   baseColors: string[]
 }
 
@@ -226,6 +225,15 @@ export const TASK_GUIDES: TourGuide[] = [
     id: 'harmonize',
     label: 'Harmonize ramps',
     steps: [
+      {
+        title: 'Switch to Single Color',
+        body: 'Harmonize works on hex-based ramps. Switch to Single Color mode first.',
+        hint: '→ click Single Color',
+        target: 'mode-single',
+        advance: 'detector',
+        detector: (s) => s.mode === 'color',
+        placement: 'bottom',
+      },
       {
         title: 'Generate two or more ramps',
         body: 'Harmonize works across multiple ramps. Add a second base color first.',

@@ -149,11 +149,17 @@ test('image-import: starts, then From Image tab click auto-advances to step 2', 
   await expect(page.getByText('Load an image')).toBeVisible({ timeout: 2000 })
 })
 
-test('harmonize: starts, then adding a 2nd base auto-advances to step 2', async ({ page }) => {
+test('harmonize: Next past mode step, then adding a 2nd base auto-advances', async ({ page }) => {
   await openLauncher(page)
   await page.getByText('Harmonize ramps').click()
 
-  // Step 1 "Generate two or more ramps": detector baseColors.length >= 2. Default
+  // Step 1 "Switch to Single Color": detector mode === 'color', which is the
+  // DEFAULT mode, so it is pre-satisfied on entry → engine surfaces a manual
+  // Next. Click through to reach the original first step.
+  await expect(page.getByRole('heading', { name: 'Switch to Single Color' })).toBeVisible()
+  await page.getByRole('button', { name: 'Next →' }).click()
+
+  // Step 2 "Generate two or more ramps": detector baseColors.length >= 2. Default
   // is a single base, so it starts false (not pre-satisfied → no Next; the
   // forward path is the detector). Spotlight target is add-base-btn.
   await expect(page.getByText('Generate two or more ramps')).toBeVisible()

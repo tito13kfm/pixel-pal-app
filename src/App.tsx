@@ -1836,8 +1836,6 @@ export default function PixelPalGenerator() {
 
   const SETUP_SETTERS = {
     export: setExportOpen,
-    'hardware-picker': setHwPickerOpen,
-    'ai-settings': setShowAISettings,
     harmony: setHarmonyOpen,
   };
 
@@ -1860,6 +1858,7 @@ export default function PixelPalGenerator() {
     setHwPickerOpen(s.hwPickerOpen);
     setShowAISettings(s.showAISettings);
     setCompareMode(s.compareMode);
+    if (!s.compareMode) { setCompareAnchor(null); setCompareResult(null); }
     setHarmonyOpen(s.harmonyOpen);
     tourSnapshot.current = null;
   };
@@ -7811,7 +7810,7 @@ export default function PixelPalGenerator() {
         open={tourOpen}
         guideId={tourGuideId}
         step={tourStep}
-        appState={{ mode, showAISettings, imageDataUrl, exportOpen, compareMode, hwPickerOpen, aiLoading, baseColors }}
+        appState={{ mode, showAISettings, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors }}
         runSetup={runTourSetup}
         onSetStep={setTourStep}
         onExit={exitTour}
