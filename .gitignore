@@ -45,6 +45,12 @@ tests/*
 tests/e2e/*
 !tests/e2e/*.spec.ts
 docs/
+# Exception: superpowers design specs are tracked as versioned project artifacts
+!docs/
+docs/*
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs/
 scripts/
 playwright-report/
 test-results/
