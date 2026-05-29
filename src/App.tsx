@@ -226,6 +226,19 @@ const seededHueDelta = (effectiveSeed: number, rampIdx: number): number => {
   return (n / 0x100000000 - 0.5) * 16;
 };
 
+// Editable style presets: each style is two scalars consumed by the engine.
+// Defaults reproduce the approved Punchy/Balanced/Muted look.
+const DEFAULT_STYLE_PRESETS = {
+  punchy:   { reach: 1.00, chromaFalloff: 0.10 },
+  balanced: { reach: 0.575, chromaFalloff: 0.475 },
+  muted:    { reach: 0.15, chromaFalloff: 0.85 },
+};
+
+const styleToScalars = (style, presets) => {
+  const p = (presets && presets[style]) || DEFAULT_STYLE_PRESETS[style] || DEFAULT_STYLE_PRESETS.punchy;
+  return { reach: p.reach, chromaFalloff: p.chromaFalloff };
+};
+
 // quantizeToHardware: nearest hardware color search using ΔE_OK (perceptual
 // distance in OKLab). Used by applyHardwareLock and bakeHardwareLock for
 // every snap. The image-remap path uses quantizeToPalette directly with its
@@ -529,6 +542,9 @@ const buildRampsForSnapshot = (snapshot, style) => {
     satCurvePerRamp = {},
     curvePerRamp = {},
     gamutPerRamp = {},
+    shuffleSeed = 0,
+    rampShuffleOffsets = {},
+    stylePresets = DEFAULT_STYLE_PRESETS,
   } = snapshot;
   // Migrate legacy string presets from curvePerRamp into lightnessCurvePerRamp.
   const effectiveLightnessCurves = { ...lightnessCurvePerRamp };
@@ -607,10 +623,15 @@ const buildRampsForSnapshot = (snapshot, style) => {
   };
 
   return baseColors.map((c, i) => {
+    const { reach, chromaFalloff } = styleToScalars(style, stylePresets);
+    const effectiveSeed = (shuffleSeed || 0) + (rampShuffleOffsets[i] || 0);
+    const hueJitter = effectiveSeed !== 0 ? seededHueDelta(effectiveSeed, i) : 0;
     const shades = generateRampNew(resolveBase(c, i), {
-      style,
+      reach,
+      chromaFalloff,
       size: resolveSize(i),
       hueShiftStrength,
+      hueJitter,
       lightnessCurve: effectiveLightnessCurves[i] ?? effectiveLightnessCurves[String(i)] ?? LIGHTNESS_PRESETS.eased,
       satCurve: satCurvePerRamp[i] ?? satCurvePerRamp[String(i)] ?? SAT_PRESETS.flat,
       gamut: gamutPerRamp[i] ?? gamutPerRamp[String(i)],
@@ -3554,15 +3575,8 @@ export default function PixelPalGenerator() {
   //   - <slug>            -> the cached payload from sbs*Payload, or null
   //                          while loading or on error.
   const buildWorkingSnapshot = () => {
-    const jitteredBaseColors = baseColors.map((hex, i) => {
-      const effectiveSeed = shuffleSeed + (rampShuffleOffsets[i] || 0);
-      if (effectiveSeed === 0) return hex;
-      const hDelta = seededHueDelta(effectiveSeed, i);
-      const hsl = hexToHsl(hex);
-      return hslToHex({ h: (hsl.h + hDelta + 360) % 360, s: hsl.s, l: hsl.l });
-    });
     return {
-      baseColors: jitteredBaseColors,
+      baseColors,
       rampSize,
       shuffleSeed,
       overrides,
@@ -3575,6 +3589,7 @@ export default function PixelPalGenerator() {
       lightnessCurvePerRamp,
       satCurvePerRamp,
       gamutPerRamp,
+      stylePresets,
     };
   };
   // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
@@ -3586,6 +3601,7 @@ export default function PixelPalGenerator() {
       baseColors: classic.baseColors,
       aiColorNames: classic.names || [],
       rampSize,
+      stylePresets,
       shuffleSeed: 0,
       overrides: {},
       rampSizeOverrides: {},
