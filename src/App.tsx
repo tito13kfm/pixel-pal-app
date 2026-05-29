@@ -7810,7 +7810,7 @@ export default function PixelPalGenerator() {
         open={tourOpen}
         guideId={tourGuideId}
         step={tourStep}
-        appState={{ mode, showAISettings, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors }}
+        appState={{ mode, showAISettings, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors, harmonized: harmonizeBaseline != null }}
         runSetup={runTourSetup}
         onSetStep={setTourStep}
         onExit={exitTour}

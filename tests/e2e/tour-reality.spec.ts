@@ -207,6 +207,6 @@ test.describe('tour auto-advance detectors fire correctly', () => {
     // (hardware-lock-btn), so the cutout passes the click through — no JS
     // dispatch needed. hwPickerOpen edge fires → auto-advance.
     await page.getByRole('button', { name: 'Hardware Lock', exact: true }).click()
-    await expect(page.getByText('Shades snapped')).toBeVisible({ timeout: 2000 })
+    await expect(page.getByText('Pick a platform')).toBeVisible({ timeout: 2000 })
   })
 })

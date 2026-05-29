@@ -6,6 +6,7 @@ export interface TourAppState {
   compareMode: boolean
   hwPickerOpen: boolean
   baseColors: string[]
+  harmonized: boolean
 }
 
 export interface TourStep {
@@ -215,8 +216,8 @@ export const TASK_GUIDES: TourGuide[] = [
         placement: 'bottom',
       },
       {
-        title: 'Shades snapped',
-        body: 'Every unlocked shade now uses the nearest legal color for that hardware.',
+        title: 'Pick a platform',
+        body: 'Choose a console (NES, Game Boy, CGA 16, EGA 64, or C64) to snap every unlocked shade to that hardware\'s nearest legal color.',
         advance: 'next',
       },
     ],
@@ -249,7 +250,8 @@ export const TASK_GUIDES: TourGuide[] = [
         hint: '→ click Harmonize',
         target: 'harmonize-btn',
         setup: 'harmony',
-        advance: 'next',
+        advance: 'detector',
+        detector: (s) => s.harmonized,
         placement: 'auto',
       },
       {

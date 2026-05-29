@@ -59,7 +59,7 @@ test('dim-area click is inert; hole click reaches the target element', async ({ 
   await page.getByRole('button', { name: /Export & Tools/ }).click()
   await expect(page.getByText('Open the hardware picker')).toBeVisible({ timeout: 2000 })
   await page.getByRole('button', { name: 'Hardware Lock', exact: true }).click()
-  await expect(page.getByText('Shades snapped')).toBeVisible({ timeout: 2000 })
+  await expect(page.getByText('Pick a platform')).toBeVisible({ timeout: 2000 })
 })
 
 test('Esc exits the tour and restores Export panel state', async ({ page }) => {
@@ -86,8 +86,8 @@ test('hardware-lock guide auto-advances through setup step', async ({ page }) =>
   // Step 2 has setup:'export' (panel auto-kept-open) and spotlights Hardware Lock.
   await expect(page.getByText('Open the hardware picker')).toBeVisible({ timeout: 2000 })
   await page.getByRole('button', { name: 'Hardware Lock', exact: true }).click()
-  // hwPickerOpen detector flips → auto-advance to the final "Shades snapped" step.
-  await expect(page.getByText('Shades snapped')).toBeVisible({ timeout: 2000 })
+  // hwPickerOpen detector flips → auto-advance to the final "Pick a platform" step.
+  await expect(page.getByText('Pick a platform')).toBeVisible({ timeout: 2000 })
 })
 
 test('pre-satisfied detector step shows manual Next and Back does not bounce', async ({ page }) => {
@@ -174,6 +174,13 @@ test('harmonize: Next past mode step, then adding a 2nd base auto-advances', asy
   // "Click Harmonize" also appears in step 2's body + hint, so match the popover
   // heading specifically.
   await expect(page.getByRole('heading', { name: 'Click Harmonize' })).toBeVisible({ timeout: 2000 })
+
+  // Step 3 "Click Harmonize" spotlights harmonize-btn with advance:'detector'
+  // (detector: harmonized). Clicking the spotlighted Harmonize through the cutout
+  // sets harmonizeBaseline non-null → harmonized edge fires → auto-advance to the
+  // final "Ramps harmonized" step. No manual Next.
+  await page.getByRole('button', { name: 'Harmonize', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Ramps harmonized' })).toBeVisible({ timeout: 2000 })
 })
 
 test('pin-shade: starts pre-satisfied, Next walks through to step 3', async ({ page }) => {
