@@ -17,7 +17,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "version": "node scripts/sync-tauri-version.mjs && git add src-tauri/Cargo.toml src-tauri/tauri.conf.json src-tauri/Cargo.lock"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
