@@ -18,6 +18,7 @@ import {
 import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFromPrompt } from './lib/ai';
 import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
+import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
@@ -997,6 +998,8 @@ export default function PixelPalGenerator() {
   const [tourOpen, setTourOpen] = useState(false);
   const [tourGuideId, setTourGuideId] = useState(null);
   const [tourStep, setTourStep] = useState(0);
+  const [launcherOpen, setLauncherOpen] = useState(false);
+  const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [copiedHex, setCopiedHex] = useState(null);
   const [shuffleSeed, setShuffleSeed] = useState(0);
@@ -1617,19 +1620,6 @@ export default function PixelPalGenerator() {
   const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', resolveHueShiftForRamp(i), i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
-  const ALL_TOUR_GUIDES = useMemo(() => [ONBOARDING_TOUR, ...TASK_GUIDES], [])
-  const activeTourTarget = useMemo(() => {
-    if (!tourOpen || !tourGuideId) return null
-    const guide = ALL_TOUR_GUIDES.find(g => g.id === tourGuideId)
-    return guide?.steps[tourStep]?.target ?? null
-  }, [tourOpen, tourGuideId, tourStep, ALL_TOUR_GUIDES])
-
-  useEffect(() => {
-    if (!activeTourTarget) return
-    const el = document.querySelector(`[data-tour-id="${activeTourTarget}"]`)
-    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [activeTourTarget])
-
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.
   // briefly after a remove before the clamp effect runs, or after a load
   // restores fewer bases than were present before), fall back to 0.
@@ -1817,12 +1807,9 @@ export default function PixelPalGenerator() {
 
   useEffect(() => {
     if (!localStorage.getItem('pixel-pal-tour-seen')) {
-      setTimeout(() => {
-        setTourOpen(true);
-        setTourGuideId('onboarding');
-        setTourStep(0);
-      }, 600);
+      setTimeout(() => { startTour('onboarding'); }, 600);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1847,6 +1834,52 @@ export default function PixelPalGenerator() {
   function handleTourMarkSeen() {
     localStorage.setItem('pixel-pal-tour-seen', '1');
   }
+
+  const SETUP_SETTERS = {
+    export: setExportOpen,
+    'hardware-picker': setHwPickerOpen,
+    'ai-settings': setShowAISettings,
+    harmony: setHarmonyOpen,
+  };
+
+  const runTourSetup = (setupId) => {
+    const setter = SETUP_SETTERS[setupId];
+    if (setter) setter(true);
+  };
+
+  const snapshotTourState = () => {
+    tourSnapshot.current = {
+      mode, exportOpen, hwPickerOpen, showAISettings, compareMode, harmonyOpen,
+    };
+  };
+
+  const restoreTourState = () => {
+    const s = tourSnapshot.current;
+    if (!s) return;
+    setMode(s.mode);
+    setExportOpen(s.exportOpen);
+    setHwPickerOpen(s.hwPickerOpen);
+    setShowAISettings(s.showAISettings);
+    setCompareMode(s.compareMode);
+    setHarmonyOpen(s.harmonyOpen);
+    tourSnapshot.current = null;
+  };
+
+  const startTour = (id) => {
+    snapshotTourState();
+    setLauncherOpen(false);
+    setTourGuideId(id);
+    setTourStep(0);
+    setTourOpen(true);
+  };
+
+  const exitTour = () => {
+    if (tourGuideId === 'onboarding') handleTourMarkSeen();
+    setTourOpen(false);
+    setTourGuideId(null);
+    setTourStep(0);
+    restoreTourState();
+  };
 
   useEffect(() => {
     const pasteHandler = (e) => {
@@ -5721,15 +5754,7 @@ export default function PixelPalGenerator() {
         <div className="text-center mb-6 relative">
           <div className="absolute top-0 left-0 z-20">
             <button
-              onClick={() => {
-                if (tourOpen) {
-                  setTourOpen(false);
-                } else {
-                  setTourOpen(true);
-                  setTourGuideId(null);
-                  setTourStep(0);
-                }
-              }}
+              onClick={() => setLauncherOpen(o => !o)}
               title="Open guides"
               className={`px-3 py-2 rounded font-bold border-2 transition-all uppercase tracking-wider text-xs ${t.controlBtnDefault} ${t.controlBtnHover}`}
             >?</button>
@@ -5896,7 +5921,7 @@ export default function PixelPalGenerator() {
         <div style={{ filter: cvdMode === 'none' ? 'none' : `url(#cvd-${cvdMode})` }}>
 
         <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" style={{ background: t.cardBgPinkBright, borderColor: themedAccentBorder('#ff00ff'), boxShadow: t.glowStrong > 0.5 ? '0 0 30px rgba(255, 0, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.2)' : accentGlow('#ff00ff', 0.5) }}>
-          <div className={`flex flex-wrap gap-2 mb-4 justify-center${activeTourTarget === 'mode-tabs' ? ' tour-highlight' : ''}`} data-tour-id="mode-tabs">
+          <div className="flex flex-wrap gap-2 mb-4 justify-center" data-tour-id="mode-tabs">
             <button onClick={() => setMode('color')} data-tour-id="mode-single" title="Build a palette from a single hex color" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm ${mode === 'color' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={mode === 'color' ? { boxShadow: '0 0 15px #00ffff' } : {}}>Single Color</button>
             <button onClick={() => setMode('ai')} data-tour-id="mode-ai" title="Describe a subject, mood, or scene and let AI pick the palette" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'ai' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-pink-900/60 text-pink-200 border-pink-700/50 hover:bg-pink-800/60'}`} style={mode === 'ai' ? { boxShadow: '0 0 15px #ff00ff' } : {}}><Wand2 size={16} />AI Assist</button>
             <button onClick={() => setMode('image')} data-tour-id="mode-image" title="Extract a palette from an uploaded image" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'image' ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-yellow-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-800/60'}`} style={mode === 'image' ? { boxShadow: '0 0 15px #ffff00' } : {}}><ImageIcon size={16} />From Image</button>
@@ -6130,7 +6155,7 @@ export default function PixelPalGenerator() {
           </div>
         </div>
 
-        <div className={`rounded-lg p-6 mb-6 border-2 backdrop-blur-sm${activeTourTarget === 'ramp-area' ? ' tour-highlight' : ''}`} data-tour-id="ramp-area" style={{ background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.4) }}>
+        <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" data-tour-id="ramp-area" style={{ background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.4) }}>
           <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Sun size={22} />Color Ramps</h2>
             <div className="flex items-center gap-2 flex-wrap">
@@ -7494,7 +7519,7 @@ export default function PixelPalGenerator() {
         </div>
 
         {/* Export & Tools — collapsible card matching section card pattern */}
-        <div className={`rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden${activeTourTarget === 'export-panel' ? ' tour-highlight' : ''}`} data-tour-id="export-panel" {...makeSectionDragHandlers('export')} style={{ order: sectionOrder.indexOf('export'), background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.3), dropLine('export')].filter(Boolean).join(', ') }}>
+        <div className="rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="export-panel" {...makeSectionDragHandlers('export')} style={{ order: sectionOrder.indexOf('export'), background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.3), dropLine('export')].filter(Boolean).join(', ') }}>
           <button onClick={() => setExportOpen(o => !o)} data-tour-id="export-header" title={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Download size={22} />Export &amp; Tools</h2>
             <div className="flex items-center gap-2">
@@ -7779,23 +7804,18 @@ export default function PixelPalGenerator() {
       </div>
       {showAISettings && <AISettingsPanel onClose={handleAISettingsClose} />}
       <TourPanel
+        open={launcherOpen}
+        onClose={() => setLauncherOpen(false)}
+        onStartGuide={startTour}
+      />
+      <TourOverlay
         open={tourOpen}
-        onClose={() => { handleTourMarkSeen(); setTourOpen(false); }}
-        appState={{
-          mode,
-          showAISettings,
-          imageDataUrl,
-          exportOpen,
-          compareMode,
-          hwPickerOpen,
-          aiLoading,
-          baseColors,
-        }}
-        tourGuideId={tourGuideId}
-        tourStep={tourStep}
-        onSetGuide={(id) => { setTourGuideId(id); setTourStep(0); }}
+        guideId={tourGuideId}
+        step={tourStep}
+        appState={{ mode, showAISettings, imageDataUrl, exportOpen, compareMode, hwPickerOpen, aiLoading, baseColors }}
+        runSetup={runTourSetup}
         onSetStep={setTourStep}
-        onMarkSeen={handleTourMarkSeen}
+        onExit={exitTour}
       />
     </div>
   );
