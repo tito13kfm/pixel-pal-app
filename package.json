@@ -21,6 +21,7 @@
     "version": "node scripts/sync-tauri-version.mjs && git add src-tauri/Cargo.toml src-tauri/tauri.conf.json src-tauri/Cargo.lock"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.7.6",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-fs": "^2.5.1",

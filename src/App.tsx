@@ -7517,6 +7517,7 @@ export default function PixelPalGenerator() {
                   </button>
                   {!hardwareLock && (
                     <button
+                      data-tour-id="hardware-lock-btn"
                       onClick={() => setHwPickerOpen(o => !o)}
                       title={hwPickerOpen ? 'Close hardware palette picker' : 'Snap all shades to a hardware color palette'}
                       className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-2 ${hwPickerOpen ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-700/40'}`}
