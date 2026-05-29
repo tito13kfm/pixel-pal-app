@@ -6159,6 +6159,39 @@ export default function PixelPalGenerator() {
               </button>
             </div>
           </div>
+          <div className="mb-4 p-3 rounded border-2 border-cyan-700/40 bg-black/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style Tuning</span>
+              {JSON.stringify(stylePresets) !== JSON.stringify(DEFAULT_STYLE_PRESETS) && (
+                <button
+                  onClick={resetStylePresets}
+                  title="Restore Punchy/Balanced/Muted to their default reach and chroma falloff"
+                  className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}
+                >
+                  <RotateCcw size={14} /> Reset Styles
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {(['punchy', 'balanced', 'muted'] as const).map((sk) => (
+                <div key={sk} className="p-2 rounded bg-purple-900/30 border border-purple-700/40">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-cyan-100 mb-1">{sk}</div>
+                  <label className="block text-[10px] text-cyan-300 uppercase tracking-wider">Reach: {Math.round(stylePresets[sk].reach * 100)}%</label>
+                  <input
+                    type="range" min={0} max={100} value={Math.round(stylePresets[sk].reach * 100)}
+                    onChange={(e) => setStylePresets(prev => ({ ...prev, [sk]: { ...prev[sk], reach: Number(e.target.value) / 100 } }))}
+                    className="w-full"
+                  />
+                  <label className="block text-[10px] text-cyan-300 uppercase tracking-wider mt-1">Chroma falloff: {Math.round(stylePresets[sk].chromaFalloff * 100)}%</label>
+                  <input
+                    type="range" min={0} max={100} value={Math.round(stylePresets[sk].chromaFalloff * 100)}
+                    onChange={(e) => setStylePresets(prev => ({ ...prev, [sk]: { ...prev[sk], chromaFalloff: Number(e.target.value) / 100 } }))}
+                    className="w-full"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
           {activeHardware && (
             <div className="mb-4 p-2 rounded border-2 border-yellow-400 bg-yellow-900/30 flex items-center gap-2 text-xs" style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.4)' }}>
               <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
