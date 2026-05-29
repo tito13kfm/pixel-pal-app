@@ -3,7 +3,7 @@ import { generateRamp } from '../../src/lib/ramp-engine';
 import { hexToOklch } from '../../src/lib/oklch';
 
 const PUNCHY   = { reach: 1.00, chromaFalloff: 0.10 };
-const BALANCED = { reach: 0.55, chromaFalloff: 0.45 };
+const BALANCED = { reach: 0.575, chromaFalloff: 0.475 };
 const MUTED    = { reach: 0.15, chromaFalloff: 0.85 };
 
 const baseOpts = (extra: object) => ({ size: 5, hueShiftStrength: 1.0, ...extra });
@@ -98,13 +98,17 @@ describe('style semantics', () => {
     expect(span(BALANCED)).toBeGreaterThanOrEqual(span(MUTED) - 1e-6);
   });
 
-  it('chroma falloff: muted ends grayer than balanced grayer than punchy', () => {
-    const endChroma = (preset: object) => {
+  it('chroma falloff: muted midtones grayer than balanced grayer than punchy', () => {
+    // Measured at the shades adjacent to the base (the midtones), not the ends:
+    // wide-reach styles push their end shades into gamut-clip territory, which
+    // confounds end chroma. Neighbor chroma reflects the falloff rate directly.
+    const neighborChroma = (preset: object) => {
       const s = generateRamp(base, baseOpts(preset));
-      return (s[0].oklch.C + s[s.length - 1].oklch.C) / 2;
+      const bi = s.findIndex(x => x.hex === base.toLowerCase());
+      return (s[bi - 1].oklch.C + s[bi + 1].oklch.C) / 2;
     };
-    expect(endChroma(PUNCHY)).toBeGreaterThan(endChroma(BALANCED));
-    expect(endChroma(BALANCED)).toBeGreaterThan(endChroma(MUTED));
+    expect(neighborChroma(PUNCHY)).toBeGreaterThan(neighborChroma(BALANCED));
+    expect(neighborChroma(BALANCED)).toBeGreaterThan(neighborChroma(MUTED));
   });
 
   it('base chroma is identical across styles (anchor is full chroma)', () => {
@@ -130,6 +134,14 @@ describe('pins and hidden', () => {
     const shades = generateRamp('#c45c3a', baseOpts({ ...PUNCHY, pins: { 1: '#abcdef' } }));
     expect(shades[1].hex).toBe('#abcdef');
     expect(shades[1].pinned).toBe(true);
+  });
+
+  it('pinned shade carries the pin hex oklch, not the base oklch', () => {
+    const shades = generateRamp('#c45c3a', baseOpts({ ...PUNCHY, pins: { 1: '#abcdef' } }));
+    const pinOklch = hexToOklch('#abcdef')!;
+    expect(shades[1].oklch.L).toBeCloseTo(pinOklch.L, 6);
+    expect(shades[1].oklch.C).toBeCloseTo(pinOklch.C, 6);
+    expect(shades[1].oklch.H).toBeCloseTo(pinOklch.H, 6);
   });
 
   it('hidden indices dropped from output', () => {

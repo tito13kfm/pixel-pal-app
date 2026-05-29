@@ -41,14 +41,14 @@ function reachToCaps(reach: number): { darkCap: number; lightCap: number } {
     // PUNCHY (high floorFrac) to clip harder than BALANCED (moderate frac)
     // and inverting the expected end-chroma ordering. Tighter caps ensure
     // floorFrac differences dominate over gamut effects.
-    darkCap:  clamp(lerp(0.32, 0.22, r), L_FLOOR, L_CEIL),
-    lightCap: clamp(lerp(0.76, 0.86, r), L_FLOOR, L_CEIL),
+    darkCap:  clamp(lerp(0.33, 0.12, r), L_FLOOR, L_CEIL),
+    lightCap: clamp(lerp(0.76, 0.935, r), L_FLOOR, L_CEIL),
   };
 }
 
 function falloffParams(chromaFalloff: number): { floorFrac: number; exp: number } {
   const f = clamp(chromaFalloff, 0, 1);
-  return { floorFrac: lerp(0.92, 0.12, f), exp: lerp(1.0, 2.2, f) };
+  return { floorFrac: lerp(0.92, 0.12, f), exp: lerp(1.0, 0.55, f) };
 }
 
 export function generateRamp(baseHex: string, opts: GenerateRampOpts): Shade[] {
@@ -88,7 +88,7 @@ export function generateRamp(baseHex: string, opts: GenerateRampOpts): Shade[] {
   for (let i = 0; i < N; i++) {
     const pin = opts.pins?.[i];
     if (pin) {
-      shades.push({ hex: pin, oklch: base, pinned: true, gamutClipped: false });
+      shades.push({ hex: pin, oklch: hexToOklch(pin) ?? base, pinned: true, gamutClipped: false });
       continue;
     }
     if (i === baseIndex) {
@@ -99,11 +99,15 @@ export function generateRamp(baseHex: string, opts: GenerateRampOpts): Shade[] {
 
     let L: number;
     if (i < baseIndex) {
+      // Curve anchored at the far dark end (t=0), reaching base at t=1: small
+      // step next to the base, widening toward the extreme.
       const t = i / baseIndex;
       L = darkBottom + (base.L - darkBottom) * evalCurve(lightnessCurve, t, 0, 1);
     } else {
-      const t = (i - baseIndex) / (N - 1 - baseIndex);
-      L = base.L + (lightTop - base.L) * evalCurve(lightnessCurve, t, 0, 1);
+      // Mirror of the dark side: anchored at the far light end so the spacing
+      // is symmetric about the base (small step next to base, big step at end).
+      const u = (N - 1 - i) / (N - 1 - baseIndex);
+      L = lightTop - (lightTop - base.L) * evalCurve(lightnessCurve, u, 0, 1);
     }
 
     const dist       = Math.abs(i - baseIndex) / maxArm;
