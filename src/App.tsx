@@ -919,7 +919,7 @@ const buildRandomHex = () => {
 
 // ---------- Panel state persistence ----------
 const PANEL_STORAGE_KEY = 'ui:panels'
-const PANEL_DEFAULTS = { harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: false, historyOpen: false, savedOpen: false, sbsOpen: false, pgOpen: false }
+const PANEL_DEFAULTS = { harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: false, historyOpen: false, savedOpen: false, sbsOpen: false, pgOpen: false, rampsOpen: true }
 function loadPanelState() {
   try {
     const raw = localStorage.getItem(PANEL_STORAGE_KEY)
@@ -1021,6 +1021,7 @@ export default function PixelPalGenerator() {
   const [vizStyle, setVizStyle] = useState('punchy');
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
+  const [rampsOpen, setRampsOpen] = useState(_panels.rampsOpen);
   const [harmonyOpen, setHarmonyOpen] = useState(_panels.harmonyOpen);
   const [tipsOpen, setTipsOpen] = useState(_panels.tipsOpen);
   const [hwPickerOpen, setHwPickerOpen] = useState(_panels.hwPickerOpen);
@@ -1818,8 +1819,8 @@ export default function PixelPalGenerator() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen }))
-  }, [harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen]);
+    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, rampsOpen }))
+  }, [harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, rampsOpen]);
 
   useEffect(() => {
     localStorage.setItem('ui:sectionOrder', JSON.stringify(sectionOrder));
@@ -6153,10 +6154,15 @@ export default function PixelPalGenerator() {
           </div>
         </div>
 
-        <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" data-tour-id="ramp-area" style={{ background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.4) }}>
-          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="ramp-area" style={{ background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.4) }}>
+          <button onClick={() => setRampsOpen(o => !o)} title={rampsOpen ? 'Collapse Color Ramps' : 'Expand Color Ramps'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Sun size={22} />Color Ramps</h2>
-            <div className="flex items-center gap-2 flex-wrap">
+            <span style={{ color: sectionHeadColor('#00ffff') }}>{rampsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+          </button>
+          {rampsOpen && (
+          <div className="px-6 pb-6">
+          <div className="flex items-center gap-2 flex-wrap justify-end mb-4">
               {/* Per-ramp export style toggle. Governs the per-ramp Copy
                   and Download buttons on every ramp card. Decoupled from
                   vizStyle (Visualization panel near the bottom of the
@@ -6181,7 +6187,6 @@ export default function PixelPalGenerator() {
                 <RotateCcw size={14} />
                 {confirmReset ? 'Confirm?' : 'Reset to Defaults'}
               </button>
-            </div>
           </div>
           <div className="mb-4 p-3 rounded border-2 border-cyan-700/40 bg-black/30">
             <div className="flex items-center justify-between mb-2">
@@ -6602,6 +6607,8 @@ export default function PixelPalGenerator() {
               </div>
             );
           })}
+          </div>
+          )}
         </div>
 
         <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgPink, borderColor: themedAccentBorder('#ff00ff'), boxShadow: accentGlow('#ff00ff', 0.4) }}>
