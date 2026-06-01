@@ -7102,6 +7102,36 @@ export default function PixelPalGenerator() {
                     ))}
                   </div>
                 </div>
+                <div>
+                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
+                    {compact ? 'Adjacency' : '▸ Adjacency Matrix'}
+                  </h4>
+                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Every color paired with every other. Pair mode shows the two together; heatmap shades each cell by perceptual distance (ΔE_OK) — dark = near-duplicate pair, bright = outlier. Hover for the exact pair. (Compare slots use heatmap.)</p>}
+                  <div className="flex justify-center overflow-x-auto">
+                    <AdjacencyMatrix
+                      allColors={allColors}
+                      bases={Array.isArray(snap.baseColors) ? snap.baseColors : []}
+                      colorSet={matrixColorSet}
+                      view={compact ? 'heatmap' : matrixView}
+                      compact={compact}
+                      borderColor={t.vizDataBorder}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
+                    {compact ? 'Dither Blend' : '▸ Dither-Blend Preview'}
+                  </h4>
+                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Between each pair of consecutive ramp shades, the 2-color dither blend — the optical "in-between" shade you get for free when dithering at sprite scale.</p>}
+                  <div className="flex justify-center overflow-x-auto">
+                    <DitherBlend
+                      rows={mosaicRamps.map((r) => r.hexes)}
+                      pattern={ditherPattern}
+                      compact={compact}
+                      borderColor={t.vizDataBorder}
+                    />
+                  </div>
+                </div>
                 {compact && <div className="text-[10px] text-cyan-100/50 text-center font-mono">{ramps.length} ramps, {allColors.length} unique colors</div>}
               </div>
             );
