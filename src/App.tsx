@@ -23,7 +23,9 @@ import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
 import { dedupeHexes } from './lib/hex-utils';
-import { computeVizData, drawLightnessStripPng, drawMosaicPng } from './lib/strip-export';
+import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatrixPng, drawDitherBlendPng } from './lib/strip-export';
+import { AdjacencyMatrix } from './components/AdjacencyMatrix';
+import { DitherBlend } from './components/DitherBlend';
 import type { UpdateInfo } from './lib/tauri-bridge';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
@@ -1003,6 +1005,9 @@ export default function PixelPalGenerator() {
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [gplStyle, setGplStyle] = useState('punchy');
   const [vizStyle, setVizStyle] = useState('punchy');
+  const [matrixColorSet, setMatrixColorSet] = useState('unique'); // 'unique' | 'bases'
+  const [matrixView, setMatrixView] = useState('pair');           // 'pair' | 'heatmap'
+  const [ditherPattern, setDitherPattern] = useState('checker');  // 'checker' | 'bayer'
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
   const [rampsOpen, setRampsOpen] = useState(_panels.rampsOpen);
@@ -4857,6 +4862,65 @@ export default function PixelPalGenerator() {
     }
   };
 
+  // Export the Slot-A adjacency matrix as a PNG, mirroring the on-screen
+  // matrix (current vizStyle, color-set, and view-mode toggles).
+  const exportMatrixPng = async (snap) => {
+    try {
+      const ramps = buildRampsForSnapshot(snap, vizStyle);
+      const { allColors } = computeVizData(ramps);
+      const colors = matrixColorSet === 'bases'
+        ? dedupeHexes(Array.isArray(snap?.baseColors) ? snap.baseColors : [])
+        : allColors;
+      if (colors.length === 0) {
+        setExportFeedback('Nothing to export');
+        setTimeout(() => setExportFeedback(''), 2000);
+        return;
+      }
+      const blob = await drawAdjacencyMatrixPng(colors, { view: matrixView });
+      const result = await saveFile({
+        defaultName: 'pixel-pal-adjacency.png',
+        filters: [{ name: 'PNG image', extensions: ['png'] }],
+        data: { bytes: blob },
+        folderKey: 'png',
+      });
+      if (result.canceled) setExportFeedback('Save canceled');
+      else if (!result.ok) setExportFeedback('Failed to save PNG');
+      else setExportFeedback('Downloaded!');
+      setTimeout(() => setExportFeedback(''), 2000);
+    } catch {
+      setExportFeedback('Failed to export PNG');
+      setTimeout(() => setExportFeedback(''), 3000);
+    }
+  };
+
+  // Export the Slot-A dither-blend preview as a PNG (current vizStyle + pattern).
+  const exportDitherPng = async (snap) => {
+    try {
+      const ramps = buildRampsForSnapshot(snap, vizStyle);
+      const { mosaicRamps } = computeVizData(ramps);
+      const rows = mosaicRamps.map((r) => r.hexes);
+      if (rows.length === 0) {
+        setExportFeedback('Nothing to export');
+        setTimeout(() => setExportFeedback(''), 2000);
+        return;
+      }
+      const blob = await drawDitherBlendPng(rows, { pattern: ditherPattern });
+      const result = await saveFile({
+        defaultName: 'pixel-pal-dither.png',
+        filters: [{ name: 'PNG image', extensions: ['png'] }],
+        data: { bytes: blob },
+        folderKey: 'png',
+      });
+      if (result.canceled) setExportFeedback('Save canceled');
+      else if (!result.ok) setExportFeedback('Failed to save PNG');
+      else setExportFeedback('Downloaded!');
+      setTimeout(() => setExportFeedback(''), 2000);
+    } catch {
+      setExportFeedback('Failed to export PNG');
+      setTimeout(() => setExportFeedback(''), 3000);
+    }
+  };
+
   const copyPaletteToClipboard = async () => {
     const text = buildPaletteText();
     let success = false;
@@ -7103,6 +7167,15 @@ export default function PixelPalGenerator() {
                     <span className="mx-1 h-5 w-px bg-cyan-500/40" aria-hidden="true" />
                     <button onClick={() => exportLightnessPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Lightness PNG</button>
                     <button onClick={() => exportMosaicPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Mosaic as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Mosaic PNG</button>
+                    <span className="mx-1 h-5 w-px bg-cyan-500/40" aria-hidden="true" />
+                    <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Matrix:</span>
+                    <button onClick={() => setMatrixColorSet(s => s === 'unique' ? 'bases' : 'unique')} title="Toggle matrix colors between all unique shades and ramp bases" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{matrixColorSet === 'unique' ? 'All colors' : 'Bases'}</button>
+                    <button onClick={() => setMatrixView(v => v === 'pair' ? 'heatmap' : 'pair')} title="Toggle matrix between pair-split and ΔE_OK heatmap" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{matrixView === 'pair' ? 'Pair' : 'Heatmap'}</button>
+                    <button onClick={() => exportMatrixPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Adjacency Matrix as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Matrix PNG</button>
+                    <span className="mx-1 h-5 w-px bg-cyan-500/40" aria-hidden="true" />
+                    <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Dither:</span>
+                    <button onClick={() => setDitherPattern(p => p === 'checker' ? 'bayer' : 'checker')} title="Toggle dither pattern between 2×2 checkerboard and 4×4 Bayer" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{ditherPattern === 'checker' ? '2×2 Checker' : '4×4 Bayer'}</button>
+                    <button onClick={() => exportDitherPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Dither-Blend preview as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Dither PNG</button>
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Image Preview</h3>
