@@ -23,6 +23,7 @@ import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
 import { dedupeHexes } from './lib/hex-utils';
+import { computeVizData } from './lib/strip-export';
 import type { UpdateInfo } from './lib/tauri-bridge';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
@@ -6874,29 +6875,11 @@ export default function PixelPalGenerator() {
               );
             }
             const ramps = buildRampsForSnapshot(snap, vizStyle);
-            // Cross-ramp dedupe for visualization: hardware-locked palettes
-            // often produce the same hex in multiple ramp positions. Polar
-            // plot and lightness strip get noisier without dedupe.
-            const allColors = dedupeHexes(ramps.flat());
-            const sortedByL = [...allColors].sort((a, b) => hexToHsl(a).l - hexToHsl(b).l);
-            // Per-row + cross-ramp mosaic dedupe: within-ramp duplicates
-            // collapse first, then cross-ramp duplicates are dropped so
-            // identical shades only appear in the first ramp that owns them.
-            // Empty rows (all colors already claimed by an earlier ramp) are
-            // hidden. originalIdx preserved so name tooltips stay correct.
-            // Main editor UI still shows all positions.
-            const _mosaicSeen = new Set<string>();
-            const mosaicRamps: { hexes: string[]; originalIdx: number }[] = ramps
-              .map((ramp, originalIdx) => ({
-                hexes: dedupeHexes(ramp).filter(hex => {
-                  const key = hex.toLowerCase();
-                  if (_mosaicSeen.has(key)) return false;
-                  _mosaicSeen.add(key);
-                  return true;
-                }),
-                originalIdx,
-              }))
-              .filter(({ hexes }) => hexes.length > 0);
+            // Cross-ramp dedupe for visualization (hardware-locked palettes
+            // repeat hexes); lightness sort for the strip; per-row + cross-ramp
+            // dedupe with empty-row filtering for the mosaic. originalIdx is
+            // preserved so name tooltips stay correct. Shared with PNG export.
+            const { allColors, sortedByL, mosaicRamps } = computeVizData(ramps);
             const namesSource = Array.isArray(snap.aiColorNames) ? snap.aiColorNames : aiColorNames;
             const plotSize = compact ? 200 : 280;
             const mosaicH = compact ? '28px' : '40px';
