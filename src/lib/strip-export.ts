@@ -6,6 +6,10 @@
 //      off-screen canvas and resolve a PNG Blob. (Added in a later task.)
 import { hexToHsl } from './color';
 import { dedupeHexes } from './hex-utils';
+import {
+  adjacencyDeltaE, normalizeDeltaE, heatColor, ditherPixelIsB,
+  type MatrixView, type DitherPattern,
+} from './viz-interaction';
 
 export interface MosaicRow {
   hexes: string[];
@@ -114,5 +118,169 @@ export function drawMosaicPng(
       ctx.fillRect(x, y, w, rowHeight);
     }
   });
+  return canvasToPngBlob(canvas);
+}
+
+// --- Adjacency matrix ------------------------------------------------------
+
+const MATRIX_NA = '#3a3a3a';        // cell fill when a hex fails to parse
+const MATRIX_DIAG = '#111111';      // diagonal (identity) fill in heatmap mode
+
+// Draw an N×N adjacency grid onto a provided context. Axes use `colors` order
+// as-is (caller passes ramp-grouped order — never lightness-sorted; a sorted
+// heatmap degenerates into the same corner gradient for every palette).
+// `header` (px) reserves a top + left strip of the actual color swatches.
+export function drawAdjacencyMatrix(
+  ctx: CanvasRenderingContext2D,
+  colors: string[],
+  opts: { cell: number; view: MatrixView; header?: number },
+): void {
+  const n = colors.length;
+  const cell = opts.cell;
+  const header = opts.header ?? 0;
+  ctx.imageSmoothingEnabled = false;
+
+  if (header > 0) {
+    ctx.fillStyle = MATRIX_DIAG; // neutral fill for the top-left header corner
+    ctx.fillRect(0, 0, header, header);
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = colors[i];
+      ctx.fillRect(header + i * cell, 0, cell, header); // top strip
+      ctx.fillRect(0, header + i * cell, header, cell); // left strip
+    }
+  }
+
+  // ΔE is computed twice in heatmap mode (a max pass, then the fill pass);
+  // acceptable for the bounded grid sizes here, and avoids an N² cache alloc.
+  let maxDE = 0;
+  if (opts.view === 'heatmap') {
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        const d = adjacencyDeltaE(colors[i], colors[j]);
+        if (d !== null && d > maxDE) maxDE = d;
+      }
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const x = header + j * cell;
+      const y = header + i * cell;
+      if (opts.view === 'heatmap') {
+        if (i === j) {
+          ctx.fillStyle = MATRIX_DIAG;
+          ctx.fillRect(x, y, cell, cell);
+          continue;
+        }
+        const d = adjacencyDeltaE(colors[i], colors[j]);
+        ctx.fillStyle = d === null ? MATRIX_NA : heatColor(normalizeDeltaE(d, maxDE));
+        ctx.fillRect(x, y, cell, cell);
+      } else {
+        // Pair split: row color (colors[i]) fills the cell; column color
+        // (colors[j]) overlays the lower-right triangle. Diagonal = solid.
+        ctx.fillStyle = colors[i];
+        ctx.fillRect(x, y, cell, cell);
+        if (i === j) continue;
+        ctx.fillStyle = colors[j];
+        ctx.beginPath();
+        ctx.moveTo(x + cell, y);
+        ctx.lineTo(x + cell, y + cell);
+        ctx.lineTo(x, y + cell);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// Off-screen render of the matrix → PNG Blob. Cell size scales down with N so
+// large palettes stay bounded. Precondition: callers guard colors.length > 0.
+export function drawAdjacencyMatrixPng(
+  colors: string[],
+  opts: { view: MatrixView },
+): Promise<Blob> {
+  const n = colors.length;
+  const cell = n > 0 ? Math.max(8, Math.floor(640 / n)) : 8;
+  const header = Math.max(8, Math.round(cell * 0.6));
+  const size = Math.max(1, header + n * cell);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas 2D context unavailable'));
+  drawAdjacencyMatrix(ctx, colors, { cell, view: opts.view, header });
+  return canvasToPngBlob(canvas);
+}
+
+// --- Dither-blend preview --------------------------------------------------
+
+const DITHER_ROW_H = 40;    // px row height
+const DITHER_SOLID_W = 44;  // px solid shade cell width
+const DITHER_BLEND_W = 28;  // px blend cell width
+const DITHER_SUB = 8;       // checker/bayer subdivisions per blend cell
+
+// Per ramp row: solid shade · dither blend(shadeᵢ, shadeᵢ₊₁) · solid shade …
+// Blend cells render the pattern at a visible-pixel scale (DITHER_SUB blocks),
+// NOT a shrunk-to-solid midpoint — the texture is the point of the feature.
+export function drawDitherBlend(
+  ctx: CanvasRenderingContext2D,
+  rows: string[][],
+  opts: { pattern: DitherPattern; rowH?: number; solidW?: number; blendW?: number; sub?: number },
+): void {
+  const rowH = opts.rowH ?? DITHER_ROW_H;
+  const solidW = opts.solidW ?? DITHER_SOLID_W;
+  const blendW = opts.blendW ?? DITHER_BLEND_W;
+  const sub = opts.sub ?? DITHER_SUB;
+  ctx.imageSmoothingEnabled = false;
+
+  rows.forEach((row, r) => {
+    const y = r * rowH;
+    let x = 0;
+    for (let i = 0; i < row.length; i++) {
+      ctx.fillStyle = row[i];
+      ctx.fillRect(x, y, solidW, rowH);
+      x += solidW;
+      if (i < row.length - 1) {
+        const a = row[i];
+        const b = row[i + 1];
+        // Integer edge boundaries so sub-blocks tile [0,blendW) × [0,rowH)
+        // exactly — no gap and no overflow into the neighbouring solid cell
+        // (same approach as blockEdges above; avoids round/ceil overdraw).
+        for (let gx = 0; gx < sub; gx++) {
+          const bx0 = Math.round((gx * blendW) / sub);
+          const bx1 = Math.round(((gx + 1) * blendW) / sub);
+          for (let gy = 0; gy < sub; gy++) {
+            const by0 = Math.round((gy * rowH) / sub);
+            const by1 = Math.round(((gy + 1) * rowH) / sub);
+            ctx.fillStyle = ditherPixelIsB(opts.pattern, gx, gy) ? b : a;
+            ctx.fillRect(x + bx0, y + by0, bx1 - bx0, by1 - by0);
+          }
+        }
+        x += blendW;
+      }
+    }
+  });
+}
+
+// Off-screen render of the dither preview → PNG Blob. Width tracks the longest
+// ramp; shorter rows draw left-aligned. Precondition: callers guard rows.length > 0.
+export function drawDitherBlendPng(
+  rows: string[][],
+  opts: { pattern: DitherPattern },
+): Promise<Blob> {
+  const solidW = 48;
+  const blendW = 30;
+  const rowH = 48;
+  const sub = 8;
+  const maxCells = rows.reduce((m, row) => Math.max(m, row.length), 0);
+  const width = Math.max(1, maxCells * solidW + Math.max(0, maxCells - 1) * blendW);
+  const height = Math.max(1, rows.length * rowH);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas 2D context unavailable'));
+  drawDitherBlend(ctx, rows, { pattern: opts.pattern, rowH, solidW, blendW, sub });
   return canvasToPngBlob(canvas);
 }
