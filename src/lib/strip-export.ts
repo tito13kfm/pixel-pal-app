@@ -141,6 +141,8 @@ export function drawAdjacencyMatrix(
   ctx.imageSmoothingEnabled = false;
 
   if (header > 0) {
+    ctx.fillStyle = MATRIX_DIAG; // neutral fill for the top-left header corner
+    ctx.fillRect(0, 0, header, header);
     for (let i = 0; i < n; i++) {
       ctx.fillStyle = colors[i];
       ctx.fillRect(header + i * cell, 0, cell, header); // top strip
@@ -148,6 +150,8 @@ export function drawAdjacencyMatrix(
     }
   }
 
+  // ΔE is computed twice in heatmap mode (a max pass, then the fill pass);
+  // acceptable for the bounded grid sizes here, and avoids an N² cache alloc.
   let maxDE = 0;
   if (opts.view === 'heatmap') {
     for (let i = 0; i < n; i++) {
@@ -164,7 +168,11 @@ export function drawAdjacencyMatrix(
       const x = header + j * cell;
       const y = header + i * cell;
       if (opts.view === 'heatmap') {
-        if (i === j) { ctx.fillStyle = MATRIX_DIAG; ctx.fillRect(x, y, cell, cell); continue; }
+        if (i === j) {
+          ctx.fillStyle = MATRIX_DIAG;
+          ctx.fillRect(x, y, cell, cell);
+          continue;
+        }
         const d = adjacencyDeltaE(colors[i], colors[j]);
         ctx.fillStyle = d === null ? MATRIX_NA : heatColor(normalizeDeltaE(d, maxDE));
         ctx.fillRect(x, y, cell, cell);
