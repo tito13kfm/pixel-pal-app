@@ -6,12 +6,11 @@ describe('dedupeHexes', () => {
     expect(dedupeHexes(['#AABBCC', '#aabbcc', '#112233'])).toEqual(['#AABBCC', '#112233']);
   });
 
-  it('is case-insensitive on the dedupe key', () => {
-    expect(dedupeHexes(['#ABCDEF', '#abcdef'])).toEqual(['#ABCDEF']);
+  it('preserves all entries and order when input is already unique', () => {
+    expect(dedupeHexes(['#111111', '#222222', '#333333'])).toEqual(['#111111', '#222222', '#333333']);
   });
 
   it('skips non-string entries', () => {
-    // @ts-expect-error intentional: runtime guards non-strings
     expect(dedupeHexes(['#000000', null, undefined, '#000000'])).toEqual(['#000000']);
   });
 
