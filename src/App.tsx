@@ -4868,8 +4868,11 @@ export default function PixelPalGenerator() {
     try {
       const ramps = buildRampsForSnapshot(snap, vizStyle);
       const { allColors } = computeVizData(ramps);
+      // Raw bases = one swatch per ramp, matching the on-screen matrix and the
+      // spec ("one swatch per ramp"). Do NOT dedupe: two ramps sharing a base
+      // should render as a 0-ΔE off-diagonal cell — that's the bases view's point.
       const colors = matrixColorSet === 'bases'
-        ? dedupeHexes(Array.isArray(snap?.baseColors) ? snap.baseColors : [])
+        ? (Array.isArray(snap?.baseColors) ? snap.baseColors : [])
         : allColors;
       if (colors.length === 0) {
         setExportFeedback('Nothing to export');
