@@ -6,6 +6,10 @@
 //      off-screen canvas and resolve a PNG Blob. (Added in a later task.)
 import { hexToHsl } from './color';
 import { dedupeHexes } from './hex-utils';
+import {
+  adjacencyDeltaE, normalizeDeltaE, heatColor, ditherPixelIsB,
+  type MatrixView, type DitherPattern,
+} from './viz-interaction';
 
 export interface MosaicRow {
   hexes: string[];
@@ -114,5 +118,89 @@ export function drawMosaicPng(
       ctx.fillRect(x, y, w, rowHeight);
     }
   });
+  return canvasToPngBlob(canvas);
+}
+
+// --- Adjacency matrix ------------------------------------------------------
+
+const MATRIX_NA = '#3a3a3a';        // cell fill when a hex fails to parse
+const MATRIX_DIAG = '#111111';      // diagonal (identity) fill in heatmap mode
+
+// Draw an N×N adjacency grid onto a provided context. Axes use `colors` order
+// as-is (caller passes ramp-grouped order — never lightness-sorted; a sorted
+// heatmap degenerates into the same corner gradient for every palette).
+// `header` (px) reserves a top + left strip of the actual color swatches.
+export function drawAdjacencyMatrix(
+  ctx: CanvasRenderingContext2D,
+  colors: string[],
+  opts: { cell: number; view: MatrixView; header?: number },
+): void {
+  const n = colors.length;
+  const cell = opts.cell;
+  const header = opts.header ?? 0;
+  ctx.imageSmoothingEnabled = false;
+
+  if (header > 0) {
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = colors[i];
+      ctx.fillRect(header + i * cell, 0, cell, header); // top strip
+      ctx.fillRect(0, header + i * cell, header, cell); // left strip
+    }
+  }
+
+  let maxDE = 0;
+  if (opts.view === 'heatmap') {
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        const d = adjacencyDeltaE(colors[i], colors[j]);
+        if (d !== null && d > maxDE) maxDE = d;
+      }
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const x = header + j * cell;
+      const y = header + i * cell;
+      if (opts.view === 'heatmap') {
+        if (i === j) { ctx.fillStyle = MATRIX_DIAG; ctx.fillRect(x, y, cell, cell); continue; }
+        const d = adjacencyDeltaE(colors[i], colors[j]);
+        ctx.fillStyle = d === null ? MATRIX_NA : heatColor(normalizeDeltaE(d, maxDE));
+        ctx.fillRect(x, y, cell, cell);
+      } else {
+        // Pair split: row color (colors[i]) fills the cell; column color
+        // (colors[j]) overlays the lower-right triangle. Diagonal = solid.
+        ctx.fillStyle = colors[i];
+        ctx.fillRect(x, y, cell, cell);
+        if (i === j) continue;
+        ctx.fillStyle = colors[j];
+        ctx.beginPath();
+        ctx.moveTo(x + cell, y);
+        ctx.lineTo(x + cell, y + cell);
+        ctx.lineTo(x, y + cell);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// Off-screen render of the matrix → PNG Blob. Cell size scales down with N so
+// large palettes stay bounded. Precondition: callers guard colors.length > 0.
+export function drawAdjacencyMatrixPng(
+  colors: string[],
+  opts: { view: MatrixView },
+): Promise<Blob> {
+  const n = colors.length;
+  const cell = n > 0 ? Math.max(8, Math.floor(640 / n)) : 8;
+  const header = Math.max(8, Math.round(cell * 0.6));
+  const size = Math.max(1, header + n * cell);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas 2D context unavailable'));
+  drawAdjacencyMatrix(ctx, colors, { cell, view: opts.view, header });
   return canvasToPngBlob(canvas);
 }
