@@ -16,9 +16,16 @@ describe('computeVizData', () => {
     expect(allColors).toEqual(['#000000', '#404040', '#808080', '#ffffff']);
   });
 
-  it('sortedByL orders darkest to lightest by HSL lightness', () => {
-    const { sortedByL } = computeVizData(RAMPS);
-    expect(sortedByL).toEqual(['#000000', '#404040', '#808080', '#ffffff']);
+  it('sortedByL orders darkest to lightest by HSL lightness, independent of input order', () => {
+    // First-occurrence order (white, black, gray) deliberately differs from
+    // lightness order, so this fails if the sort is dropped.
+    const ramps = [
+      ['#ffffff', '#000000'],
+      ['#808080'],
+    ];
+    const { allColors, sortedByL } = computeVizData(ramps);
+    expect(allColors).toEqual(['#ffffff', '#000000', '#808080']); // input order
+    expect(sortedByL).toEqual(['#000000', '#808080', '#ffffff']); // lightness order
   });
 
   it('mosaicRamps dedupes within and across rows, drops empty rows, keeps originalIdx', () => {
