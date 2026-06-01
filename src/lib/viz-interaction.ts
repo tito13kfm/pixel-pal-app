@@ -33,3 +33,18 @@ export function matrixColors(
 ): string[] {
   return colorSet === 'bases' ? bases : allColors;
 }
+
+// 4x4 Bayer ordered-dither threshold matrix, values 0..15.
+export const BAYER_4X4: number[][] = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+];
+
+// Which of the two source colors a dither pixel takes (true = colorB) for a
+// 50/50 blend. Checker = (x+y) parity; Bayer = threshold vs the matrix mid (8).
+export function ditherPixelIsB(pattern: DitherPattern, x: number, y: number): boolean {
+  if (pattern === 'checker') return (x + y) % 2 === 1;
+  return BAYER_4X4[y % 4][x % 4] >= 8;
+}

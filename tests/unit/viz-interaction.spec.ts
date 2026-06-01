@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   adjacencyDeltaE, normalizeDeltaE, heatColor, matrixColors,
 } from '../../src/lib/viz-interaction';
+import { BAYER_4X4, ditherPixelIsB } from '../../src/lib/viz-interaction';
 
 describe('adjacencyDeltaE', () => {
   it('is 0 for identical colors', () => {
@@ -48,5 +49,30 @@ describe('matrixColors', () => {
     const bases = ['#abc'];
     expect(matrixColors('unique', all, bases)).toBe(all);
     expect(matrixColors('bases', all, bases)).toBe(bases);
+  });
+});
+
+describe('BAYER_4X4', () => {
+  it('is a 4x4 matrix of the 16 distinct values 0..15', () => {
+    expect(BAYER_4X4.length).toBe(4);
+    BAYER_4X4.forEach(row => expect(row.length).toBe(4));
+    const flat = BAYER_4X4.flat().sort((a, b) => a - b);
+    expect(flat).toEqual(Array.from({ length: 16 }, (_, i) => i));
+  });
+});
+
+describe('ditherPixelIsB', () => {
+  it('checker uses (x+y) parity', () => {
+    expect(ditherPixelIsB('checker', 0, 0)).toBe(false);
+    expect(ditherPixelIsB('checker', 1, 0)).toBe(true);
+    expect(ditherPixelIsB('checker', 0, 1)).toBe(true);
+    expect(ditherPixelIsB('checker', 1, 1)).toBe(false);
+  });
+  it('bayer thresholds at the matrix midpoint (>=8 -> B)', () => {
+    // BAYER_4X4[0][0] = 0  -> A ; BAYER_4X4[0][1] = 8 -> B
+    expect(ditherPixelIsB('bayer', 0, 0)).toBe(false);
+    expect(ditherPixelIsB('bayer', 1, 0)).toBe(true);
+    // wraps every 4 px
+    expect(ditherPixelIsB('bayer', 4, 0)).toBe(false);
   });
 });
