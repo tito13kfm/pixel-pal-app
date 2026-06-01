@@ -212,3 +212,70 @@ export function drawAdjacencyMatrixPng(
   drawAdjacencyMatrix(ctx, colors, { cell, view: opts.view, header });
   return canvasToPngBlob(canvas);
 }
+
+// --- Dither-blend preview --------------------------------------------------
+
+const DITHER_ROW_H = 40;    // px row height
+const DITHER_SOLID_W = 44;  // px solid shade cell width
+const DITHER_BLEND_W = 28;  // px blend cell width
+const DITHER_SUB = 8;       // checker/bayer subdivisions per blend cell
+
+// Per ramp row: solid shade · dither blend(shadeᵢ, shadeᵢ₊₁) · solid shade …
+// Blend cells render the pattern at a visible-pixel scale (DITHER_SUB blocks),
+// NOT a shrunk-to-solid midpoint — the texture is the point of the feature.
+export function drawDitherBlend(
+  ctx: CanvasRenderingContext2D,
+  rows: string[][],
+  opts: { pattern: DitherPattern; rowH?: number; solidW?: number; blendW?: number; sub?: number },
+): void {
+  const rowH = opts.rowH ?? DITHER_ROW_H;
+  const solidW = opts.solidW ?? DITHER_SOLID_W;
+  const blendW = opts.blendW ?? DITHER_BLEND_W;
+  const sub = opts.sub ?? DITHER_SUB;
+  ctx.imageSmoothingEnabled = false;
+
+  rows.forEach((row, r) => {
+    const y = r * rowH;
+    let x = 0;
+    for (let i = 0; i < row.length; i++) {
+      ctx.fillStyle = row[i];
+      ctx.fillRect(x, y, solidW, rowH);
+      x += solidW;
+      if (i < row.length - 1) {
+        const a = row[i];
+        const b = row[i + 1];
+        const px = blendW / sub;
+        const py = rowH / sub;
+        for (let gx = 0; gx < sub; gx++) {
+          for (let gy = 0; gy < sub; gy++) {
+            ctx.fillStyle = ditherPixelIsB(opts.pattern, gx, gy) ? b : a;
+            ctx.fillRect(Math.round(x + gx * px), Math.round(y + gy * py), Math.ceil(px), Math.ceil(py));
+          }
+        }
+        x += blendW;
+      }
+    }
+  });
+}
+
+// Off-screen render of the dither preview → PNG Blob. Width tracks the longest
+// ramp; shorter rows draw left-aligned. Precondition: callers guard rows.length > 0.
+export function drawDitherBlendPng(
+  rows: string[][],
+  opts: { pattern: DitherPattern },
+): Promise<Blob> {
+  const solidW = 48;
+  const blendW = 30;
+  const rowH = 48;
+  const sub = 8;
+  const maxCells = rows.reduce((m, row) => Math.max(m, row.length), 0);
+  const width = Math.max(1, maxCells * solidW + Math.max(0, maxCells - 1) * blendW);
+  const height = Math.max(1, rows.length * rowH);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas 2D context unavailable'));
+  drawDitherBlend(ctx, rows, { pattern: opts.pattern, rowH, solidW, blendW, sub });
+  return canvasToPngBlob(canvas);
+}
