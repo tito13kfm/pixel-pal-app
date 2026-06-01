@@ -4802,9 +4802,8 @@ export default function PixelPalGenerator() {
   // Export the working palette's Lightness Distribution strip as a flat-color
   // PNG. Mirrors the on-screen view: same slot snapshot (sbsLeft) and current
   // vizStyle, same computeVizData derivation.
-  const exportLightnessPng = async () => {
+  const exportLightnessPng = async (snap) => {
     try {
-      const snap = getSnapshotForSlot(sbsLeft, sbsLeftPayload);
       const ramps = buildRampsForSnapshot(snap, vizStyle);
       const { sortedByL } = computeVizData(ramps);
       if (sortedByL.length === 0) {
@@ -4831,9 +4830,8 @@ export default function PixelPalGenerator() {
 
   // Export the working palette's Mosaic as a flat-color PNG. Faithful to the
   // on-screen layout: one row per (deduped, non-empty) ramp, each row full width.
-  const exportMosaicPng = async () => {
+  const exportMosaicPng = async (snap) => {
     try {
-      const snap = getSnapshotForSlot(sbsLeft, sbsLeftPayload);
       const ramps = buildRampsForSnapshot(snap, vizStyle);
       const { mosaicRamps } = computeVizData(ramps);
       const rows = mosaicRamps.map((r) => r.hexes);
@@ -7103,8 +7101,8 @@ export default function PixelPalGenerator() {
                     <button onClick={() => setVizStyle('balanced')} title="Show mid-contrast Balanced ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={vizStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
                     <button onClick={() => setVizStyle('muted')} title="Show low-contrast Muted ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={vizStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
                     <span className="mx-1 h-5 w-px bg-cyan-500/40" aria-hidden="true" />
-                    <button onClick={exportLightnessPng} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Lightness PNG</button>
-                    <button onClick={exportMosaicPng} title="Download the Mosaic as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Mosaic PNG</button>
+                    <button onClick={() => exportLightnessPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Lightness PNG</button>
+                    <button onClick={() => exportMosaicPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Mosaic as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Mosaic PNG</button>
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Image Preview</h3>
@@ -7569,8 +7567,8 @@ export default function PixelPalGenerator() {
                 <div className="flex gap-3 flex-wrap items-center">
                   <button onClick={exportPalette} title="Download the active palette as a Pixel Art .txt file" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Download .txt</button>
                   <button onClick={copyPaletteToClipboard} title="Copy the active palette to the clipboard as plain text" className="px-4 py-1.5 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-100 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ff00ff' }}><Copy size={14} />Copy</button>
-                  <button onClick={exportLightnessPng} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Lightness PNG</button>
-                  <button onClick={exportMosaicPng} title="Download the Mosaic as a PNG (current style)" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Mosaic PNG</button>
+                  <button onClick={() => exportLightnessPng(getSnapshotForSlot('working', null))} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Lightness PNG</button>
+                  <button onClick={() => exportMosaicPng(getSnapshotForSlot('working', null))} title="Download the Mosaic as a PNG (current style)" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Mosaic PNG</button>
                   <button
                     onClick={toggleCompareMode}
                     data-tour-id="wcag-check-btn"
