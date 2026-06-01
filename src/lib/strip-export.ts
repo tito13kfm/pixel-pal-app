@@ -64,6 +64,8 @@ function blockEdges(width: number, n: number, i: number): { x: number; w: number
 }
 
 // One row of equal-width blocks across the full width.
+// Precondition: `sortedHexes` is non-empty (callers guard first); an empty
+// array yields a blank strip rather than an error.
 export function drawLightnessStripPng(
   sortedHexes: string[],
   opts: { width?: number; height?: number } = {},
@@ -88,6 +90,8 @@ export function drawLightnessStripPng(
 // One row per ramp. Each row fills the full width; block width = width/row.length.
 // Faithful to the on-screen flex-1 mosaic: internal boundaries do NOT align
 // across rows when rows have different counts.
+// Precondition: `rows` and each inner row are non-empty (computeVizData filters
+// empty rows). The Math.max below is a canvas-spec safety net for rows.length===0.
 export function drawMosaicPng(
   rows: string[][],
   opts: { width?: number; rowHeight?: number } = {},
