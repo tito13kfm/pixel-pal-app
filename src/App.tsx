@@ -22,6 +22,7 @@ import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
+import { dedupeHexes } from './lib/hex-utils';
 import type { UpdateInfo } from './lib/tauri-bridge';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
@@ -195,24 +196,6 @@ const quantizeToPalette = (hex, paletteColors) => {
   return bestHex;
 };
 
-// dedupeHexes: collapse duplicate hex strings preserving first occurrence
-// and original casing. Used for visualization, export, and copy where the
-// hardware-locked ramp can produce repeats (e.g. an 8-shade Game Boy ramp
-// collapses to 4 unique colors). The main per-ramp editor UI keeps duplicates
-// visible so the user sees the full shadow→highlight sequence; only
-// downstream consumers dedupe.
-const dedupeHexes = (hexes) => {
-  const seen = new Set();
-  const out = [];
-  for (const hex of hexes) {
-    if (typeof hex !== 'string') continue;
-    const key = hex.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(hex);
-  }
-  return out;
-};
 
 // seededHueDelta: deterministic hue offset in degrees for (effectiveSeed,
 // rampIdx). Replaces the old seededRandom jitter that the legacy HSV engine
