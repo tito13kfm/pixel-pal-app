@@ -57,8 +57,8 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - Export the remapped image at multiple scale options
 
 **Views**
-- Mosaic preview
-- Lightness distribution strip
+- Mosaic preview — export to PNG
+- Lightness distribution strip — export to PNG
 - Chromatic polar plot
 - Sprite previews on 4 built-in 32x32 sprites; import custom sprites from Piskel
 - Side-by-side palette comparison
@@ -72,7 +72,7 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - 50-entry session history with undo, redo, and direct jump to any point
 - Three themes: Dark, Neutral, Light (persists across sessions)
 - Auto-updates: desktop checks for new releases and prompts you to install; web reflects the latest deploy on refresh
-- Export: plain text or GIMP .gpl with Punchy, Balanced, or Muted style selectable
+- Export: plain text or GIMP .gpl with Punchy, Balanced, or Muted style selectable; one-click PNG export of the Mosaic and Lightness Distribution views (from the view itself or the export panel)
 
 ## Getting Started
 
