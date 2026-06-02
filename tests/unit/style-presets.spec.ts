@@ -20,4 +20,8 @@ describe('styleToScalars', () => {
   it('falls back to punchy for an unknown style', () => {
     expect(styleToScalars('nonsense', null)).toEqual({ reach: 1.0, chromaFalloff: 0.1 });
   });
+  it('falls back to defaults when override map exists but lacks the key', () => {
+    const presets = { muted: { reach: 0.1, chromaFalloff: 0.9 } };
+    expect(styleToScalars('balanced', presets)).toEqual({ reach: 0.575, chromaFalloff: 0.475 });
+  });
 });
