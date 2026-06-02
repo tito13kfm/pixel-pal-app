@@ -60,6 +60,8 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - Mosaic preview — export to PNG
 - Lightness distribution strip — export to PNG
 - Chromatic polar plot
+- Adjacency matrix: every color paired with every other, with an optional ΔE_OK heatmap that surfaces clashes and near-duplicate colors — export to PNG
+- Dither-blend preview: 2×2 checkerboard or 4×4 Bayer mix of consecutive ramp shades — the optical "in-between" shade you get when dithering at sprite scale — export to PNG
 - Sprite previews on 4 built-in 32x32 sprites; import custom sprites from Piskel
 - Side-by-side palette comparison
 
@@ -72,7 +74,7 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - 50-entry session history with undo, redo, and direct jump to any point
 - Three themes: Dark, Neutral, Light (persists across sessions)
 - Auto-updates: desktop checks for new releases and prompts you to install; web reflects the latest deploy on refresh
-- Export: plain text or GIMP .gpl with Punchy, Balanced, or Muted style selectable; one-click PNG export of the Mosaic and Lightness Distribution views (from the view itself or the export panel)
+- Export: plain text or GIMP .gpl with Punchy, Balanced, or Muted style selectable; one-click PNG export of the Mosaic, Lightness Distribution, Adjacency Matrix, and Dither-Blend views (from the view itself or the export panel)
 
 ## Getting Started
 
