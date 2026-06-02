@@ -1,7 +1,7 @@
 import { hexToOklch, deltaEOK } from './oklch';
 
 export interface HardwarePalette {
-  colors?: string[];
+  colors: string[];
 }
 
 // Nearest hardware color by ΔE_OK (perceptual OKLab distance).
