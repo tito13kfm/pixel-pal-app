@@ -18,7 +18,7 @@ export const generateHarmony = (baseHexes: string[]): HarmonySet => {
     if (hsl.s > maxSat) { maxSat = hsl.s; anchor = hex; }
   }
   const base = hexToHsl(anchor) as Hsl;
-  const tone = (hsl: { h: number; s: number; l: number }) => ({
+  const tone = (hsl: Hsl) => ({
     h: hsl.h,
     s: Math.min(95, Math.max(55, hsl.s)),
     l: Math.min(70, Math.max(40, hsl.l)),

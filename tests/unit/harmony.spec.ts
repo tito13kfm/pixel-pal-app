@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateHarmony } from '../../src/lib/harmony';
+import { hslToHex } from '../../src/lib/color';
 
 const KEYS = [
   'complementary', 'analogous1', 'analogous2', 'triadic1', 'triadic2',
@@ -22,5 +23,13 @@ describe('generateHarmony', () => {
     const a = generateHarmony(['#808080', '#ff0000']);
     const b = generateHarmony(['#ff0000', '#808080']);
     expect(a).toEqual(b);
+  });
+  it('produces correct hue offsets for pure red anchor', () => {
+    const h = generateHarmony(['#ff0000']);
+    // pure red: HSL(0, 100, 50) → tone clamps s to 95, l stays 50
+    expect(h.complementary).toBe(hslToHex({ h: 180, s: 95, l: 50 }));
+    expect(h.triadic1).toBe(hslToHex({ h: 120, s: 95, l: 50 }));
+    expect(h.triadic2).toBe(hslToHex({ h: 240, s: 95, l: 50 }));
+    expect(h.square1).toBe(hslToHex({ h: 90, s: 95, l: 50 }));
   });
 });
