@@ -53,7 +53,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     },
     {
       title: 'Export',
-      body: 'Click the Export & Tools header to expand it. Use Download .txt for plain text, or .gpl (Piskel/Aseprite/GIMP) for app-ready palette format.',
+      body: 'Click the Export & Tools header to expand it. Pick an export format from the dropdown — .gpl, .pal, Adobe .ase, a PNG strip, or .txt — then Download.',
       target: 'export-header',
       advance: 'next',
       placement: 'auto',
@@ -264,7 +264,7 @@ export const TASK_GUIDES: TourGuide[] = [
   },
   {
     id: 'export-gpl',
-    label: 'Export as .gpl',
+    label: 'Export your palette',
     steps: [
       {
         title: 'Open the Export panel',
@@ -284,8 +284,8 @@ export const TASK_GUIDES: TourGuide[] = [
         placement: 'auto',
       },
       {
-        title: 'Download the file',
-        body: 'Click .gpl (Piskel/Aseprite/GIMP). The file is standard GIMP palette format, importable in any compatible app including Krita.',
+        title: 'Pick a format and download',
+        body: 'Choose a format in the dropdown — .gpl (Aseprite/GIMP/Krita), .pal (GrafX2), Adobe .ase, a PNG strip for any eyedropper, or plain .txt — then click Download. Note: Adobe .ase is for Photoshop/Illustrator/Krita, not Aseprite; Aseprite users want .gpl, .pal, or the PNG strip.',
         target: 'gpl-export-btn',
         setup: 'export',
         advance: 'next',

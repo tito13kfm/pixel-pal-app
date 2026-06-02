@@ -7810,6 +7810,7 @@ export default function PixelPalGenerator() {
                   value={exportFormat}
                   onChange={(e) => setExportFormat(e.target.value)}
                   title="Choose the export format"
+                  aria-label="Export format"
                   className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50"
                 >
                   <option value="gpl">.gpl (Aseprite / GIMP / Krita)</option>
