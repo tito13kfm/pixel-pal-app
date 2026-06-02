@@ -68,10 +68,23 @@ For each not-yet-done module, in dependency order:
 1. **Locate by symbol grep.** For each symbol, grep `src/App.tsx` for its
    definition (`const <sym>` / `function <sym>`). Read the surrounding block.
    Ignore the spec's line numbers — they have shifted.
-2. **Write `tests/unit/<name>.spec.ts` first.** Pin the outputs the *current*
-   App.tsx code produces. Heavy modules (`image-extract`, `image-remap`)
-   construct synthetic `ImageData` fixtures. Run the spec; confirm it fails to
-   import (TDD red) before writing the module.
+2. **Write `tests/unit/<name>.spec.ts` first — unless it already exists**
+   (see Done-detection: a spec may be present from a prior interrupted
+   session; if so, **read it, trust it, resume at step 3** — do not
+   regenerate or overwrite it). When writing fresh: prefer **black-box
+   behavioral invariants** (e.g. "empty palette → returns input hex", "snaps
+   near-red to red", "ignores transparent pixels") over echoing whatever the
+   function computes — a test that pins "the output of the code I'm about to
+   move" and then matches the moved code to it verifies nothing (it would pass
+   even if a `<`/`<=` slipped during the move). Where a specific *computed*
+   value must be asserted (the ImageData-heavy modules), capture ground truth
+   from the **pre-move original** — temporarily export/harness the inline
+   function, record its output, then those recorded values become the
+   assertions. Heavy modules are where a transcription slip is most likely and
+   hand-computing expected output is hardest; if rigorous capture isn't
+   feasible, flag the module in the report for human spot-check. Heavy modules
+   construct synthetic `ImageData` fixtures. Run the spec; confirm TDD red
+   before writing the module.
 3. **Create typed `lib/<name>.ts`.** Move logic verbatim; add real types;
    **underscore-prefix unused params** (never delete — arity must not change);
    import deps from existing lib modules (`color`, `oklch`, `ramp-engine`,
@@ -103,18 +116,33 @@ All three must pass:
      `image-remap`, not App.tsx) is correctly **not** required to appear in
      App.tsx — checking only App.tsx would false-fail it.
 
-**On failure:** stop that module, leave it un-committed, record the failing
-check + quoted error in the report, and skip any modules that depend on it.
-Continue with remaining independent modules.
+**On failure:** stop that module and **clean its partial work out of the
+working tree before moving on** — `git checkout -- src/App.tsx` and
+`git clean -f tests/unit/<name>.spec.ts src/lib/<name>.ts` (or stash the
+module's paths). This is mandatory in batch mode: a failed module leaves a
+half-written spec / `lib/<name>.ts` / partial App.tsx edit in the tree, and the
+**next** module's `git add … && commit` would otherwise sweep that broken
+half-extraction into an unrelated commit. Record the failing check + quoted
+error in the report, skip any modules that depend on the failed one, and
+continue with remaining independent modules.
 
 ---
 
 ## Done-detection
 
-A module is already done when `lib/<name>.ts` exists **and** App.tsx contains
-`from './lib/<name>'` (grep) — never inferred from line numbers. The agent
-computes the remaining set from the spec's module map minus the done set, then
-orders it by the spec's waves.
+Three states, not two (never inferred from line numbers):
+
+1. **Done** — `lib/<name>.ts` exists **and** App.tsx (or another consumer)
+   imports `from './lib/<name>'`. Skip.
+2. **In progress / interrupted** — `tests/unit/<name>.spec.ts` exists **but**
+   `lib/<name>.ts` does **not** (a prior session wrote the spec and stopped;
+   e.g. `image-extract` at the start of this work — its spec is on disk,
+   untracked). **Resume at step 3** (create the module to satisfy the existing
+   spec); do **not** regenerate the spec.
+3. **Not started** — neither file exists. Run the full 5-step loop.
+
+The agent computes the remaining set (states 2 + 3) from the spec's module map
+minus the done set, then orders it by the spec's waves.
 
 ---
 
