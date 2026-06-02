@@ -1006,6 +1006,7 @@ export default function PixelPalGenerator() {
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [gplStyle, setGplStyle] = useState('punchy');
   const [exportFormat, setExportFormat] = useState('gpl'); // gpl | pal | ase | png-strip | txt
+  const [lastSavedPath, setLastSavedPath] = useState(null); // desktop: path of last export, for Reveal
   const [vizStyle, setVizStyle] = useState('punchy');
   const [matrixColorSet, setMatrixColorSet] = useState('unique'); // 'unique' | 'bases'
   const [matrixView, setMatrixView] = useState('pair');           // 'pair' | 'heatmap'
@@ -4810,26 +4811,13 @@ export default function PixelPalGenerator() {
   };
 
   const exportPalette = async () => {
-    try {
-      const text = buildPaletteText();
-      const result = await saveFile({
-        defaultName: 'pixel-pal-palette.txt',
-        filters: [{ name: 'Pixel Pal palette', extensions: ['txt'] }],
-        data: { text },
-        folderKey: 'txt',
-      });
-      if (result.canceled) {
-        setExportFeedback('Save canceled');
-      } else if (!result.ok) {
-        setExportFeedback('Failed: try Copy');
-      } else {
-        setExportFeedback('Downloaded!');
-      }
-      setTimeout(() => setExportFeedback(''), 2000);
-    } catch {
-      setExportFeedback('Failed: try Copy');
-      setTimeout(() => setExportFeedback(''), 3000);
-    }
+    const text = buildPaletteText();
+    return await saveFile({
+      defaultName: 'pixel-pal-palette.txt',
+      filters: [{ name: 'Pixel Pal palette', extensions: ['txt'] }],
+      data: { text },
+      folderKey: 'txt',
+    });
   };
 
   // Export the working palette's Lightness Distribution strip as a flat-color
@@ -5018,26 +5006,67 @@ export default function PixelPalGenerator() {
   };
 
   const exportPaletteGpl = async () => {
+    const text = buildPaletteGpl(gplStyle);
+    return await saveFile({
+      defaultName: `pixel-pal-${gplStyle}.gpl`,
+      filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
+      data: { text },
+      folderKey: 'gpl',
+    });
+  };
+
+  const exportPalettePal = async () => {
+    const text = buildJascPal(collectPaletteEntries(gplStyle));
+    return await saveFile({
+      defaultName: `pixel-pal-${gplStyle}.pal`,
+      filters: [{ name: 'JASC palette', extensions: ['pal'] }],
+      data: { text },
+      folderKey: 'pal',
+    });
+  };
+
+  const exportPaletteAse = async () => {
+    const bytes = buildAse(collectPaletteEntries(gplStyle));
+    return await saveFile({
+      defaultName: `pixel-pal-${gplStyle}.ase`,
+      filters: [{ name: 'Adobe Swatch Exchange', extensions: ['ase'] }],
+      data: { bytes },
+      folderKey: 'ase',
+    });
+  };
+
+  const exportPaletteStripPng = async () => {
+    const rows = baseColors.map((_, i) => _filteredRamp(i, gplStyle).hexes);
+    const blob = await drawPaletteStripPng(rows, 32);
+    return await saveFile({
+      defaultName: `pixel-pal-${gplStyle}-strip.png`,
+      filters: [{ name: 'PNG image', extensions: ['png'] }],
+      data: { bytes: blob },
+      folderKey: 'png',
+    });
+  };
+
+  // Runs whichever export the format dropdown selects, then centralizes the
+  // success/cancel/fail feedback and records the saved path for "Reveal".
+  const exportActiveFormat = async () => {
+    const runner =
+      exportFormat === 'txt' ? exportPalette :
+      exportFormat === 'pal' ? exportPalettePal :
+      exportFormat === 'ase' ? exportPaletteAse :
+      exportFormat === 'png-strip' ? exportPaletteStripPng :
+      exportPaletteGpl;
     try {
-      const text = buildPaletteGpl(gplStyle);
-      const result = await saveFile({
-        defaultName: `pixel-pal-${gplStyle}.gpl`,
-        filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
-        data: { text },
-        folderKey: 'gpl',
-      });
-      if (result.canceled) {
-        setExportFeedback('Save canceled');
-      } else if (!result.ok) {
-        setExportFeedback('GPL export failed');
-      } else {
-        setExportFeedback(`Downloaded ${gplStyle}.gpl!`);
+      const result = await runner();
+      if (result?.canceled) { setExportFeedback('Save canceled'); }
+      else if (!result?.ok) { setExportFeedback('Export failed'); }
+      else {
+        setExportFeedback('Downloaded!');
+        if (result.path) setLastSavedPath(result.path);
       }
-      setTimeout(() => setExportFeedback(''), 2000);
     } catch {
-      setExportFeedback('GPL export failed');
-      setTimeout(() => setExportFeedback(''), 3000);
+      setExportFeedback('Export failed');
     }
+    setTimeout(() => setExportFeedback(''), 2000);
   };
 
   // PER-RAMP EXPORT HELPERS
