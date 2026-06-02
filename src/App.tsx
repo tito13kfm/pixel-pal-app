@@ -23,7 +23,8 @@ import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
 import { dedupeHexes } from './lib/hex-utils';
-import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatrixPng, drawDitherBlendPng } from './lib/strip-export';
+import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatrixPng, drawDitherBlendPng, drawPaletteStripPng } from './lib/strip-export';
+import { buildGpl, buildJascPal, buildAse } from './lib/palette-export';
 import { AdjacencyMatrix } from './components/AdjacencyMatrix';
 import { DitherBlend } from './components/DitherBlend';
 import type { UpdateInfo } from './lib/tauri-bridge';
@@ -1004,6 +1005,7 @@ export default function PixelPalGenerator() {
   const [compareAnchor, setCompareAnchor] = useState(null); // { baseIndex, shadeIndex, style, hex } | null
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [gplStyle, setGplStyle] = useState('punchy');
+  const [exportFormat, setExportFormat] = useState('gpl'); // gpl | pal | ase | png-strip | txt
   const [vizStyle, setVizStyle] = useState('punchy');
   const [matrixColorSet, setMatrixColorSet] = useState('unique'); // 'unique' | 'bases'
   const [matrixView, setMatrixView] = useState('pair');           // 'pair' | 'heatmap'
@@ -3246,6 +3248,32 @@ export default function PixelPalGenerator() {
     })();
   }, [gplStyle]);
 
+  // exportFormat: persisted at ui:exportFormat. Valid values gpl/pal/ase/png-strip/txt.
+  useEffect(() => {
+    (async () => {
+      if (typeof window === 'undefined' || !window.storage) return;
+      try {
+        const got = await window.storage.get('ui:exportFormat');
+        if (got && got.value) {
+          const parsed = JSON.parse(got.value);
+          if (typeof parsed === 'string' && ['gpl', 'pal', 'ase', 'png-strip', 'txt'].includes(parsed)) {
+            setExportFormat(parsed);
+          }
+        }
+      } catch {
+        // No saved value or storage failed; keep default.
+      }
+    })();
+  }, []);
+  const exportFormatMountRef = useRef(false);
+  useEffect(() => {
+    if (!exportFormatMountRef.current) { exportFormatMountRef.current = true; return; }
+    if (typeof window === 'undefined' || !window.storage) return;
+    (async () => {
+      try { await window.storage.set('ui:exportFormat', JSON.stringify(exportFormat)); } catch {}
+    })();
+  }, [exportFormat]);
+
   // rampExportStyle: persisted at ui:rampExportStyle. Valid values
   // punchy/balanced/muted. Not part of the saved palette payload (it is
   // a pure UI preference for the per-ramp Copy and Download buttons),
@@ -4945,8 +4973,10 @@ export default function PixelPalGenerator() {
     setTimeout(() => setExportFeedback(''), 2000);
   };
 
-  const buildPaletteGpl = (style) => {
-
+  // Gather the full palette entry list for a style: every ramp's visible shades
+  // (named "<color> <slot>"), then the harmony colors, then dedup by hex.
+  // SINGLE SOURCE consumed by every palette-file format so they cannot drift.
+  const collectPaletteEntries = (style) => {
     const entries = [];
     const ramps = style === 'balanced' ? rampsBalanced : style === 'muted' ? rampsMuted : rampsPunchy;
     baseColors.forEach((_, i) => {
@@ -4971,31 +5001,20 @@ export default function PixelPalGenerator() {
     entries.push({ hex: harmony.square2, name: 'harmony square 2' });
     entries.push({ hex: harmony.square3, name: 'harmony square 3' });
 
-    // Dedupe entries by hex. GPL consumers (Aseprite, GIMP, etc.) expect
-    // unique colors — duplicate entries are ignored or cause confusion.
-    // Keep first occurrence's name so the most prominent slot label wins.
     const seenHex = new Set();
-    const uniqueEntries = [];
+    const unique = [];
     for (const e of entries) {
       const key = (e.hex || '').toLowerCase();
       if (!key || seenHex.has(key)) continue;
       seenHex.add(key);
-      uniqueEntries.push(e);
+      unique.push(e);
     }
+    return unique;
+  };
 
-    const pad3 = (n) => String(n).padStart(3, ' ');
+  const buildPaletteGpl = (style) => {
     const styleLabel = style === 'balanced' ? 'Balanced' : style === 'muted' ? 'Muted' : 'Punchy';
-    const lines = [
-      'GIMP Palette',
-      `Name: PIXEL.PAL ${styleLabel}`,
-      `Columns: ${rampSize}`,
-      '#',
-    ];
-    uniqueEntries.forEach(({ hex, name }) => {
-      const { r, g, b } = hexToRgb(hex);
-      lines.push(`${pad3(r)} ${pad3(g)} ${pad3(b)}\t${name}`);
-    });
-    return lines.join('\n') + '\n';
+    return buildGpl(collectPaletteEntries(style), { paletteName: `PIXEL.PAL ${styleLabel}`, columns: rampSize });
   };
 
   const exportPaletteGpl = async () => {
