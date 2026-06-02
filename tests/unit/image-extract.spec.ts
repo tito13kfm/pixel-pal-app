@@ -20,6 +20,10 @@ describe('quantizeToPalette', () => {
   it('snaps a near-red to red, not to a far hue', () => {
     expect(quantizeToPalette('#f51008', ['#ff0000', '#0000ff'])).toBe('#ff0000');
   });
+  it('snaps a gray toward gray, not a nearby hue (hue weight fades at low saturation)', () => {
+    // Gray (S=0) must not be pulled to chromatic red; hue weight fades to zero.
+    expect(quantizeToPalette('#808080', ['#ff0000', '#7f7f7f'])).toBe('#7f7f7f');
+  });
 });
 
 describe('extractDominantColors', () => {
@@ -32,5 +36,15 @@ describe('extractDominantColors', () => {
       [255, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255], [255, 255, 0, 255],
     ]);
     expect(extractDominantColors(img, 2).length).toBeLessThanOrEqual(2);
+  });
+  it('merges near-identical hues into a single result', () => {
+    const img = fakeImageData([
+      [255, 0, 0, 255], [255, 0, 0, 255], // #ff0000 ×2 (most frequent)
+      [245, 0, 0, 255],                    // near-dupe of red
+      [0, 0, 255, 255],                    // distinct blue
+    ]);
+    const result = extractDominantColors(img, 4);
+    // Red collapsed (near-dupe merged), blue kept as distinct entry.
+    expect(result).toEqual(['#ff0000', '#0000ff']);
   });
 });
