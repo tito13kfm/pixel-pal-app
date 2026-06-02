@@ -78,7 +78,8 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - 50-entry session history with undo, redo, and direct jump to any point
 - Three themes: Dark, Neutral, Light (persists across sessions)
 - Auto-updates: desktop checks for new releases and prompts you to install; web reflects the latest deploy on refresh
-- Export: plain text or GIMP .gpl with Punchy, Balanced, or Muted style selectable; one-click PNG export of the Mosaic, Lightness Distribution, Adjacency Matrix, and Dither-Blend views (from the view itself or the export panel)
+- Export: a format dropdown covers GIMP `.gpl` (Aseprite/GIMP/Krita/Piskel), JASC `.pal` (GrafX2/Paint Shop Pro), Adobe Swatch Exchange `.ase`, a PNG palette strip (drag onto any editor's canvas and eyedrop), and plain `.txt` — each in the Punchy/Balanced/Muted style you select. Desktop adds "Reveal in folder" after a save. Separate one-click PNG export of the Mosaic, Lightness Distribution, Adjacency Matrix, and Dither-Blend views remains (from the view itself or the export panel).
+  - **Note:** Adobe `.ase` targets Photoshop / Illustrator / Krita, **not** Aseprite. Despite the shared extension, Aseprite's `.ase`/`.aseprite` are sprite files; Aseprite imports palettes as `.gpl`, `.pal`, or PNG — pick one of those for Aseprite.
 
 ## Getting Started
 

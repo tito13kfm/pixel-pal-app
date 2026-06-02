@@ -18,6 +18,20 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Added
+- Export to JASC `.pal` (GrafX2, Paint Shop Pro).
+- Export to Adobe Swatch Exchange `.ase` (Photoshop, Illustrator, Krita — not
+  Aseprite, despite the shared extension).
+- Export a PNG palette strip — a flat swatch sheet for eyedropper import into
+  any editor.
+- Desktop "Reveal in folder" action after exporting.
+
+### Changed
+- Full-palette export is now a single format dropdown (`.gpl` / `.pal` / `.ase`
+  / PNG strip / `.txt`) plus one Download button, replacing the separate `.txt`
+  and `.gpl` buttons. The Punchy/Balanced/Muted selector now applies to every
+  format.
+
 ## [0.13.0] - 2026-06-02
 
 ### Added
