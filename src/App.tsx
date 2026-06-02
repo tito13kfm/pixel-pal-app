@@ -31,6 +31,7 @@ import type { UpdateInfo } from './lib/tauri-bridge';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
+import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -178,19 +179,6 @@ const seededHueDelta = (effectiveSeed: number, rampIdx: number): number => {
   if (effectiveSeed === 0) return 0;
   const n = Math.imul(effectiveSeed * 17 + rampIdx * 31, 0x45d9f3b) >>> 0;
   return (n / 0x100000000 - 0.5) * 16;
-};
-
-// Editable style presets: each style is two scalars consumed by the engine.
-// Defaults reproduce the approved Punchy/Balanced/Muted look.
-const DEFAULT_STYLE_PRESETS = {
-  punchy:   { reach: 1.00, chromaFalloff: 0.10 },
-  balanced: { reach: 0.575, chromaFalloff: 0.475 },
-  muted:    { reach: 0.15, chromaFalloff: 0.85 },
-};
-
-const styleToScalars = (style, presets) => {
-  const p = (presets && presets[style]) || DEFAULT_STYLE_PRESETS[style] || DEFAULT_STYLE_PRESETS.punchy;
-  return { reach: p.reach, chromaFalloff: p.chromaFalloff };
 };
 
 // quantizeToHardware: nearest hardware color search using ΔE_OK (perceptual
