@@ -20,7 +20,8 @@ export const PANEL_DEFAULTS: PanelState = {
 export function loadPanelState(): PanelState {
   try {
     const raw = localStorage.getItem(PANEL_STORAGE_KEY);
-    return raw ? { ...PANEL_DEFAULTS, ...JSON.parse(raw) } : PANEL_DEFAULTS;
+    // JSON.parse returns any; unknown keys and wrong-typed values pass through at runtime.
+    return raw ? { ...PANEL_DEFAULTS, ...JSON.parse(raw) } as PanelState : PANEL_DEFAULTS;
   } catch {
     return PANEL_DEFAULTS;
   }

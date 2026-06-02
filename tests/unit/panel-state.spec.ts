@@ -17,4 +17,9 @@ describe('loadPanelState', () => {
     localStorage.setItem(PANEL_STORAGE_KEY, '{not json');
     expect(loadPanelState()).toEqual(PANEL_DEFAULTS);
   });
+
+  it('ignores non-object JSON and returns defaults', () => {
+    localStorage.setItem(PANEL_STORAGE_KEY, '123');
+    expect(loadPanelState()).toEqual(PANEL_DEFAULTS);
+  });
 });
