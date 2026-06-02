@@ -16,7 +16,9 @@
 
 - **Test location:** `tests/unit/<name>.spec.ts`. Header: `import { describe, it, expect } from 'vitest';` and import the module under test from `'../../src/lib/<name>'`.
 - **Run one spec:** `npx vitest run tests/unit/<name>.spec.ts`
-- **Build gate (every task):** `npm run build` (runs `tsc --noEmit` + vite) must pass before commit.
+- **Build gate (every task):** `npm run build` (runs `tsc --noEmit` + vite) must pass before commit. **Caveat — build does NOT validate App.tsx.** App.tsx is `@ts-nocheck`, so `tsc` skips it and vite won't error on a reference to a now-deleted *local* (only on a bad `import`). The build green-lights the new typed module, not the App.tsx edit. Use the App.tsx grep check below as the real safety net for the consumer side.
+- **App.tsx grep check (every task, after the import-swap):** run `grep -n '<helperName>' src/App.tsx` for each extracted symbol. It must appear **only** in the new `import` line plus its existing call sites — never as a `const`/`function` redefinition — and the call-site count must be **> 0** (zero means a wrong/dead import name). A leftover redefinition or a free-variable reference to a deleted local will pass `npm run build` and only surface at the final e2e run, 10 commits later. Catch it here.
+- **Hex-string case in test fixtures:** the fixtures below assert **lowercase** hex (`'#ff0000'`). If `lib/color`'s `rgbToHex` emits uppercase, a step-5 failure that is *case-only* is a fixture issue — normalize the literal to match, it is **not** a regression. Verify `rgbToHex`'s output case once before Task 6/8/9 to save churn.
 - **Typing rule:** move the helper body **verbatim in logic**. Add type annotations only as needed to satisfy `tsc`. Satisfy `noUnusedParameters` by **underscore-prefixing** the param (`_param`), never by deleting it (deletion changes arity). Do **not** alter runtime behavior.
 - **Import-swap:** delete the inline `const`/`function` definition from `App.tsx` and add the new `import` near the other `./lib/*` imports (top of file, ~lines 5–31). The helper's **call sites stay unchanged**.
 - **Commit message:** `refactor(applib): extract <name> helpers to lib/<name>`
@@ -1059,7 +1061,7 @@ export const buildRampsForSnapshot = (snapshot: RampSnapshot | null, style: stri
 
 - [ ] **Step 4: Swap App.tsx**
 
-Delete lines 204–214 (`seededHueDelta` and its comment block) and **482–634**: the `// ---------- Side-by-side palette regeneration helper ----------` banner with its long field-list comment (482–516) and `buildRampsForSnapshot` itself (517–634). Move those explanatory comments into the new module. Add import:
+Delete lines 204–214 (`seededHueDelta` and its comment block) and **482–634**: the `// ---------- Side-by-side palette regeneration helper ----------` banner with its long field-list comment (482–516) and `buildRampsForSnapshot` itself (517–634). Move those explanatory comments into the new module. If any helper called inside 517–634 is a standalone top-level function NOT in this task's import list, stop and report it — the spec assumed `buildRampsForSnapshot` is self-contained (its 484–488 comment claims so). Add import:
 
 ```ts
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
@@ -1102,3 +1104,5 @@ git commit -m "refactor(applib): extract buildRampsForSnapshot to lib/snapshot-r
 - **No behavior change is the contract.** If a characterization test forces you to change a `lib/` function's logic to make it pass, stop — that means the extraction altered behavior. The test pins the *current* App.tsx output; the module must reproduce it exactly.
 - **`@ts-nocheck` stays in App.tsx.** Do not remove it. Only the new `lib/` modules are typed.
 - **Out of scope:** `PixelSprite` (App.tsx 636) is a component → Tier C. Do not extract it here.
+- **Run e2e early on the risky tasks.** Tasks 9 (`image-remap`) and 10 (`snapshot-ramps`) are the largest verbatim moves and feed user-visible features (image remap preview, side-by-side/history ramps). Run `npm run test:e2e` right after each of those two commits — don't wait for the final pass to discover a break 1–2 commits deep.
+- **Commits unread in full:** `remapImageToPalette` (321–436) and `buildRampsForSnapshot` (557–634) were not read line-by-line during planning. The typed module's `tsc` pass catches any missing import; the per-task grep catches a missed App.tsx call site. Trust those two gates plus the stop-and-report guards in Tasks 9/10.
