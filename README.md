@@ -57,7 +57,7 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 
 **Image tools**
 - Remap any uploaded image to your active palette, with optional Floyd-Steinberg dithering
-- Side-by-side view of original vs. palette-remapped image
+- Side-by-side view of original vs. palette-remapped image; the preview scales with the selected export scale so you can judge the remapped pixels before downloading
 - Export the remapped image at multiple scale options
 
 **Views**

@@ -18,6 +18,21 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-06-02
+
+### Added
+- The remapped-image preview in Visualize & Compare now scales with the
+  selected export scale, so larger pixels are shown at higher scales — easier
+  to judge the remapped result before downloading (#28).
+
+### Fixed
+- Dither-blend preview now renders a distinct 4×4 Bayer gradient ramp instead of
+  a pattern identical to the 2×2 checker, so the Bayer ordered-dither mode is
+  visually distinguishable (#23).
+- Pixel Playground canvas state — drawn pixels, undo stack, and active color —
+  now survives collapsing and expanding the panel. Previously the component
+  unmounted on collapse and wiped everything (#25).
+
 ## [0.14.0] - 2026-06-02
 
 ### Added
@@ -337,7 +352,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.11.0...v0.12.0
