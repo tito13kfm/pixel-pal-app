@@ -12,6 +12,10 @@ describe('parseGpl', () => {
   it('returns null for non-string input', () => {
     expect(parseGpl(undefined as unknown as string)).toBeNull();
   });
+  it('parses Aseprite Channels: RGBA palette (4-col lines)', () => {
+    const gpl = 'GIMP Palette\nName: Ase\nChannels: RGBA\n255   0   0 255 Red\n0 255 0 128 Green\n';
+    expect(parseGpl(gpl)).toEqual({ name: 'Ase', colors: ['#ff0000', '#00ff00'] });
+  });
 });
 
 describe('subsetGplColors', () => {
@@ -43,5 +47,13 @@ describe('parsePiskelC', () => {
     expect(result!.height).toBe(4);
     expect(result!.pattern).toHaveLength(4);
     expect(result!.numShades).toBe(1);
+  });
+  it('encodes multiple shades by lightness-sorted index', () => {
+    const D = '0xff203040', L = '0xffe0f0ff';
+    const px = [D,D,L,L, D,D,L,L, L,L,D,D, L,L,D,D].join(' ');
+    const result = parsePiskelC(`FRAME_WIDTH 4\nFRAME_HEIGHT 4\n${px}`);
+    expect(result).not.toBeNull();
+    expect(result!.numShades).toBe(2);
+    expect(result!.pattern).toEqual(['0011','0011','1100','1100']);
   });
 });

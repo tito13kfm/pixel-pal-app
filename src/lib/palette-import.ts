@@ -29,7 +29,7 @@ export const parsePiskelC = (text: string): PiskelSprite | null => {
     const pixelCount = width * height;
     const pixels = hexValues.slice(0, pixelCount);
 
-    const uniqueColors = new Map();
+    const uniqueColors = new Map<string, number>();
     for (const hex of pixels) {
       if (hex === '0x00000000') continue;
       if (hex.substring(0, 4).toLowerCase() === '0x00') continue;
@@ -45,7 +45,7 @@ export const parsePiskelC = (text: string): PiskelSprite | null => {
 
     const sortedColors = Array.from(uniqueColors.entries()).sort((a, b) => a[1] - b[1]);
     const numShades = sortedColors.length;
-    const colorToIndex = new Map();
+    const colorToIndex = new Map<string, number>();
     sortedColors.forEach(([hex], i) => colorToIndex.set(hex, i));
 
     const pattern = [];
@@ -56,7 +56,7 @@ export const parsePiskelC = (text: string): PiskelSprite | null => {
         if (hex === '0x00000000' || hex.substring(0, 4).toLowerCase() === '0x00') {
           row += '.';
         } else {
-          const idx = colorToIndex.get(hex);
+          const idx = colorToIndex.get(hex)!;
           row += idx < 10 ? String(idx) : String.fromCharCode(87 + idx);
         }
       }
@@ -78,7 +78,11 @@ export const parsePiskelC = (text: string): PiskelSprite | null => {
 // Returns { name, colors } where colors is an array of '#rrggbb' strings,
 // or null if parsing failed. Duplicate colors are NOT collapsed here; the
 // caller decides (the modal shows the raw count).
-export const parseGpl = (text: string): { name: string; colors: string[] } | null => {
+export interface GplPalette {
+  name: string;
+  colors: string[];
+}
+export const parseGpl = (text: string): GplPalette | null => {
   try {
     if (typeof text !== 'string') return null;
     const lines = text.split(/\r?\n/);
