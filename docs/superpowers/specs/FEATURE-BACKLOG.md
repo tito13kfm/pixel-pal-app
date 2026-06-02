@@ -14,7 +14,7 @@ Build order (decided 2026-06-02):
 
 ---
 
-## E — "Fix My Palette" (input/repair mode)
+## E — "Fix My Palette" (input/repair mode[not actually called "fix my palette", that's pretentious])
 
 **One-liner:** Mirror of generate-from-scratch. Artist brings a palette they
 already own; tool diagnoses and repairs it using primitives already shipped.
