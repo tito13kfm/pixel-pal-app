@@ -1,6 +1,10 @@
 # PIXEL.PAL
 
-Color palette generator for pixel art. Takes a base color, text description, or image and produces sorted color ramps in three contrast styles: Punchy, Balanced, and Muted.
+**A palette studio for pixel artists — build the whole palette before you open the canvas, then hand it off to the editor you already paint in.**
+
+Start from a hex color, an image, or a text prompt. Get labeled shade ramps in three contrast styles, bend them with curve editors and per-shade pins, lock them to real hardware (NES, Game Boy, CGA, EGA, C64), and check them for WCAG contrast and color-blindness — then export a GIMP `.gpl` or PNG strip that Aseprite, Pixelorama, GrafX2, GIMP, and Krita read directly.
+
+It runs on a perceptual OKLCH engine, so shading *starts* visually even and the cool-shadow / warm-highlight shift is a dial you set on purpose, not a side effect of the math you have to fight. That's the floor, not the pitch — the point is everything you do to a palette in one place before a single pixel is painted.
 
 ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)

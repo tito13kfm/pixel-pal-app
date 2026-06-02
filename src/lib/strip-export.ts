@@ -237,21 +237,21 @@ export function paletteStripLayout(rows: string[][], cellSize: number): PaletteS
 //      complementary/analogous/etc. swatches the palette files include.
 // Cells are flat-filled at integer pixel coords at full opacity so an
 // eyedropper reads exactly the source hex (no anti-aliasing, no alpha).
-export async function drawPaletteStripPng(rows: string[][], cellSize = 32): Promise<Blob> {
+export function drawPaletteStripPng(rows: string[][], cellSize = 32): Promise<Blob> {
   const { width, height } = paletteStripLayout(rows, cellSize);
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, width);
   canvas.height = Math.max(1, height);
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas 2D context unavailable'));
+  ctx.imageSmoothingEnabled = false;
   for (let row = 0; row < rows.length; row++) {
     for (let col = 0; col < rows[row].length; col++) {
       ctx.fillStyle = rows[row][col];
       ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
     }
   }
-  return await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))), 'image/png');
-  });
+  return canvasToPngBlob(canvas);
 }
 
 // --- Dither-blend preview --------------------------------------------------

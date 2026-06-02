@@ -12,6 +12,14 @@ Build order (decided 2026-06-02):
 2. **E — Fix My Palette** (absorbs B)
 3. **D — variable shade count 2–64**
 
+**Under consideration (2026-06-02): removing AI Assist entirely.** Art
+communities push back on the mere presence of an AI option, which is a
+positioning liability in this audience regardless of feature quality. Not
+decided. If it happens: it RAISES the priority of **F** (the non-AI, no-key
+instant generator becomes the replacement for AI "Surprise Me"), and touches
+the README/provider filtering/settings. Web build already filters providers;
+full removal would be its own spec.
+
 ---
 
 ## E — "Fix My Palette" (input/repair mode[not actually called "fix my palette", that's pretentious])
@@ -83,3 +91,31 @@ selector widget; ramp rendering at high N. Visual companion warranted.
 Being specced now in its own design doc. Listed here only for build-order
 context. Scope: JASC/GrafX2 `.pal` export, Adobe `.ase` export, and a
 reveal-in-folder / copy-as-palette handoff convenience.
+
+---
+
+## F — one-click "generate a palette" (harmonious, non-AI)
+
+**One-liner:** A single button that produces a whole multi-base palette either
+(a) seeded from one input color or (b) fully random, picking base colors that
+generally work together — Coolors-style. Each generated base still gets our
+OKLCH ramps, which is the differentiator vs. plain swatch generators.
+
+**Positioning:** overlap with Coolors/etc. is fine and intentional — PIXEL.PAL
+is the swiss-army-knife of palette software (breadth IS the wedge; see
+positioning memory). F composes with what only we have: every generated base
+gets OKLCH ramps. It also fills a real internal gap — the app has single-hex
+input, a "roll random" hex, harmony derivation (rotate around one anchor), and
+AI "Surprise Me" (needs a key/prompt), but no **non-AI, instant, multi-base**
+generator. F is press-once → a cohesive set of bases (not rotations of one),
+each ramped, no key required.
+
+**Likely approach (for F's own brainstorm):** sample base hues with a harmony
+strategy (golden-angle / curated offsets) + perceptual spacing so bases are
+distinct under ΔE_OK; optional single-color seed locks one base and derives the
+rest around it. Reuse existing harmony + ramp-engine; no new color math likely.
+
+**Open questions:** how many bases by default? does "random" bias toward
+pleasing lightness/chroma ranges, or full gamut? button placement (next to the
+existing random-hex roll?). Relation to AI "Surprise Me" — keep both, frame F
+as the no-key instant option.
