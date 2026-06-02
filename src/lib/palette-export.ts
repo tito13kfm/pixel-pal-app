@@ -27,7 +27,8 @@ export function dedupeEntries(entries: PaletteEntry[]): PaletteEntry[] {
 
 const pad3 = (n: number): string => String(n).padStart(3, ' ');
 
-/** Canonical GIMP palette (.gpl). Byte-identical to the legacy inline builder. */
+/** Canonical GIMP palette (.gpl). Byte-identical to the legacy inline builder.
+ *  Entries must be pre-deduped (call dedupeEntries first). */
 export function buildGpl(
   entries: PaletteEntry[],
   opts: { paletteName: string; columns: number },
@@ -40,7 +41,8 @@ export function buildGpl(
   return lines.join('\n') + '\n';
 }
 
-/** JASC-PAL (.pal), read by GrafX2 / Paint Shop Pro. CRLF for old-parser safety. */
+/** JASC-PAL (.pal), read by GrafX2 / Paint Shop Pro. CRLF for old-parser safety.
+ *  Entries must be pre-deduped (call dedupeEntries first). */
 export function buildJascPal(entries: PaletteEntry[]): string {
   const lines = ['JASC-PAL', '0100', String(entries.length)];
   for (const { hex } of entries) {
@@ -48,4 +50,43 @@ export function buildJascPal(entries: PaletteEntry[]): string {
     lines.push(`${r} ${g} ${b}`);
   }
   return lines.join('\r\n') + '\r\n';
+}
+
+/** Adobe Swatch Exchange (.ase), big-endian binary. Flat (no group blocks),
+ *  matching the flat dedup of the text formats. Targets Photoshop / Illustrator
+ *  / Krita — NOT Aseprite (whose .ase/.aseprite sprite files are unrelated).
+ *  Entries must be pre-deduped (call dedupeEntries first). */
+export function buildAse(entries: PaletteEntry[]): Uint8Array {
+  const out: number[] = [];
+  const u16 = (n: number) => out.push((n >>> 8) & 0xff, n & 0xff);
+  const u32 = (n: number) => out.push((n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff);
+  const f32 = (v: number) => {
+    const b = new Uint8Array(4);
+    new DataView(b.buffer).setFloat32(0, v, false); // big-endian
+    out.push(b[0], b[1], b[2], b[3]);
+  };
+  const ascii = (s: string) => { for (let i = 0; i < s.length; i++) out.push(s.charCodeAt(i) & 0xff); };
+
+  ascii('ASEF');
+  u16(1); u16(0);          // version 1.0
+  u32(entries.length);     // block count
+
+  for (const { hex, name } of entries) {
+    const label = name && name.length ? name : hex;
+    const codeUnits = label.length + 1;                 // incl trailing null
+    const bodyLen = 2 + codeUnits * 2 + 4 + 12 + 2;     // nameLen + name + 'RGB ' + 3 floats + type
+    u16(0x0001);           // block type: color entry
+    u32(bodyLen);
+    u16(codeUnits);        // name length in UTF-16 units (incl null)
+    for (let i = 0; i < label.length; i++) {
+      const c = label.charCodeAt(i);
+      out.push((c >>> 8) & 0xff, c & 0xff);             // UTF-16BE
+    }
+    out.push(0, 0);        // null terminator
+    ascii('RGB ');         // color model (trailing space matters)
+    const { r, g, b } = hexToRgb(hex);
+    f32(r / 255); f32(g / 255); f32(b / 255);
+    u16(0x0002);           // color type: normal
+  }
+  return new Uint8Array(out);
 }
