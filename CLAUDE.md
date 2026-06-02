@@ -1,7 +1,8 @@
 # PIXEL.PAL: Project Context
 
 Pixel art palette generator. Vite 8 + React 19 + TS 6, packaged as Tauri v2 desktop. Also hosted as a static browser build on GitHub Pages.
-Multi-provider AI, user brings own key. Ported from 7820-line Claude artifact (`tests/pixel-pal.tsx`).
+Multi-provider AI, user brings own key. Ported from a 7820-line Claude artifact
+(`tests/pixel-pal.tsx` — a local-only dev file, gitignored; see File Map).
 
 ---
 
@@ -56,7 +57,9 @@ npm run build:web
 npx playwright test --config=playwright.web.config.ts
 ```
 
-JS unit tests in `tests/test_*.js` (legacy, parsed via vm sandbox) run individually:
+Legacy JS unit tests in `tests/test_*.js` (parsed via vm sandbox) run individually.
+**These are local-only dev files** (gitignored, not in origin) and may be absent on
+a given machine — if the glob matches nothing, that's expected, not an error:
 
 ```powershell
 foreach ($f in Get-ChildItem tests\test_*.js) { node $f }
@@ -114,16 +117,32 @@ async storage API to localStorage. Do not remove.
 
 ```
 src/
-  App.tsx               ~7200 lines, // @ts-nocheck intentional
+  App.tsx               ~7960 lines, // @ts-nocheck intentional
   main.tsx              entry; dynamic-imports Tauri bridge when in Tauri
   settings/
     AISettingsPanel.tsx provider selector, base URL, key, model
   components/
     WebKeyWarning.tsx   web-only: localStorage key-storage banner
     DesktopAppLink.tsx  web-only: footer link to releases page
+    AdjacencyMatrix.tsx viz: pairwise ΔE_OK heatmap (canvas + hover readout)
+    DitherBlend.tsx     viz: 2-color dither-blend preview (canvas)
+    CurveEditor.tsx     SVG lightness/sat curve editor (drag anchors, presets)
+    RampAdvancedPanel.tsx per-ramp Advanced disclosure: 2 CurveEditors + gamut
+    PixelPlayground.tsx pixel drawing canvas (line/rect/ellipse/fill/eyedropper)
+    TourOverlay.tsx     spotlight tour overlay (portal, SVG cutout, popover)
+    TourPanel.tsx       help-center launcher modal
   lib/
     ai.ts               multi-provider OpenAI-compat client, provider filter
     color.ts            15 color math fns, // @ts-nocheck intentional
+    oklch.ts            OKLab/OKLCH conversion, ΔE_OK distance, gamut mapping
+    ramp-engine.ts      perceptual base-anchored generateRamp (reach/chroma falloff)
+    curve.ts            Catmull-Rom evalCurve, curve presets
+    hex-utils.ts        dedupeHexes
+    pixel-brush.ts      pure brush-stamp library (Playground)
+    viz-interaction.ts  adjacency-matrix metric + dither pattern logic
+    strip-export.ts     flat-color PNG renderers + computeVizData (all 4 viz exports)
+    tours.ts            tour step data + interactive guides
+    tour-runtime.ts     tour geometry helpers (cutout + popover placement)
     constants.ts        WORD_POOL, sprites, CLASSIC_PALETTES, HARDWARE_PALETTES
     env.ts              IS_WEB build-time flag, isTauri() runtime check
     palette.ts          AIConfig, SavedPalettePayload, localStorage helpers
@@ -137,10 +156,16 @@ src-tauri/
   tauri.conf.json       Tauri config (window, bundle, updater)
 
 tests/
-  pixel-pal.tsx         source artifact; JS tests parse this, do not modify
+  # --- LOCAL-ONLY dev files (gitignored, NOT in origin, absent on a fresh
+  #     clone). May exist on one dev machine and not another. Their absence
+  #     is expected, not a deletion. See "Dev Environment" memory note. ---
+  pixel-pal.tsx         source artifact; legacy JS tests parse this, do not modify
   extract.js            text-extracts const-arrow fns by name
-  test_*.js             34 unit tests, each reads pixel-pal.tsx via fs + vm sandbox
+  test_*.js             legacy unit tests, each reads pixel-pal.tsx via fs + vm sandbox
   package.json          {"type":"commonjs"} (CJS isolation from root ESM)
+  # --- tracked (in origin, run in CI) ---
+  test_contrast.js      WCAG AA contrast lint (tracked exception)
+  test_curve.ts         curve math unit test (tracked exception, run via npx tsx)
   unit/                 vitest unit tests (.spec.ts)
   e2e/
     app.spec.ts          Playwright: app load, palette ops
@@ -148,8 +173,11 @@ tests/
     web-build.spec.ts    Playwright: web build (vite preview at :4173)
 
 scripts/
-  verify_color_extraction.js  checks color.ts fns match pixel-pal.tsx verbatim
-  package.json               {"type":"commonjs"}
+  sync-tauri-version.mjs  TRACKED: syncs Cargo.toml/.lock + tauri.conf.json to
+                          package.json version; wired into `npm version` lifecycle
+  verify_color_extraction.js  LOCAL-ONLY (gitignored): checks color.ts fns match
+                          pixel-pal.tsx verbatim
+  package.json               LOCAL-ONLY (gitignored): {"type":"commonjs"}
 
 .github/workflows/
   ci.yml                push/PR → tsc, vitest, Playwright (desktop + web)
@@ -165,12 +193,16 @@ scripts/
 never `module.exports`. Affects tailwind.config.js, postcss.config.js,
 vite.config.ts, playwright.config.ts, playwright.web.config.ts.
 
-**`// @ts-nocheck` in `color.ts` and `App.tsx` is intentional.** `color.ts`
-functions extracted verbatim from artifact; type annotations break the verify
-script. Do not remove.
+**`// @ts-nocheck` in `color.ts` and `App.tsx` is intentional. Do not remove.**
+`color.ts` is the 15 original color-math fns extracted verbatim from the artifact
+(untyped; `tsc --noEmit` would flag them). The newer `oklch.ts` / `ramp-engine.ts`
+are NOT verbatim and are normally typed. (The local-only verbatim-extraction check
+lives in `scripts/verify_color_extraction.js` — see File Map; absent on some machines.)
 
-**`tests/package.json` and `scripts/package.json` contain `{"type":"commonjs"}`.** 
-Scopes CJS to those dirs without touching root ESM. Do not delete.
+**`tests/package.json` and `scripts/package.json` contain `{"type":"commonjs"}`**
+to scope CJS to those dirs without touching root ESM. **Do not delete — but note
+both are LOCAL-ONLY** (gitignored, not in origin); they only exist on machines that
+have the legacy JS test/verify tooling checked out.
 
 **Web build runtime is plain browser, not Tauri.** `window.__TAURI_INTERNALS__`
 is undefined. All Tauri imports must be dynamic, gated behind that check
