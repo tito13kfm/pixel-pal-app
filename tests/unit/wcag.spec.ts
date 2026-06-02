@@ -6,6 +6,9 @@ describe('wcagRelativeLuminance', () => {
     expect(wcagRelativeLuminance('#000000')).toBeCloseTo(0, 5);
     expect(wcagRelativeLuminance('#ffffff')).toBeCloseTo(1, 5);
   });
+  it('uses correct luminance coefficients (red channel)', () => {
+    expect(wcagRelativeLuminance('#ff0000')).toBeCloseTo(0.2126, 4);
+  });
 });
 
 describe('wcagContrast', () => {

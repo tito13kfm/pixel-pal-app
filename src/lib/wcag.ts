@@ -5,6 +5,7 @@ export const wcagRelativeLuminance = (hex: string): number => {
   const { r, g, b } = hexToRgb(hex);
   const channel = (c: number): number => {
     const v = c / 255;
+    // 0.03928 is the WCAG 2.1 spec value (slightly rounded from the sRGB standard's 0.04045 used in oklch.ts)
     return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
   };
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
