@@ -34,6 +34,7 @@ import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 import { PANEL_STORAGE_KEY, loadPanelState } from './lib/panel-state';
 import { pickRandom, buildRandomDescription, buildRandomHex } from './lib/randomizer';
+import { generateHarmony } from './lib/harmony';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -801,38 +802,6 @@ const subsetGplColors = (colors) => {
   }
   // Dedupe again in case the spacing landed on the same hex twice.
   return [...new Set(out)];
-};
-
-// ---------- Harmony ----------
-const generateHarmony = (baseHexes) => {
-  let anchor = baseHexes[0], maxSat = 0;
-  for (const hex of baseHexes) {
-    const hsl = hexToHsl(hex);
-    if (hsl.s > maxSat) { maxSat = hsl.s; anchor = hex; }
-  }
-  const base = hexToHsl(anchor);
-  const tone = (hsl) => ({
-    h: hsl.h,
-    s: Math.min(95, Math.max(55, hsl.s)),
-    l: Math.min(70, Math.max(40, hsl.l))
-  });
-  return {
-    complementary: hslToHex(tone({ h: base.h + 180, s: base.s, l: base.l })),
-    analogous1: hslToHex(tone({ h: base.h + 30, s: base.s, l: base.l })),
-    analogous2: hslToHex(tone({ h: base.h - 30, s: base.s, l: base.l })),
-    triadic1: hslToHex(tone({ h: base.h + 120, s: base.s, l: base.l })),
-    triadic2: hslToHex(tone({ h: base.h + 240, s: base.s, l: base.l })),
-    splitComp1: hslToHex(tone({ h: base.h + 150, s: base.s, l: base.l })),
-    splitComp2: hslToHex(tone({ h: base.h + 210, s: base.s, l: base.l })),
-    // Tetradic: rectangle on the wheel, two complementary pairs at 60° + 180° + 240°
-    tetradic1: hslToHex(tone({ h: base.h + 60, s: base.s, l: base.l })),
-    tetradic2: hslToHex(tone({ h: base.h + 180, s: base.s, l: base.l })),
-    tetradic3: hslToHex(tone({ h: base.h + 240, s: base.s, l: base.l })),
-    // Square: even 90° spacing
-    square1: hslToHex(tone({ h: base.h + 90, s: base.s, l: base.l })),
-    square2: hslToHex(tone({ h: base.h + 180, s: base.s, l: base.l })),
-    square3: hslToHex(tone({ h: base.h + 270, s: base.s, l: base.l })),
-  };
 };
 
 
