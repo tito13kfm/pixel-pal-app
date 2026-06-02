@@ -7,7 +7,7 @@
 import { hexToHsl } from './color';
 import { dedupeHexes } from './hex-utils';
 import {
-  adjacencyDeltaE, normalizeDeltaE, heatColor, ditherPixelIsB,
+  adjacencyDeltaE, normalizeDeltaE, heatColor, ditherPixelIsB, BAYER_4X4,
   type MatrixView, type DitherPattern,
 } from './viz-interaction';
 
@@ -288,14 +288,34 @@ export function drawDitherBlend(
         // Integer edge boundaries so sub-blocks tile [0,blendW) × [0,rowH)
         // exactly — no gap and no overflow into the neighbouring solid cell
         // (same approach as blockEdges above; avoids round/ceil overdraw).
-        for (let gx = 0; gx < sub; gx++) {
-          const bx0 = Math.round((gx * blendW) / sub);
-          const bx1 = Math.round(((gx + 1) * blendW) / sub);
-          for (let gy = 0; gy < sub; gy++) {
-            const by0 = Math.round((gy * rowH) / sub);
-            const by1 = Math.round(((gy + 1) * rowH) / sub);
-            ctx.fillStyle = ditherPixelIsB(opts.pattern, gx, gy) ? b : a;
-            ctx.fillRect(x + bx0, y + by0, bx1 - bx0, by1 - by0);
+        if (opts.pattern === 'bayer') {
+          // Bayer gradient ramp: 16 threshold columns × 4 Bayer rows.
+          // Column gx uses threshold gx, so the cell transitions from all-A
+          // (left) to all-B (right) using the Bayer ordered-dither sequence.
+          // At 50% both patterns are identical, so a gradient is necessary to
+          // show the visually distinctive Bayer texture.
+          const bSubX = 16;
+          const bSubY = 4;
+          for (let gx = 0; gx < bSubX; gx++) {
+            const bx0 = Math.round((gx * blendW) / bSubX);
+            const bx1 = Math.round(((gx + 1) * blendW) / bSubX);
+            for (let gy = 0; gy < bSubY; gy++) {
+              const by0 = Math.round((gy * rowH) / bSubY);
+              const by1 = Math.round(((gy + 1) * rowH) / bSubY);
+              ctx.fillStyle = BAYER_4X4[gy][gx % 4] < gx ? b : a;
+              ctx.fillRect(x + bx0, y + by0, bx1 - bx0, by1 - by0);
+            }
+          }
+        } else {
+          for (let gx = 0; gx < sub; gx++) {
+            const bx0 = Math.round((gx * blendW) / sub);
+            const bx1 = Math.round(((gx + 1) * blendW) / sub);
+            for (let gy = 0; gy < sub; gy++) {
+              const by0 = Math.round((gy * rowH) / sub);
+              const by1 = Math.round(((gy + 1) * rowH) / sub);
+              ctx.fillStyle = ditherPixelIsB(opts.pattern, gx, gy) ? b : a;
+              ctx.fillRect(x + bx0, y + by0, bx1 - bx0, by1 - by0);
+            }
           }
         }
         x += blendW;
