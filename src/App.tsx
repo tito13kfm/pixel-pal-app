@@ -30,6 +30,7 @@ import { DitherBlend } from './components/DitherBlend';
 import type { UpdateInfo } from './lib/tauri-bridge';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
+import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -60,42 +61,8 @@ if (typeof window !== 'undefined' && !(window as any).storage) {
   };
 }
 
-// ---------- Color utilities (kept inline: WCAG helpers not extracted to lib) ----------
-
-// WCAG 2.1 relative luminance per
-// https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
-const wcagRelativeLuminance = (hex) => {
-  const { r, g, b } = hexToRgb(hex);
-  const channel = (c) => {
-    const v = c / 255;
-    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-};
-
-// WCAG 2.1 contrast ratio per
-// https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
-// Returns a number in [1, 21]. Order of arguments does not matter.
-const wcagContrast = (hex1, hex2) => {
-  const L1 = wcagRelativeLuminance(hex1);
-  const L2 = wcagRelativeLuminance(hex2);
-  const lighter = Math.max(L1, L2);
-  const darker = Math.min(L1, L2);
-  return (lighter + 0.05) / (darker + 0.05);
-};
-
-// AA-tier classification for a contrast ratio. Returns the strongest tier
-// the ratio satisfies, or 'fail' if it doesn't meet UI minimum.
-// Thresholds from WCAG 2.1 AA:
-//   - 4.5:1 for normal text (1.5.3.1)
-//   - 3.0:1 for large text (>=18pt, or >=14pt bold) AND non-text UI (1.4.11)
-const wcagAaTier = (ratio) => {
-  if (ratio >= 4.5) return 'AA';            // normal text passes
-  if (ratio >= 3.0) return 'AA Large';      // large text + UI components pass
-  return 'fail';                            // below UI minimum
-};
-
 // rgbToHex, rgbToHsl, hslToRgb, hexToHsl, hslToHex: imported from ./lib/color
+// wcagRelativeLuminance, wcagContrast, wcagAaTier: imported from ./lib/wcag
 
 // HSV conversion helpers. We use HSV (also called HSB) for the base-color
 // editor because it matches the mental model used by pixel art tools like
