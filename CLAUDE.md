@@ -64,6 +64,28 @@ foreach ($f in Get-ChildItem tests\test_*.js) { node $f }
 
 ---
 
+## Versioning & Releases
+
+**Semantic Versioning, enforced from 0.13.0 on.** `MAJOR.MINOR.PATCH`. Pre-1.0:
+breaking changes bump MINOR; backward-compatible features and fixes bump PATCH.
+Choose the bump from what actually changed, not by habit. (History before 0.13.0
+was inconsistent — see the `Versioning notes` block in `CHANGELOG.md`.)
+
+**Every release gets a CHANGELOG entry — no silent releases.** Before tagging,
+move the relevant notes out of `## [Unreleased]` into a new
+`## [x.y.z] - YYYY-MM-DD` section (Keep a Changelog buckets:
+Added / Changed / Fixed / Removed) and add the matching `compare/` footer link.
+
+**Never bump a version without releasing it.** Don't commit a version change to
+`package.json` / `tauri.conf.json` / `Cargo.toml` / `Cargo.lock` unless that
+version will be tagged and released. (`0.3.0` was bumped and never tagged — do
+not repeat that.)
+
+**Four version files move in lockstep, and the tag must match.** See the
+`release-flow.md` memory for the exact file list and tag/push procedure.
+
+---
+
 ## Architecture
 
 **Web build target:** Vite → `dist/`. `base: './'` for Tauri (file:// loading)
