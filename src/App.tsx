@@ -7005,8 +7005,7 @@ export default function PixelPalGenerator() {
               <span className="text-cyan-200">{pgOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
             </div>
           </button>
-          {pgOpen && (
-            <div className="p-6 pt-2">
+          <div className="p-6 pt-2" style={{ display: pgOpen ? '' : 'none' }}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sectionHeadColor('#00ff88') }}>Palette style</span>
                 {(['punchy', 'balanced', 'muted'] as const).map(s => (
@@ -7026,7 +7025,6 @@ export default function PixelPalGenerator() {
                 theme={{ glowStrong: t.glowStrong, text: t.text }}
               />
             </div>
-          )}
         </div>
 
         {/* ---------- Visualize & Compare (collapsible) ---------- */}
