@@ -213,6 +213,47 @@ export function drawAdjacencyMatrixPng(
   return canvasToPngBlob(canvas);
 }
 
+// --- Palette strip ---------------------------------------------------------
+
+export interface PaletteStripLayout {
+  width: number;
+  height: number;
+  cellSize: number;
+  maxCells: number;
+}
+
+/** Pure geometry for the palette strip: rows = ramps, cells = visible shades. */
+export function paletteStripLayout(rows: string[][], cellSize: number): PaletteStripLayout {
+  const maxCells = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  return { width: maxCells * cellSize, height: rows.length * cellSize, cellSize, maxCells };
+}
+
+// PNG PALETTE STRIP — an import-grade swatch sheet (drag onto a canvas, then
+// eyedrop). INTENTIONALLY DIVERGES from the .gpl/.pal/.ase palette files in
+// two ways, and that divergence is by design — do NOT "align" it:
+//   1. No dedup: a color repeated across ramps appears once per cell (a strip
+//      is positional; the palette files dedup because they expect unique entries).
+//   2. No harmony colors: the strip shows only the ramps, not the appended
+//      complementary/analogous/etc. swatches the palette files include.
+// Cells are flat-filled at integer pixel coords at full opacity so an
+// eyedropper reads exactly the source hex (no anti-aliasing, no alpha).
+export function drawPaletteStripPng(rows: string[][], cellSize = 32): Promise<Blob> {
+  const { width, height } = paletteStripLayout(rows, cellSize);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, width);
+  canvas.height = Math.max(1, height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas 2D context unavailable'));
+  ctx.imageSmoothingEnabled = false;
+  for (let row = 0; row < rows.length; row++) {
+    for (let col = 0; col < rows[row].length; col++) {
+      ctx.fillStyle = rows[row][col];
+      ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+    }
+  }
+  return canvasToPngBlob(canvas);
+}
+
 // --- Dither-blend preview --------------------------------------------------
 
 const DITHER_ROW_H = 40;    // px row height

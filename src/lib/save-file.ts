@@ -9,7 +9,7 @@
 
 export type SaveData = { text: string } | { bytes: Uint8Array | Blob };
 export type SaveFilter = { name: string; extensions: string[] };
-export type FolderKey = 'txt' | 'gpl' | 'png';
+export type FolderKey = 'txt' | 'gpl' | 'png' | 'pal' | 'ase';
 
 export interface SaveOptions {
   defaultName: string;

@@ -23,7 +23,8 @@ import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
 import { dedupeHexes } from './lib/hex-utils';
-import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatrixPng, drawDitherBlendPng } from './lib/strip-export';
+import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatrixPng, drawDitherBlendPng, drawPaletteStripPng } from './lib/strip-export';
+import { buildGpl, buildJascPal, buildAse } from './lib/palette-export';
 import { AdjacencyMatrix } from './components/AdjacencyMatrix';
 import { DitherBlend } from './components/DitherBlend';
 import type { UpdateInfo } from './lib/tauri-bridge';
@@ -1004,6 +1005,8 @@ export default function PixelPalGenerator() {
   const [compareAnchor, setCompareAnchor] = useState(null); // { baseIndex, shadeIndex, style, hex } | null
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [gplStyle, setGplStyle] = useState('punchy');
+  const [exportFormat, setExportFormat] = useState('gpl'); // gpl | pal | ase | png-strip | txt
+  const [lastSavedPath, setLastSavedPath] = useState(null); // desktop: path of last export, for Reveal
   const [vizStyle, setVizStyle] = useState('punchy');
   const [matrixColorSet, setMatrixColorSet] = useState('unique'); // 'unique' | 'bases'
   const [matrixView, setMatrixView] = useState('pair');           // 'pair' | 'heatmap'
@@ -3246,6 +3249,32 @@ export default function PixelPalGenerator() {
     })();
   }, [gplStyle]);
 
+  // exportFormat: persisted at ui:exportFormat. Valid values gpl/pal/ase/png-strip/txt.
+  useEffect(() => {
+    (async () => {
+      if (typeof window === 'undefined' || !window.storage) return;
+      try {
+        const got = await window.storage.get('ui:exportFormat');
+        if (got && got.value) {
+          const parsed = JSON.parse(got.value);
+          if (typeof parsed === 'string' && ['gpl', 'pal', 'ase', 'png-strip', 'txt'].includes(parsed)) {
+            setExportFormat(parsed);
+          }
+        }
+      } catch {
+        // No saved value or storage failed; keep default.
+      }
+    })();
+  }, []);
+  const exportFormatMountRef = useRef(false);
+  useEffect(() => {
+    if (!exportFormatMountRef.current) { exportFormatMountRef.current = true; return; }
+    if (typeof window === 'undefined' || !window.storage) return;
+    (async () => {
+      try { await window.storage.set('ui:exportFormat', JSON.stringify(exportFormat)); } catch {}
+    })();
+  }, [exportFormat]);
+
   // rampExportStyle: persisted at ui:rampExportStyle. Valid values
   // punchy/balanced/muted. Not part of the saved palette payload (it is
   // a pure UI preference for the per-ramp Copy and Download buttons),
@@ -4782,26 +4811,13 @@ export default function PixelPalGenerator() {
   };
 
   const exportPalette = async () => {
-    try {
-      const text = buildPaletteText();
-      const result = await saveFile({
-        defaultName: 'pixel-pal-palette.txt',
-        filters: [{ name: 'Pixel Pal palette', extensions: ['txt'] }],
-        data: { text },
-        folderKey: 'txt',
-      });
-      if (result.canceled) {
-        setExportFeedback('Save canceled');
-      } else if (!result.ok) {
-        setExportFeedback('Failed: try Copy');
-      } else {
-        setExportFeedback('Downloaded!');
-      }
-      setTimeout(() => setExportFeedback(''), 2000);
-    } catch {
-      setExportFeedback('Failed: try Copy');
-      setTimeout(() => setExportFeedback(''), 3000);
-    }
+    const text = buildPaletteText();
+    return await saveFile({
+      defaultName: 'pixel-pal-palette.txt',
+      filters: [{ name: 'Pixel Pal palette', extensions: ['txt'] }],
+      data: { text },
+      folderKey: 'txt',
+    });
   };
 
   // Export the working palette's Lightness Distribution strip as a flat-color
@@ -4945,8 +4961,10 @@ export default function PixelPalGenerator() {
     setTimeout(() => setExportFeedback(''), 2000);
   };
 
-  const buildPaletteGpl = (style) => {
-
+  // Gather the full palette entry list for a style: every ramp's visible shades
+  // (named "<color> <slot>"), then the harmony colors, then dedup by hex.
+  // SINGLE SOURCE consumed by every palette-file format so they cannot drift.
+  const collectPaletteEntries = (style) => {
     const entries = [];
     const ramps = style === 'balanced' ? rampsBalanced : style === 'muted' ? rampsMuted : rampsPunchy;
     baseColors.forEach((_, i) => {
@@ -4971,53 +4989,96 @@ export default function PixelPalGenerator() {
     entries.push({ hex: harmony.square2, name: 'harmony square 2' });
     entries.push({ hex: harmony.square3, name: 'harmony square 3' });
 
-    // Dedupe entries by hex. GPL consumers (Aseprite, GIMP, etc.) expect
-    // unique colors — duplicate entries are ignored or cause confusion.
-    // Keep first occurrence's name so the most prominent slot label wins.
     const seenHex = new Set();
-    const uniqueEntries = [];
+    const unique = [];
     for (const e of entries) {
       const key = (e.hex || '').toLowerCase();
       if (!key || seenHex.has(key)) continue;
       seenHex.add(key);
-      uniqueEntries.push(e);
+      unique.push(e);
     }
+    return unique;
+  };
 
-    const pad3 = (n) => String(n).padStart(3, ' ');
+  const buildPaletteGpl = (style) => {
     const styleLabel = style === 'balanced' ? 'Balanced' : style === 'muted' ? 'Muted' : 'Punchy';
-    const lines = [
-      'GIMP Palette',
-      `Name: PIXEL.PAL ${styleLabel}`,
-      `Columns: ${rampSize}`,
-      '#',
-    ];
-    uniqueEntries.forEach(({ hex, name }) => {
-      const { r, g, b } = hexToRgb(hex);
-      lines.push(`${pad3(r)} ${pad3(g)} ${pad3(b)}\t${name}`);
-    });
-    return lines.join('\n') + '\n';
+    return buildGpl(collectPaletteEntries(style), { paletteName: `PIXEL.PAL ${styleLabel}`, columns: rampSize });
   };
 
   const exportPaletteGpl = async () => {
+    const text = buildPaletteGpl(gplStyle);
+    return await saveFile({
+      defaultName: `pixel-pal-${gplStyle}.gpl`,
+      filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
+      data: { text },
+      folderKey: 'gpl',
+    });
+  };
+
+  const exportPalettePal = async () => {
+    const text = buildJascPal(collectPaletteEntries(gplStyle));
+    return await saveFile({
+      defaultName: `pixel-pal-${gplStyle}.pal`,
+      filters: [{ name: 'JASC palette', extensions: ['pal'] }],
+      data: { text },
+      folderKey: 'pal',
+    });
+  };
+
+  const exportPaletteAse = async () => {
+    const bytes = buildAse(collectPaletteEntries(gplStyle));
+    return await saveFile({
+      defaultName: `pixel-pal-${gplStyle}.ase`,
+      filters: [{ name: 'Adobe Swatch Exchange', extensions: ['ase'] }],
+      data: { bytes },
+      folderKey: 'ase',
+    });
+  };
+
+  const exportPaletteStripPng = async () => {
+    const rows = baseColors.map((_, i) => _filteredRamp(i, gplStyle).hexes);
+    const blob = await drawPaletteStripPng(rows, 32);
+    return await saveFile({
+      defaultName: `pixel-pal-${gplStyle}-strip.png`,
+      filters: [{ name: 'PNG image', extensions: ['png'] }],
+      data: { bytes: blob },
+      folderKey: 'png',
+    });
+  };
+
+  // Runs whichever export the format dropdown selects, then centralizes the
+  // success/cancel/fail feedback and records the saved path for "Reveal".
+  const exportActiveFormat = async () => {
+    const runner =
+      exportFormat === 'txt' ? exportPalette :
+      exportFormat === 'pal' ? exportPalettePal :
+      exportFormat === 'ase' ? exportPaletteAse :
+      exportFormat === 'png-strip' ? exportPaletteStripPng :
+      exportPaletteGpl;
     try {
-      const text = buildPaletteGpl(gplStyle);
-      const result = await saveFile({
-        defaultName: `pixel-pal-${gplStyle}.gpl`,
-        filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
-        data: { text },
-        folderKey: 'gpl',
-      });
-      if (result.canceled) {
-        setExportFeedback('Save canceled');
-      } else if (!result.ok) {
-        setExportFeedback('GPL export failed');
-      } else {
-        setExportFeedback(`Downloaded ${gplStyle}.gpl!`);
+      const result = await runner();
+      if (result?.canceled) { setExportFeedback('Save canceled'); }
+      else if (!result?.ok) { setExportFeedback('Export failed'); }
+      else {
+        setExportFeedback('Downloaded!');
+        if (result.path) setLastSavedPath(result.path);
       }
-      setTimeout(() => setExportFeedback(''), 2000);
     } catch {
-      setExportFeedback('GPL export failed');
-      setTimeout(() => setExportFeedback(''), 3000);
+      setExportFeedback('Export failed');
+    }
+    setTimeout(() => setExportFeedback(''), 2000);
+  };
+
+  // Desktop only: open the OS file manager with the last exported file selected.
+  // Requires the opener:allow-reveal-item-in-dir capability (see capabilities/default.json).
+  const revealLastSaved = async () => {
+    if (!lastSavedPath) return;
+    try {
+      const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+      await revealItemInDir(lastSavedPath);
+    } catch {
+      setExportFeedback("Couldn't open folder");
+      setTimeout(() => setExportFeedback(''), 2000);
     }
   };
 
@@ -7671,7 +7732,6 @@ export default function PixelPalGenerator() {
               {/* Download / Copy / WCAG / Hardware Lock */}
               <div className="flex flex-col gap-2">
                 <div className="flex gap-3 flex-wrap items-center">
-                  <button onClick={exportPalette} title="Download the active palette as a Pixel Art .txt file" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Download .txt</button>
                   <button onClick={copyPaletteToClipboard} title="Copy the active palette to the clipboard as plain text" className="px-4 py-1.5 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-100 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ff00ff' }}><Copy size={14} />Copy</button>
                   <button onClick={() => exportLightnessPng(getSnapshotForSlot('working', null))} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Lightness PNG</button>
                   <button onClick={() => exportMosaicPng(getSnapshotForSlot('working', null))} title="Download the Mosaic as a PNG (current style)" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Mosaic PNG</button>
@@ -7696,6 +7756,10 @@ export default function PixelPalGenerator() {
                     </button>
                   )}
                   {exportFeedback && <span className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-xs font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</span>}
+                  {/* lastSavedPath is only set on desktop (browser saves return no path), so this is implicitly desktop-only. */}
+                  {lastSavedPath && (
+                    <button onClick={revealLastSaved} title="Show the last exported file in your file manager" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><FolderOpen size={14} />Reveal in folder</button>
+                  )}
                 </div>
 
                 {hardwareLock && (
@@ -7738,11 +7802,24 @@ export default function PixelPalGenerator() {
               <div className="border-t border-white/10" />
               {/* GPL row */}
               <div className="flex gap-2 items-center flex-wrap">
-                <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">.gpl style:</span>
+                <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">export style:</span>
                 <button onClick={() => setGplStyle('punchy')} title="Export the .gpl using high-contrast Punchy ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
                 <button onClick={() => setGplStyle('balanced')} title="Export the .gpl using mid-contrast Balanced ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={gplStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
                 <button onClick={() => setGplStyle('muted')} title="Export the .gpl using low-contrast Muted ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
-                <button onClick={exportPaletteGpl} data-tour-id="gpl-export-btn" title="GIMP Palette format. Compatible with Piskel, Aseprite, GIMP, Krita, Inkscape, and other pixel art tools." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Download size={14} />.gpl (Piskel/Aseprite/GIMP)</button>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                  title="Choose the export format"
+                  aria-label="Export format"
+                  className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50"
+                >
+                  <option value="gpl">.gpl (Aseprite / GIMP / Krita)</option>
+                  <option value="pal">.pal (GrafX2 / Paint Shop Pro)</option>
+                  <option value="ase">Adobe Swatch Exchange (.ase)</option>
+                  <option value="png-strip">PNG strip (eyedropper, any editor)</option>
+                  <option value="txt">.txt (plain hex list)</option>
+                </select>
+                <button onClick={exportActiveFormat} data-tour-id="gpl-export-btn" title="Download the active palette in the selected format and style. Adobe .ase targets Photoshop/Illustrator/Krita, NOT Aseprite (Aseprite users: pick .gpl, .pal, or PNG strip)." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Download size={14} />Download</button>
                 <button onClick={() => gplFileInputRef.current?.click()} title="Import a .gpl palette file from Piskel, Aseprite, GIMP, Krita, or any GIMP-compatible tool. Replaces the current palette." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Upload size={14} />Import .gpl</button>
                 <input ref={gplFileInputRef} type="file" accept=".gpl,text/plain" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGplFile(f); e.target.value = ''; }} className="hidden" />
               </div>
