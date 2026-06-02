@@ -32,6 +32,7 @@ import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
+import { PANEL_STORAGE_KEY, loadPanelState } from './lib/panel-state';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -859,15 +860,6 @@ const buildRandomHex = () => {
   return hslToHex({ h: hue, s: sat, l: light });
 };
 
-// ---------- Panel state persistence ----------
-const PANEL_STORAGE_KEY = 'ui:panels'
-const PANEL_DEFAULTS = { harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: false, historyOpen: false, savedOpen: false, sbsOpen: false, pgOpen: false, rampsOpen: true }
-function loadPanelState() {
-  try {
-    const raw = localStorage.getItem(PANEL_STORAGE_KEY)
-    return raw ? { ...PANEL_DEFAULTS, ...JSON.parse(raw) } : PANEL_DEFAULTS
-  } catch { return PANEL_DEFAULTS }
-}
 const _panels = loadPanelState()
 
 // ---------- Main ----------
