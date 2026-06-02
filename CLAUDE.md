@@ -69,10 +69,13 @@ foreach ($f in Get-ChildItem tests\test_*.js) { node $f }
 
 ## Versioning & Releases
 
-**Semantic Versioning, enforced from 0.13.0 on.** `MAJOR.MINOR.PATCH`. Pre-1.0:
-breaking changes bump MINOR; backward-compatible features and fixes bump PATCH.
-Choose the bump from what actually changed, not by habit. (History before 0.13.0
-was inconsistent — see the `Versioning notes` block in `CHANGELOG.md`.)
+**Semantic Versioning, enforced from 0.13.0 on.** `MAJOR.MINOR.PATCH`. Pre-1.0
+(standard SemVer): new features bump MINOR; backward-compatible bug fixes bump
+PATCH; breaking changes also bump MINOR (no MAJOR until 1.0). Choose the bump
+from what actually changed, not by habit. (History before 0.13.0 was
+inconsistent — see the `Versioning notes` block in `CHANGELOG.md`. An earlier
+revision of this rule had features→PATCH / breaking→MINOR pre-1.0; that was
+non-standard and was corrected to the conventional scheme at 0.14.0.)
 
 **Every release gets a CHANGELOG entry — no silent releases.** Before tagging,
 move the relevant notes out of `## [Unreleased]` into a new
