@@ -36,6 +36,7 @@ import { PANEL_STORAGE_KEY, loadPanelState } from './lib/panel-state';
 import { pickRandom, buildRandomDescription, buildRandomHex } from './lib/randomizer';
 import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
+import { quantizeToHardware } from './lib/hardware-quantize';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -183,25 +184,6 @@ const seededHueDelta = (effectiveSeed: number, rampIdx: number): number => {
   if (effectiveSeed === 0) return 0;
   const n = Math.imul(effectiveSeed * 17 + rampIdx * 31, 0x45d9f3b) >>> 0;
   return (n / 0x100000000 - 0.5) * 16;
-};
-
-// quantizeToHardware: nearest hardware color search using ΔE_OK (perceptual
-// distance in OKLab). Used by applyHardwareLock and bakeHardwareLock for
-// every snap. The image-remap path uses quantizeToPalette directly with its
-// own HSL-weighted distance — that lives elsewhere and is unrelated.
-const quantizeToHardware = (hex, hardware) => {
-  if (!hardware || !hardware.colors || hardware.colors.length === 0) return hex;
-  const target = hexToOklch(hex);
-  if (!target) return hardware.colors[0];
-  let bestHex = hardware.colors[0];
-  let bestDist = Infinity;
-  for (const candidate of hardware.colors) {
-    const co = hexToOklch(candidate);
-    if (!co) continue;
-    const d = deltaEOK(target, co);
-    if (d < bestDist) { bestDist = d; bestHex = candidate; }
-  }
-  return bestHex;
 };
 
 // ---------- Image remap preview ----------
