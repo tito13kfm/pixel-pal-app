@@ -33,6 +33,7 @@ import { DesktopAppLink } from './components/DesktopAppLink';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 import { PANEL_STORAGE_KEY, loadPanelState } from './lib/panel-state';
+import { pickRandom, buildRandomDescription, buildRandomHex } from './lib/randomizer';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -834,31 +835,6 @@ const generateHarmony = (baseHexes) => {
   };
 };
 
-// ---------- Randomizer pools ----------
-const _WORD_POOL_IMPORTED = true; // WORD_POOL imported from ./lib/constants
-
-const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-const buildRandomDescription = () => {
-  const patterns = [
-    () => `${pickRandom(WORD_POOL.colorAdjectives)} ${pickRandom(WORD_POOL.nouns)}`,
-    () => `${pickRandom(WORD_POOL.qualityAdjectives)} ${pickRandom(WORD_POOL.nouns)}`,
-    () => `${pickRandom(WORD_POOL.qualityAdjectives)} ${pickRandom(WORD_POOL.materials)} ${pickRandom(WORD_POOL.nouns)}`,
-    () => `${pickRandom(WORD_POOL.colorAdjectives)} ${pickRandom(WORD_POOL.materials)} ${pickRandom(WORD_POOL.nouns)}`,
-    () => `${pickRandom(WORD_POOL.materials)} ${pickRandom(WORD_POOL.nouns)}`,
-    () => `${pickRandom(WORD_POOL.qualityAdjectives)} ${pickRandom(WORD_POOL.colorAdjectives)} ${pickRandom(WORD_POOL.nouns)}`,
-    () => pickRandom(WORD_POOL.scenes),
-    () => `${pickRandom(WORD_POOL.qualityAdjectives)} ${pickRandom(WORD_POOL.scenes)}`,
-  ];
-  return pickRandom(patterns)();
-};
-
-const buildRandomHex = () => {
-  const hue = Math.floor(Math.random() * 360);
-  const sat = 55 + Math.floor(Math.random() * 40);
-  const light = 35 + Math.floor(Math.random() * 25);
-  return hslToHex({ h: hue, s: sat, l: light });
-};
 
 const _panels = loadPanelState()
 
