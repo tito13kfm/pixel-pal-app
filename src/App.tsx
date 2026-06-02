@@ -5069,6 +5069,19 @@ export default function PixelPalGenerator() {
     setTimeout(() => setExportFeedback(''), 2000);
   };
 
+  // Desktop only: open the OS file manager with the last exported file selected.
+  // Requires the opener:allow-reveal-item-in-dir capability (see capabilities/default.json).
+  const revealLastSaved = async () => {
+    if (!lastSavedPath) return;
+    try {
+      const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+      await revealItemInDir(lastSavedPath);
+    } catch {
+      setExportFeedback("Couldn't open folder");
+      setTimeout(() => setExportFeedback(''), 2000);
+    }
+  };
+
   // PER-RAMP EXPORT HELPERS
   //
   // Both return strings derived from a single ramp at index `i` rendered
@@ -7719,7 +7732,6 @@ export default function PixelPalGenerator() {
               {/* Download / Copy / WCAG / Hardware Lock */}
               <div className="flex flex-col gap-2">
                 <div className="flex gap-3 flex-wrap items-center">
-                  <button onClick={exportPalette} title="Download the active palette as a Pixel Art .txt file" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Download .txt</button>
                   <button onClick={copyPaletteToClipboard} title="Copy the active palette to the clipboard as plain text" className="px-4 py-1.5 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-100 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ff00ff' }}><Copy size={14} />Copy</button>
                   <button onClick={() => exportLightnessPng(getSnapshotForSlot('working', null))} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Lightness PNG</button>
                   <button onClick={() => exportMosaicPng(getSnapshotForSlot('working', null))} title="Download the Mosaic as a PNG (current style)" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Mosaic PNG</button>
@@ -7744,6 +7756,10 @@ export default function PixelPalGenerator() {
                     </button>
                   )}
                   {exportFeedback && <span className="px-3 py-1 rounded bg-cyan-500 text-purple-900 text-xs font-bold border-2 border-cyan-200 uppercase tracking-wider">{exportFeedback}</span>}
+                  {/* lastSavedPath is only set on desktop (browser saves return no path), so this is implicitly desktop-only. */}
+                  {lastSavedPath && (
+                    <button onClick={revealLastSaved} title="Show the last exported file in your file manager" className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #00ffff' }}><FolderOpen size={14} />Reveal in folder</button>
+                  )}
                 </div>
 
                 {hardwareLock && (
@@ -7786,11 +7802,23 @@ export default function PixelPalGenerator() {
               <div className="border-t border-white/10" />
               {/* GPL row */}
               <div className="flex gap-2 items-center flex-wrap">
-                <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">.gpl style:</span>
+                <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">export style:</span>
                 <button onClick={() => setGplStyle('punchy')} title="Export the .gpl using high-contrast Punchy ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
                 <button onClick={() => setGplStyle('balanced')} title="Export the .gpl using mid-contrast Balanced ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={gplStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
                 <button onClick={() => setGplStyle('muted')} title="Export the .gpl using low-contrast Muted ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
-                <button onClick={exportPaletteGpl} data-tour-id="gpl-export-btn" title="GIMP Palette format. Compatible with Piskel, Aseprite, GIMP, Krita, Inkscape, and other pixel art tools." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Download size={14} />.gpl (Piskel/Aseprite/GIMP)</button>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                  title="Choose the export format"
+                  className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50"
+                >
+                  <option value="gpl">.gpl (Aseprite / GIMP / Krita)</option>
+                  <option value="pal">.pal (GrafX2 / Paint Shop Pro)</option>
+                  <option value="ase">Adobe Swatch Exchange (.ase)</option>
+                  <option value="png-strip">PNG strip (eyedropper, any editor)</option>
+                  <option value="txt">.txt (plain hex list)</option>
+                </select>
+                <button onClick={exportActiveFormat} data-tour-id="gpl-export-btn" title="Download the active palette in the selected format and style. Adobe .ase targets Photoshop/Illustrator/Krita, NOT Aseprite (Aseprite users: pick .gpl, .pal, or PNG strip)." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Download size={14} />Download</button>
                 <button onClick={() => gplFileInputRef.current?.click()} title="Import a .gpl palette file from Piskel, Aseprite, GIMP, Krita, or any GIMP-compatible tool. Replaces the current palette." className="px-4 py-1.5 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-xs" style={{ boxShadow: '0 0 10px #ffff00' }}><Upload size={14} />Import .gpl</button>
                 <input ref={gplFileInputRef} type="file" accept=".gpl,text/plain" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGplFile(f); e.target.value = ''; }} className="hidden" />
               </div>
