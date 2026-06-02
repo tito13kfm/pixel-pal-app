@@ -83,9 +83,9 @@ test.describe('tour copy references real UI elements', () => {
     await ensureExportToolsOpen(page)
     // Check by attachment (controls may be below viewport)
     await expect(page.getByRole('button', { name: 'Hardware Lock', exact: true })).toBeAttached()
-    await expect(page.getByRole('button', { name: 'Download .txt', exact: true })).toBeAttached()
+    await expect(page.getByRole('combobox', { name: 'Export format' })).toBeAttached()
     await expect(page.getByRole('button', { name: 'WCAG Check', exact: true })).toBeAttached()
-    await expect(page.getByRole('button', { name: '.gpl (Piskel/Aseprite/GIMP)', exact: true })).toBeAttached()
+    await expect(page.getByRole('button', { name: 'Download', exact: true })).toBeAttached()
     // Punchy/Balanced/Muted disambiguated by title (each appears twice: per-ramp + gpl export)
     await expect(page.getByTitle('Export the .gpl using high-contrast Punchy ramps')).toBeAttached()
     await expect(page.getByTitle('Export the .gpl using mid-contrast Balanced ramps')).toBeAttached()
@@ -161,7 +161,7 @@ test.describe('tour auto-advance detectors fire correctly', () => {
     await ensureExportToolsClosed(page)
 
     await openGuides(page)
-    await page.getByText('Export as .gpl').click()
+    await page.getByText('Export your palette').click()
     await expect(page.getByText('Open the Export panel')).toBeVisible()
 
     // Documented action: click Export & Tools header

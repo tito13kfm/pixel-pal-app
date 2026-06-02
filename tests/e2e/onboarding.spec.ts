@@ -105,7 +105,7 @@ test.describe('"?" button and guide select', () => {
     await expect(page.getByText('Pin a shade to a custom hex')).toBeVisible()
     await expect(page.getByText('Snap to hardware colors')).toBeVisible()
     await expect(page.getByText('Harmonize ramps')).toBeVisible()
-    await expect(page.getByText('Export as .gpl')).toBeVisible()
+    await expect(page.getByText('Export your palette')).toBeVisible()
     await expect(page.getByText('Check contrast (WCAG)')).toBeVisible()
   })
 
