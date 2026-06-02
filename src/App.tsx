@@ -7086,7 +7086,7 @@ export default function PixelPalGenerator() {
                         {slotRemap && (
                           <canvas
                             ref={canvasRef}
-                            style={{ imageRendering: 'pixelated', maxWidth: '100%', maxHeight: '256px', height: 'auto', display: 'block' }}
+                            style={{ imageRendering: 'pixelated', width: `${slotRemap.width * remapDownloadScale}px`, maxWidth: '100%', height: 'auto', display: 'block' }}
                             title={`Uploaded image remapped to this slot's palette (${slotRemap.width}x${slotRemap.height}, ${remapDither === 'floyd-steinberg' ? 'Floyd-Steinberg' : 'no dither'})`}
                           />
                         )}
@@ -7333,7 +7333,7 @@ export default function PixelPalGenerator() {
                               </div>
                             )}
                             {remapOutput && (
-                              <canvas ref={remapCanvasRef} style={{ imageRendering: 'pixelated', maxWidth: '100%', height: 'auto' }} />
+                              <canvas ref={remapCanvasRef} style={{ imageRendering: 'pixelated', width: `${remapOutput.width * remapDownloadScale}px`, maxWidth: '100%', height: 'auto' }} />
                             )}
                           </div>
                         )}
