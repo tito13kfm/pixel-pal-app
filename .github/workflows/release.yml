@@ -16,7 +16,59 @@ on:
         default: 'dev'
 
 jobs:
+  # Gate: on a v* tag push, refuse to build unless the four version files all
+  # match the tag and CHANGELOG.md carries a matching entry + compare-link
+  # footer. Enforces the "no silent release" / lockstep-version policy in
+  # CLAUDE.md. The job runs on workflow_dispatch too but skips the assertion,
+  # so manual smoke-builds (which target branches, not tags) aren't blocked —
+  # and because it still SUCCEEDS, the `needs` dependency below resolves.
+  verify-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Verify version + CHANGELOG consistency (tag push only)
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${GITHUB_REF_NAME#v}"
+          echo "Verifying release ${GITHUB_REF_NAME} (version ${VER})"
+          fail=0
+          check() {
+            if [ "$2" != "$VER" ]; then
+              echo "::error::$1 is '$2', expected '$VER'"; fail=1
+            else
+              echo "ok: $1 = $2"
+            fi
+          }
+          check "package.json version"    "$(node -p "require('./package.json').version")"
+          check "tauri.conf.json version" "$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          check "Cargo.toml version"      "$(grep -m1 '^version = ' src-tauri/Cargo.toml | sed -E 's/^version = "(.*)"/\1/')"
+          check "Cargo.lock version"      "$(grep -A2 'name = "pixel-pal-app"' src-tauri/Cargo.lock | grep -m1 '^version = ' | sed -E 's/^version = "(.*)"/\1/')"
+          if grep -qE "^## \[${VER}\]" CHANGELOG.md; then
+            echo "ok: CHANGELOG.md has '## [${VER}]' section"
+          else
+            echo "::error::CHANGELOG.md missing '## [${VER}]' section — add release notes before tagging"; fail=1
+          fi
+          if grep -qE "^\[${VER}\]:" CHANGELOG.md; then
+            echo "ok: CHANGELOG.md has '[${VER}]:' compare-link footer"
+          else
+            echo "::error::CHANGELOG.md missing '[${VER}]:' compare-link footer"; fail=1
+          fi
+          if [ "$fail" -ne 0 ]; then
+            echo "Release verification FAILED for ${VER}. Fix the files above, re-tag, and push again."
+            exit 1
+          fi
+          echo "Release verification passed for ${VER}."
+
   release:
+    needs: verify-release
     permissions:
       contents: write
     strategy:
