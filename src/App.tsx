@@ -26,7 +26,6 @@ import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatr
 import { buildGpl, buildJascPal, buildAse } from './lib/palette-export';
 import { AdjacencyMatrix } from './components/AdjacencyMatrix';
 import { DitherBlend } from './components/DitherBlend';
-import type { UpdateInfo } from './lib/tauri-bridge';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
@@ -50,6 +49,7 @@ import { useImageRemap } from './hooks/useImageRemap';
 import { useSideBySide } from './hooks/useSideBySide';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
 import { usePanelLayout } from './hooks/usePanelLayout';
+import { useUpdater } from './hooks/useUpdater';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -218,6 +218,7 @@ export default function PixelPalGenerator() {
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,
   } = usePanelLayout();
+  const { updateInfo, setUpdateInfo, updateReady, setUpdateReady, updateDownloading, setUpdateDownloading } = useUpdater();
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [shuffleSeed, setShuffleSeed] = useState(0);
@@ -237,9 +238,6 @@ export default function PixelPalGenerator() {
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [updateReady, setUpdateReady] = useState(false);
-  const [updateDownloading, setUpdateDownloading] = useState(false);
   // ----- Image Remap Preview state -----
   // Separate image slot from the From Image extraction feature. The user
   // uploads a reference image and remaps every pixel to the nearest color
@@ -862,11 +860,6 @@ export default function PixelPalGenerator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    window.electronAPI?.onUpdateAvailable?.((info) => setUpdateInfo(info));
-    window.electronAPI?.onUpdateReady?.((info) => { setUpdateInfo(info); setUpdateReady(true); setUpdateDownloading(false); });
-    window.electronAPI?.onUpdateError?.((err) => { console.error('Update failed:', err); setUpdateDownloading(false); setUpdateInfo(null); });
-  }, []);
 
   function handleAISettingsClose() {
     setShowAISettings(false);
