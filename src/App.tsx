@@ -37,7 +37,6 @@ import { quantizeToHardware } from './lib/hardware-quantize';
 import { extractDominantColors } from './lib/image-extract';
 import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
-import { inferLabel } from './lib/history-snapshot';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
@@ -51,6 +50,7 @@ import { useSavedPalettes } from './hooks/useSavedPalettes';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
 import { usePaletteState } from './hooks/usePaletteState';
+import { useHistory } from './hooks/useHistory';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -256,49 +256,31 @@ export default function PixelPalGenerator() {
 
 
 
-  // ============================================================
-  // History (undo / redo / jump-to-state)
-  // ============================================================
-  // Photoshop-style: a collapsible list of past states, each labeled
-  // with the action that produced it and the time it happened. Users
-  // can Cmd+Z / Cmd+Y for sequential navigation or click any entry in
-  // the panel to jump.
-  //
-  // Architecture: whole-state snapshots, NOT diff patches. Each entry
-  // holds a JSON-serializable snapshot of every undoable state field
-  // (the working-palette fields, plus lockedRamps and collapsedRamps;
-  // see buildUndoSnapshot below for the full list). 50-entry cap;
-  // overflow drops the oldest. Session-only (NOT persisted to storage):
-  // a page reload starts fresh with a single "Initial state" entry.
-  //
-  // Sprite library, theme/CRT/CVD chrome preferences, side-by-side
-  // slot assignments, compare-mode state, save-name input, pin editor
-  // and base editor open state are all NOT in the snapshot. Those are
-  // asset-library / UI-chrome / transient-edit-mode state. Undo only
-  // covers "what is the palette", not "how am I viewing it".
-  //
-  // Watcher effect (declared further down, near the other useEffects):
-  // observes a serialized snapshot, debounces 300ms so a slider drag
-  // collapses into a single history entry, and pushes a new entry when
-  // the snapshot stabilizes at a value different from the current
-  // entry's. The `isReplayingHistory` ref short-circuits the watcher
-  // during undo/redo/jump so replayed states don't recursively create
-  // new entries (which would also break the redo stack).
-  //
-  // pendingLabel: handler-tagged actions (Generate, Harmonize, Load,
-  // etc) set this before mutating state. The watcher consumes it as
-  // the new entry's label. Anything that mutates state without setting
-  // this gets a label inferred by diffing the new snapshot against
-  // the current one.
-  const HISTORY_DEPTH_CAP = 50;
-  const HISTORY_DEBOUNCE_MS = 300;
-  const [historyEntries, setHistoryEntries] = useState(() => [
-    { snapshot: null, label: 'Initial state', timestamp: Date.now() },
-  ]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const isReplayingHistoryRef = useRef(false);
-  const historyDebounceRef = useRef(null);
-  const pendingLabelRef = useRef(null);
+  // History (undo / redo / jump-to-state) lives in useHistory: Photoshop-style
+  // whole-state snapshots (NOT diff patches), 50-entry cap, session-only. The
+  // document core is owned by usePaletteState; useHistory is wired to it via
+  // buildSnapshot / applySnapshotFields / resetTransientEditors. The watcher's
+  // dep array (snapshotInputs) is the 17 snapshot INPUT values — it deliberately
+  // OMITS lightnessCurvePerRamp / satCurvePerRamp (preserved verbatim from the
+  // pre-extraction behavior; do not "complete" it to 19). `tagNextLabel`
+  // replaces the old scattered `pendingLabelRef.current = ...` handler writes:
+  // tagged actions (Generate, Harmonize, Load, …) call it before mutating state;
+  // untagged changes fall back to inferLabel. See src/hooks/useHistory.ts.
+  const {
+    historyEntries, historyIndex, undo, redo, jumpToHistoryIndex,
+    canUndo, canRedo, tagNextLabel,
+  } = useHistory({
+    buildSnapshot,
+    applySnapshotFields,
+    resetTransientEditors,
+    setExportFeedback,
+    snapshotInputs: [
+      baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
+      overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
+      hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
+      lockedRamps, collapsedRamps, stylePresets,
+    ],
+  });
 
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
   const resetStylePresets = () => setStylePresets(DEFAULT_STYLE_PRESETS);
@@ -582,7 +564,7 @@ export default function PixelPalGenerator() {
   }, [baseColors, safeAnchor, activeHardware]);
 
   const handleGenerate = () => {
-    pendingLabelRef.current = mode === 'color' ? 'New palette' : 'Shuffle';
+    tagNextLabel(mode === 'color' ? 'New palette' : 'Shuffle');
     if (mode === 'color') {
       setBaseColors([colorInput]); setAiReasoning(''); setAiColorNames([]);
       resetPaletteState();
@@ -616,7 +598,7 @@ export default function PixelPalGenerator() {
       const names = (result.names && result.names.length === result.colors.length)
         ? hexes.map((_, i) => result.names[i] || `Color ${i + 1}`)
         : hexes.map((_, i) => `Color ${i + 1}`);
-      pendingLabelRef.current = 'AI generate';
+      tagNextLabel('AI generate');
       setBaseColors(hexes); setAiColorNames(names); setAiReasoning(result.description || '');
       resetPaletteState();
       setShuffleSeed(s => s + 1);
@@ -647,7 +629,7 @@ export default function PixelPalGenerator() {
       const names = (result.names && result.names.length === result.colors.length)
         ? hexes.map((_, i) => result.names[i] || `Color ${i + 1}`)
         : hexes.map((_, i) => `Color ${i + 1}`);
-      pendingLabelRef.current = 'Surprise me';
+      tagNextLabel('Surprise me');
       if (result.subject) setAiInput(result.subject);
       setBaseColors(hexes); setAiColorNames(names); setAiReasoning(result.description || '');
       resetPaletteState();
@@ -689,7 +671,7 @@ export default function PixelPalGenerator() {
           const colors = extractDominantColors(imageData, imageColorCount);
           if (colors.length === 0) { setImageError('No colors found'); setImageLoading(false); return; }
           const finalColors = colors.slice(0, imageColorCount);
-          pendingLabelRef.current = 'Extract from image';
+          tagNextLabel('Extract from image');
           setBaseColors(finalColors);
           setAiColorNames(finalColors.map((_, i) => `Color ${i + 1}`));
           resetPaletteState();
@@ -721,7 +703,7 @@ export default function PixelPalGenerator() {
         const imageData = ctx.getImageData(0, 0, w, h);
         const colors = extractDominantColors(imageData, imageColorCount);
         const finalColors = colors.slice(0, imageColorCount);
-        pendingLabelRef.current = 'Re-extract from image';
+        tagNextLabel('Re-extract from image');
         setBaseColors(finalColors);
         setAiColorNames(finalColors.map((_, i) => `Color ${i + 1}`));
         resetPaletteState();
@@ -854,7 +836,7 @@ export default function PixelPalGenerator() {
     const result = getPixelColorFromImage(event);
     if (!result || result.alpha < 128) return;
     if (!baseColors.includes(result.hex)) {
-      pendingLabelRef.current = 'Eyedropper add';
+      tagNextLabel('Eyedropper add');
       setBaseColors(prev => [...prev, result.hex]);
       setAiColorNames(prev => {
         const padded = [...prev];
@@ -1328,7 +1310,7 @@ export default function PixelPalGenerator() {
       return;
     }
     const newLen = baseColors.length + 1;
-    pendingLabelRef.current = 'Add base color';
+    tagNextLabel('Add base color');
     setRampSizeOverrides(prev => ({ ...prev, [baseColors.length]: rampSize }));
     setBaseColors(prev => [...prev, norm]);
     setAiColorNames(prev => {
@@ -1501,7 +1483,7 @@ export default function PixelPalGenerator() {
   // N != i discrepancy from the old HSV engine no longer matters.
   const duplicateRamp = (i) => {
     if (i < 0 || i >= baseColors.length) return;
-    pendingLabelRef.current = 'Duplicate ramp';
+    tagNextLabel('Duplicate ramp');
     // Deep-clone helper for per-base entries. Plain JSON is sufficient:
     // the contents are POJO maps / arrays / primitives.
     const deepClone = (entry) => (entry === undefined ? undefined : JSON.parse(JSON.stringify(entry)));
@@ -1760,7 +1742,7 @@ export default function PixelPalGenerator() {
   // resetPaletteState: clears every customization layer that the eight
   // full-palette-replace paths share. Callers are still responsible for
   // setting baseColors (or aiColorNames / aiReasoning when applicable),
-  // tagging pendingLabelRef, and bumping the shuffle seed if their path
+  // tagging the next history label via tagNextLabel, and bumping the shuffle seed if their path
   // requires it. Preserves rampSize, hardwareLock, theme, CRT, CVD on
   // purpose: those are session-level settings, not per-palette state.
   //
@@ -1797,7 +1779,7 @@ export default function PixelPalGenerator() {
     if (confirmReset) {
       if (resetConfirmTimerRef.current) { clearTimeout(resetConfirmTimerRef.current); resetConfirmTimerRef.current = null; }
       setConfirmReset(false);
-      pendingLabelRef.current = 'Reset to defaults';
+      tagNextLabel('Reset to defaults');
       const fresh = buildRandomHex();
       setColorInput(fresh);
       setBaseColors([fresh]);
@@ -1878,7 +1860,7 @@ export default function PixelPalGenerator() {
       newBaseColors[i] = hslToHex({ h: newH, s: orig.s, l: orig.l });
     }
     const modeLabel = harmonizeMode.replace('-', ' ');
-    pendingLabelRef.current = `Harmonize (${targets.length}, ${modeLabel})`;
+    tagNextLabel(`Harmonize (${targets.length}, ${modeLabel})`);
     setBaseColors(newBaseColors);
     setCompareAnchor(null);
     setCompareResult(null);
@@ -1887,7 +1869,7 @@ export default function PixelPalGenerator() {
   };
   const restoreHarmonizeBaseline = () => {
     if (!harmonizeBaseline) return;
-    pendingLabelRef.current = 'Restore pre-harmonize hues';
+    tagNextLabel('Restore pre-harmonize hues');
     setBaseColors(harmonizeBaseline.slice());
     setHarmonizeBaseline(null);
     setCompareAnchor(null);
@@ -2177,106 +2159,7 @@ export default function PixelPalGenerator() {
     return () => { if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current); };
   }, []);
 
-  // History watcher: observes the snapshot inputs, debounces, and records
-  // a new history entry on stabilization.
-  //
-  // The dependencies are the SNAPSHOT INPUTS, not historyEntries/
-  // historyIndex (which would loop). We read those two via refs that
-  // are kept in sync with the rendered values via a separate effect
-  // below. The ref pattern avoids invalidating this effect's closure
-  // every time we push a new entry.
-  //
-  // The debounce serves two purposes: it collapses rapid slider input
-  // into a single entry, and it lets React batch the state updates of
-  // a single user action (which often touch multiple state fields)
-  // into one snapshot rather than two near-identical ones.
-  const historyEntriesRef = useRef(historyEntries);
-  const historyIndexRef = useRef(historyIndex);
-  useEffect(() => { historyEntriesRef.current = historyEntries; }, [historyEntries]);
-  useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
-
-  useEffect(() => {
-    // Replay path: undo/redo/jump set this flag, and React then re-runs
-    // this effect because the state fields changed. Clear the flag and
-    // skip recording.
-    if (isReplayingHistoryRef.current) {
-      isReplayingHistoryRef.current = false;
-      // Cancel any pending debounce too: we don't want a queued snapshot
-      // recording the replayed state.
-      if (historyDebounceRef.current) {
-        clearTimeout(historyDebounceRef.current);
-        historyDebounceRef.current = null;
-      }
-      return;
-    }
-
-    if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
-    historyDebounceRef.current = setTimeout(() => {
-      historyDebounceRef.current = null;
-      const entries = historyEntriesRef.current;
-      const index = historyIndexRef.current;
-      const current = entries[index];
-      const newSnap = buildSnapshot();
-      // Skip if the snapshot is byte-identical to the current entry.
-      // This guards against effect runs where a setter was called with
-      // the same value (React still re-runs the effect because the
-      // dependency identity may have changed).
-      if (current && current.snapshot && JSON.stringify(current.snapshot) === JSON.stringify(newSnap)) {
-        return;
-      }
-      const label = pendingLabelRef.current || inferLabel(current ? current.snapshot : null, newSnap);
-      pendingLabelRef.current = null;
-      // Truncate forward entries (redo stack) and append the new entry.
-      // Cap at HISTORY_DEPTH_CAP by dropping from the front.
-      const next = entries.slice(0, index + 1);
-      next.push({ snapshot: newSnap, label, timestamp: Date.now() });
-      let newIndex = next.length - 1;
-      if (next.length > HISTORY_DEPTH_CAP) {
-        const dropped = next.length - HISTORY_DEPTH_CAP;
-        next.splice(0, dropped);
-        newIndex -= dropped;
-      }
-      setHistoryEntries(next);
-      setHistoryIndex(newIndex);
-    }, HISTORY_DEBOUNCE_MS);
-
-    // Cleanup: if the effect re-fires before the timer, the new run will
-    // clear the old timer at the top.
-    return () => {};
-  }, [
-    baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
-    overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
-    hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
-    lockedRamps, collapsedRamps, stylePresets,
-  ]);
-
-  // Keyboard shortcuts for undo/redo. Bound at the window level so they
-  // fire regardless of focus, but skipped when the focused element is
-  // a text input / textarea (so native browser text-undo works inside
-  // the hex input, AI prompt, save name field, etc).
-  useEffect(() => {
-    const handler = (e) => {
-      const target = e.target;
-      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
-      const isEditable = tag === 'input' || tag === 'textarea' || (target && target.isContentEditable);
-      if (isEditable) return;
-      const mod = e.ctrlKey || e.metaKey;
-      if (!mod) return;
-      const key = e.key.toLowerCase();
-      if (key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
-        // Also support Cmd+Shift+Z as an alias for redo. Most users
-        // expect it; binding both is cheap.
-        e.preventDefault();
-        redo();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [historyEntries, historyIndex]);  // re-bind whenever history changes so handler closures see fresh undo/redo
-
+  // History watcher, ref-sync, and undo/redo keybinds now live in useHistory.
   // Side-by-side slot fetcher. When a slot points at a saved-palette slug,
   // pull the full payload from storage so ramps render at full fidelity
   // (pins, hidden shades, hardware lock, per-ramp sizes/sats, shuffleSeed).
@@ -2599,76 +2482,10 @@ export default function PixelPalGenerator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sbsRemapSource, rightRemapKey]);
 
-  // ============================================================
-  // History snapshot machinery
-  // ============================================================
-  // Snapshot read/write now live in usePaletteState (it owns the 25 document
-  // fields). `buildSnapshot`, `applySnapshotFields`, `resetTransientEditors`
-  // are destructured from `palette` above. applyUndoSnapshot stays here as the
-  // thin replay wrapper (layers the isReplayingHistory flag); Task 15 moves it
-  // into useHistory.
-  const applyUndoSnapshot = (snap) => {
-    if (!snap) return;
-    isReplayingHistoryRef.current = true;
-    applySnapshotFields(snap);
-    resetTransientEditors();
-  };
-
-  // Diff-based label fallback: when a state change wasn't tagged by its
-  // handler with pendingLabelRef, infer a label from which fields
-  // changed between previous and new snapshots. Most fine-grained edits
-  // (HSV sliders, sat slider, size dropdown, ramp lock toggle, etc) go
-  // through this path. The bulk handlers (Generate, Harmonize, Load,
-  // GPL import, etc) tag explicitly because their action name is
-  // user-visible.
-  // inferLabel lives in ./lib/history-snapshot (imported above).
-
-  // Sequential undo / redo / jump-to-index. All three share the
-  // snapshot-application path. The jump variant lets the History panel
-  // user click any entry.
-  const canUndo = historyIndex > 0;
-  const canRedo = historyIndex < historyEntries.length - 1;
-  const undo = () => {
-    if (!canUndo) {
-      setExportFeedback('Nothing to undo');
-      setTimeout(() => setExportFeedback(''), 1500);
-      return;
-    }
-    const targetIndex = historyIndex - 1;
-    const entry = historyEntries[targetIndex];
-    applyUndoSnapshot(entry.snapshot);
-    setHistoryIndex(targetIndex);
-    setExportFeedback(`Undo: ${entry.label}`);
-    setTimeout(() => setExportFeedback(''), 1500);
-  };
-  const redo = () => {
-    if (!canRedo) {
-      setExportFeedback('Nothing to redo');
-      setTimeout(() => setExportFeedback(''), 1500);
-      return;
-    }
-    const targetIndex = historyIndex + 1;
-    const entry = historyEntries[targetIndex];
-    applyUndoSnapshot(entry.snapshot);
-    setHistoryIndex(targetIndex);
-    setExportFeedback(`Redo: ${entry.label}`);
-    setTimeout(() => setExportFeedback(''), 1500);
-  };
-  const jumpToHistoryIndex = (targetIndex) => {
-    if (targetIndex < 0 || targetIndex >= historyEntries.length) return;
-    if (targetIndex === historyIndex) return;
-    const entry = historyEntries[targetIndex];
-    // Index 0 is the "Initial state" sentinel; its snapshot is null because
-    // we hadn't built the snapshot machinery yet. Jumping to index 0 is a
-    // no-op for state application: we just move the cursor and let the
-    // user keep editing from "wherever they were when the app loaded".
-    // This is intentionally imperfect (Initial state can't actually
-    // restore mount state) but it's still a useful anchor in the panel.
-    if (entry.snapshot) applyUndoSnapshot(entry.snapshot);
-    setHistoryIndex(targetIndex);
-    setExportFeedback(`Jumped to: ${entry.label}`);
-    setTimeout(() => setExportFeedback(''), 1500);
-  };
+  // History snapshot machinery (applyUndoSnapshot, undo/redo/jumpToHistoryIndex,
+  // canUndo/canRedo) lives in useHistory. inferLabel lives in
+  // ./lib/history-snapshot. undo/redo/jump/canUndo/canRedo are destructured from
+  // the useHistory() call above.
 
   // Format a unix-ms timestamp as a short relative-time string for the
   // History panel. Resolution drops as ages grow: "just now" (<10s),
@@ -2783,7 +2600,7 @@ export default function PixelPalGenerator() {
           return merged;
         });
       }
-      pendingLabelRef.current = `Load: ${parsed.name || slug}`;
+      tagNextLabel(`Load: ${parsed.name || slug}`);
       setBaseColors(parsed.baseColors);
       setAiColorNames(Array.isArray(parsed.aiColorNames) ? parsed.aiColorNames : []);
       setAiReasoning(typeof parsed.aiReasoning === 'string' ? parsed.aiReasoning : '');
@@ -3002,7 +2819,7 @@ export default function PixelPalGenerator() {
   // depend on whatever shuffle the user happened to be on.
   const loadClassicPalette = (classic) => {
     if (!classic || !Array.isArray(classic.baseColors) || classic.baseColors.length === 0) return;
-    pendingLabelRef.current = `Load classic: ${classic.name}`;
+    tagNextLabel(`Load classic: ${classic.name}`);
     setBaseColors(classic.baseColors);
     setAiColorNames(classic.names || classic.baseColors.map((_, i) => `${classic.name} ${i + 1}`));
     setAiReasoning(`Inspired by ${classic.name}. ${classic.tip}`);
@@ -3066,7 +2883,7 @@ export default function PixelPalGenerator() {
       chosen = uniq;
     }
     if (chosen.length === 0) return;
-    pendingLabelRef.current = `Import GPL: ${gplImport.name}`;
+    tagNextLabel(`Import GPL: ${gplImport.name}`);
     setBaseColors(chosen);
     setAiColorNames(chosen.map((_, i) => `${gplImport.name} ${i + 1}`));
     setAiReasoning(`Imported from ${gplImport.name}. ${chosen.length} base color${chosen.length === 1 ? '' : 's'} loaded.`);
@@ -3127,12 +2944,12 @@ export default function PixelPalGenerator() {
   // when unlocked.
   const toggleHardwareLock = (hardwareId) => {
     if (hardwareLock === hardwareId) {
-      pendingLabelRef.current = 'Unlock hardware';
+      tagNextLabel('Unlock hardware');
       setHardwareLock(null);
       setExportFeedback(`Unlocked from hardware`);
     } else {
       const hw = HARDWARE_PALETTES.find(h => h.id === hardwareId);
-      pendingLabelRef.current = hw ? `Lock to ${hw.name}` : 'Lock hardware';
+      tagNextLabel(hw ? `Lock to ${hw.name}` : 'Lock hardware');
       setHardwareLock(hardwareId);
       setExportFeedback(hw ? `Locked to ${hw.name}` : 'Locked');
     }
@@ -3170,7 +2987,7 @@ export default function PixelPalGenerator() {
   // are now baked in. History entry tagged 'Bake hardware lock'.
   const bakeHardwareLock = () => {
     if (!activeHardware) return;
-    pendingLabelRef.current = 'Bake hardware lock';
+    tagNextLabel('Bake hardware lock');
     const STYLES = ['punchy', 'balanced', 'muted'];
     setOverrides(prev => {
       const next = JSON.parse(JSON.stringify(prev));
@@ -3971,7 +3788,7 @@ export default function PixelPalGenerator() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                pendingLabelRef.current = 'Add base from shade';
+                tagNextLabel('Add base from shade');
                 setBaseColors(prev => [...prev, hex]);
               }}
               title={`Add ${hex.toUpperCase()} as a new base color`}
