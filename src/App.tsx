@@ -44,6 +44,7 @@ import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
 import { useTour } from './hooks/useTour';
+import { useSpriteImport } from './hooks/useSpriteImport';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -193,13 +194,12 @@ export default function PixelPalGenerator() {
   // The snapshot/restore/start/exit orchestration stays below in App.tsx
   // because it spans other domains. See src/hooks/useTour.ts.
   const { tourOpen, setTourOpen, tourGuideId, setTourGuideId, tourStep, setTourStep, launcherOpen, setLauncherOpen } = useTour();
-  const [spriteKey, setSpriteKey] = useState('vase');
-  const [customSprites, setCustomSprites] = useState({});
-  const [showSpriteImporter, setShowSpriteImporter] = useState(false);
-  const [spriteImportText, setSpriteImportText] = useState('');
-  const [spriteImportName, setSpriteImportName] = useState('');
-  const [spriteImportError, setSpriteImportError] = useState('');
-  const [spriteDragging, setSpriteDragging] = useState(false);
+  const {
+    spriteKey, setSpriteKey, customSprites, setCustomSprites,
+    showSpriteImporter, setShowSpriteImporter, spriteImportText, setSpriteImportText,
+    spriteImportName, setSpriteImportName, spriteImportError, setSpriteImportError,
+    spriteDragging, setSpriteDragging, spriteLibrary,
+  } = useSpriteImport();
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [shuffleSeed, setShuffleSeed] = useState(0);
@@ -820,7 +820,6 @@ export default function PixelPalGenerator() {
     }
     return snapped;
   }, [baseColors, safeAnchor, activeHardware]);
-  const spriteLibrary = useMemo(() => ({ ...DEFAULT_SPRITE_LIBRARY, ...customSprites }), [customSprites]);
 
   const handleGenerate = () => {
     pendingLabelRef.current = mode === 'color' ? 'New palette' : 'Shuffle';
