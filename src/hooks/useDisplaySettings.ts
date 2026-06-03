@@ -24,9 +24,9 @@ import { useState, useEffect, useRef } from 'react';
  *   - crtEnabled: ephemeral CRT-scanline toggle. NOT persisted.
  *
  * `window.storage` is the artifact's async key-value shim (installed in
- * App.tsx). There is no global type for it in this project, so we read it via
- * `(window as any).storage` to match the existing call-site pattern without
- * changing runtime behavior.
+ * App.tsx). It's typed globally as an optional `Window.storage` member in
+ * src/vite-env.d.ts, so call sites use `window.storage` directly behind the
+ * existing `if (!window.storage)` guards.
  */
 export function useDisplaySettings() {
   const [crtEnabled, setCrtEnabled] = useState(true);
@@ -39,9 +39,9 @@ export function useDisplaySettings() {
   // saved value, which may cause a brief flash. Acceptable.
   useEffect(() => {
     (async () => {
-      if (typeof window === 'undefined' || !(window as any).storage) return;
+      if (typeof window === 'undefined' || !window.storage) return;
       try {
-        const got = await (window as any).storage.get('ui:theme');
+        const got = await window.storage.get('ui:theme');
         if (got && got.value) {
           const parsed = JSON.parse(got.value);
           if (typeof parsed === 'string' && ['dark', 'neutral', 'light'].includes(parsed)) {
@@ -59,18 +59,21 @@ export function useDisplaySettings() {
   const themeMountRef = useRef(false);
   useEffect(() => {
     if (!themeMountRef.current) { themeMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !(window as any).storage) return;
+    if (typeof window === 'undefined' || !window.storage) return;
+    // Capture the narrowed reference: TS doesn't carry `window.storage`
+    // narrowing across the nested async IIFE (it's a mutable optional prop).
+    const storage = window.storage;
     (async () => {
-      try { await (window as any).storage.set('ui:theme', JSON.stringify(theme)); } catch {}
+      try { await storage.set('ui:theme', JSON.stringify(theme)); } catch {}
     })();
   }, [theme]);
 
   // Load saved CVD mode on mount. Same pattern as theme load.
   useEffect(() => {
     (async () => {
-      if (typeof window === 'undefined' || !(window as any).storage) return;
+      if (typeof window === 'undefined' || !window.storage) return;
       try {
-        const got = await (window as any).storage.get('ui:cvdMode');
+        const got = await window.storage.get('ui:cvdMode');
         if (got && got.value) {
           const parsed = JSON.parse(got.value);
           if (typeof parsed === 'string' && ['none', 'protan', 'deutan', 'tritan'].includes(parsed)) {
@@ -87,9 +90,11 @@ export function useDisplaySettings() {
   const cvdMountRef = useRef(false);
   useEffect(() => {
     if (!cvdMountRef.current) { cvdMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !(window as any).storage) return;
+    if (typeof window === 'undefined' || !window.storage) return;
+    // Capture the narrowed reference (see theme-persist effect above).
+    const storage = window.storage;
     (async () => {
-      try { await (window as any).storage.set('ui:cvdMode', JSON.stringify(cvdMode)); } catch {}
+      try { await storage.set('ui:cvdMode', JSON.stringify(cvdMode)); } catch {}
     })();
   }, [cvdMode]);
 
