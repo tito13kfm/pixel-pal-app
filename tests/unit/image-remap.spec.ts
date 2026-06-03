@@ -43,4 +43,18 @@ describe('remapImageToPalette', () => {
     expect(out.width).toBe(1);
     expect(Array.from(out.data.slice(0, 3))).toEqual([255, 0, 0]);
   });
+  it('error diffusion flips pixel 1 below-midpoint (diverges from no-dither)', () => {
+    const src = new Uint8ClampedArray([245,245,245,255, 128,128,128,255, 128,128,128,255]);
+    const palette = ['#ffffff', '#000000'];
+    const fs = remapImageToPalette({ width: 3, height: 1, data: src }, palette, { dither: 'floyd-steinberg' });
+    const nd = remapImageToPalette({ width: 3, height: 1, data: src }, palette, { dither: 'none' });
+    expect(Array.from(fs.data)).toEqual([255,255,255,255, 0,0,0,255, 255,255,255,255]);
+    expect(Array.from(nd.data)).toEqual([255,255,255,255, 255,255,255,255, 255,255,255,255]);
+  });
+  it('alpha=0 pixel is zeroed and does not absorb diffused error', () => {
+    const src = new Uint8ClampedArray([255,0,0,255, 255,0,0,0, 0,0,255,255]);
+    const palette = ['#ff0000', '#0000ff'];
+    const out = remapImageToPalette({ width: 3, height: 1, data: src }, palette, { dither: 'floyd-steinberg' });
+    expect(Array.from(out.data)).toEqual([255,0,0,255, 0,0,0,0, 0,0,255,255]);
+  });
 });

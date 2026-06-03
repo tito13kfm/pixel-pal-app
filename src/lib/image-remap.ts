@@ -53,8 +53,8 @@ export interface RemapOptions {
 // prevents stray error from accumulating in invisible pixels and from
 // "bleeding" across hard transparency boundaries.
 //
-// A unique-color cache (Map<srcHex, dstHex>) is used for the no-dither path
-// to skip redundant distance computations for repeated source colors.
+// A unique-color cache (Map<packedRGB, dstHex>) is used for the no-dither path
+// where packedRGB = (r<<16)|(g<<8)|b (integer key, see packKey below).
 // Floyd-Steinberg cannot use the cache because each pixel's input is
 // error-adjusted and effectively unique.
 export const remapImageToPalette = (

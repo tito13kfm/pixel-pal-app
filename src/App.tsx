@@ -37,7 +37,7 @@ import { pickRandom, buildRandomDescription, buildRandomHex } from './lib/random
 import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
-import { extractDominantColors, quantizeToPalette } from './lib/image-extract';
+import { extractDominantColors } from './lib/image-extract';
 import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 
 // ---------- window.storage shim ----------
