@@ -47,6 +47,7 @@ import { useTour } from './hooks/useTour';
 import { useSpriteImport } from './hooks/useSpriteImport';
 import { useAIAssist } from './hooks/useAIAssist';
 import { useImageExtract } from './hooks/useImageExtract';
+import { useImageRemap } from './hooks/useImageRemap';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -183,6 +184,15 @@ export default function PixelPalGenerator() {
     imageZoom, setImageZoom, imageNaturalSize, setImageNaturalSize,
     hoveredColor, setHoveredColor,
   } = useImageExtract();
+  const {
+    remapImageDataUrl, setRemapImageDataUrl, remapImageNaturalSize, setRemapImageNaturalSize,
+    remapOutput, setRemapOutput, remapOutputSignature, setRemapOutputSignature,
+    remapDither, setRemapDither, remapLoading, setRemapLoading,
+    remapError, setRemapError, remapImageName, setRemapImageName,
+    remapDownloadScale, setRemapDownloadScale,
+    remapDownloadConfirmPending, setRemapDownloadConfirmPending,
+    remapDragOver, setRemapDragOver,
+  } = useImageRemap();
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [shuffleSeed, setShuffleSeed] = useState(0);
@@ -217,59 +227,14 @@ export default function PixelPalGenerator() {
   // lock applied). Manual refresh via a button. None of this state is
   // persisted (matches the From Image mode), saved with palettes, or in
   // the history snapshot. See IMAGE_REMAP_PLAN.md and ARCHITECTURE.md's
-  // remap section for the full design.
-  //
-  // remapImageDataUrl: the uploaded image as a data URL, or null. Survives
-  // palette edits (the user uploaded it intentionally; only the OUTPUT is
-  // invalidated by palette changes).
-  // remapImageNaturalSize: { w, h } of the uploaded image's natural size.
-  // remapOutput: the cached remap result as { width, height, data }. Stays
-  // up after a palette change to let the user compare visually; a stale
-  // badge appears above it. Cleared by reset paths via clearRemapOutput().
-  // remapOutputSignature: a string capturing the inputs that produced the
-  // current remapOutput. Compared to the LIVE signature each render; when
-  // they differ, the output is stale.
-  // remapDither: 'none' | 'floyd-steinberg'. Session-only (not persisted,
-  // matches the v1 decision; easy to upgrade later).
-  // remapLoading: shown during the actual remap call.
-  // remapError: surfaced upload / processing errors.
-  const [remapImageDataUrl, setRemapImageDataUrl] = useState(null);
-  const [remapImageNaturalSize, setRemapImageNaturalSize] = useState(null);
-  const [remapOutput, setRemapOutput] = useState(null);
-  const [remapOutputSignature, setRemapOutputSignature] = useState(null);
-  const [remapDither, setRemapDither] = useState('none');
-  const [remapLoading, setRemapLoading] = useState(false);
-  const [remapError, setRemapError] = useState('');
-  const [remapImageName, setRemapImageName] = useState('');
-  // remapDownloadScale: float multiplier applied to the UPLOAD's natural
-  // size at export time. The valid set is computed dynamically from the
-  // upload size by computeRemapScaleOptions; scales are filtered so the
-  // output stays under 8192px per axis (a conservative canvas-size
-  // ceiling that matches the WebGL MAX_TEXTURE_SIZE floor on consumer
-  // devices). Default 1 (one-to-one with the upload) when 1 is in the
-  // valid set, else the largest available scale <= 1. Session-only,
-  // no undo, no persistence.
-  //
-  // Note: this is the EXPORT scale, not the PREVIEW scale. The on-screen
-  // preview always runs against the downsampled (<= 512px) source for
-  // responsiveness; the export re-decodes the data URL and runs the
-  // remap math against the ORIGINAL upload at this multiplier so the
-  // PNG is a true full-resolution result rather than an upscaled
-  // version of the preview.
-  const [remapDownloadScale, setRemapDownloadScale] = useState(1);
-  // remapDownloadConfirmPending: when true, the next Download click
-  // commits a potentially long-running full-resolution export. Set by
-  // the first click when projected cost exceeds the warn threshold;
-  // cleared by a 5-second auto-disarm timer or by a successful commit.
-  // Same two-click pattern as confirmReset.
-  const [remapDownloadConfirmPending, setRemapDownloadConfirmPending] = useState(false);
+  // remap section for the full design. The remap STATE fields live in the
+  // useImageRemap() hook (destructured above); the compute/draw effects,
+  // canvas ref, and upload/refresh/download handlers stay here in the
+  // wiring layer because they read the live working palette and refs.
+  // remapDownloadConfirmTimerRef: 5-second auto-disarm timer handle for the
+  // two-click download confirmation (remapDownloadConfirmPending). Kept here
+  // (not in the hook) because it's only touched by the download handler.
   const remapDownloadConfirmTimerRef = useRef(null);
-  // remapDragOver: true while a file is being dragged over the panel's
-  // empty-state drop zone. Drives a visual highlight (border color +
-  // background) so the user knows the drop will land. Cleared on drop
-  // or drag leave. Panel-local; no relation to the From Image mode's
-  // `isDragging` state, which is gated on `mode === 'image'`.
-  const [remapDragOver, setRemapDragOver] = useState(false);
   // Side-by-Side image remap. When the Image Preview panel has an uploaded
   // image, each SBS slot also renders a remap of that same image against
   // its slot palette. This lets the user compare how two palettes handle
