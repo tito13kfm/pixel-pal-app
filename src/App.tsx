@@ -39,6 +39,7 @@ import { quantizeToHardware } from './lib/hardware-quantize';
 import { extractDominantColors } from './lib/image-extract';
 import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
+import { inferLabel } from './lib/history-snapshot';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -3124,30 +3125,7 @@ export default function PixelPalGenerator() {
   // through this path. The bulk handlers (Generate, Harmonize, Load,
   // GPL import, etc) tag explicitly because their action name is
   // user-visible.
-  const inferLabel = (prev, next) => {
-    if (!prev || !next) return 'Edit';
-    if (JSON.stringify(prev.baseColors) !== JSON.stringify(next.baseColors)) {
-      if (prev.baseColors.length < next.baseColors.length) return 'Add ramp';
-      if (prev.baseColors.length > next.baseColors.length) return 'Remove ramp';
-      return 'Edit base color';
-    }
-    if (JSON.stringify(prev.overrides) !== JSON.stringify(next.overrides)) return 'Pin / unpin shade';
-    if (JSON.stringify(prev.hiddenShades) !== JSON.stringify(next.hiddenShades)) return 'Hide / restore shade';
-    if (JSON.stringify(prev.lockedRamps) !== JSON.stringify(next.lockedRamps)) return 'Lock / unlock ramp';
-    if (JSON.stringify(prev.rampShuffleOffsets) !== JSON.stringify(next.rampShuffleOffsets)) return 'Shuffle ramp';
-    if (JSON.stringify(prev.rampSatOverrides) !== JSON.stringify(next.rampSatOverrides)) return 'Adjust saturation';
-    if (JSON.stringify(prev.hueShiftStrengthPerRamp) !== JSON.stringify(next.hueShiftStrengthPerRamp)) return 'Adjust ramp hue shift';
-    if (JSON.stringify(prev.rampSizeOverrides) !== JSON.stringify(next.rampSizeOverrides)) return 'Change ramp size';
-    if (prev.rampSize !== next.rampSize) return 'Change shade count';
-    if (prev.hueShiftStrength !== next.hueShiftStrength) return 'Adjust hue shift';
-    if (prev.hardwareLock !== next.hardwareLock) {
-      return next.hardwareLock ? `Lock to ${next.hardwareLock}` : 'Unlock hardware';
-    }
-    if (prev.harmonyAnchor !== next.harmonyAnchor) return 'Change harmony anchor';
-    if (prev.shuffleSeed !== next.shuffleSeed) return 'Generate';
-    if (JSON.stringify(prev.collapsedRamps) !== JSON.stringify(next.collapsedRamps)) return 'Collapse / expand ramps';
-    return 'Edit';
-  };
+  // inferLabel lives in ./lib/history-snapshot (imported above).
 
   // Sequential undo / redo / jump-to-index. All three share the
   // snapshot-application path. The jump variant lets the History panel
