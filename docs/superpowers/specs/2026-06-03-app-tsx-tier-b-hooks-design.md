@@ -77,7 +77,7 @@ covered by existing e2e). Each returns `{state fields, setters, handlers}`.
 | `useDisplaySettings` | theme, cvdMode, crtEnabled | theme persist `[theme]`, cvd persist `[cvdMode]` |
 | `useExportSettings` | gplStyle, exportFormat, rampExportStyle, exportFeedback, lastSavedPath, sessionRampGplFolder | persist `[gplStyle]`, `[exportFormat]`, `[rampExportStyle]` |
 | `usePanelLayout` | rampsOpen, harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, advancedOpen, sectionOrder, dragOver, draggingKey | panel-open persist (1029), sectionOrder persist (1033) |
-| `useAIAssist` | aiInput, aiReasoning, aiColorNames, aiLoading, aiError, showAISettings, aiConfigured | — |
+| `useAIAssist` | aiInput, aiLoading, aiError, showAISettings, aiConfigured (the *request*) | — |
 | `useImageExtract` | imageDataUrl, imageColorCount, imageLoading, imageError, isDragging, eyedropperActive, imageZoom, imageNaturalSize, hoveredColor | mode-reset (1105) |
 | `useImageRemap` | remapImageDataUrl, remapImageNaturalSize, remapOutput, remapOutputSignature, remapDither, remapLoading, remapError, remapImageName, remapDownloadScale, remapDownloadConfirmPending, remapDragOver | `[remapImageDataUrl, livePaletteSig]`, `[remapOutput]`, `[remapImageDataUrl]` |
 | `useSideBySide` | sbsRemapSource, sbsLeftRemap, sbsRightRemap, sbsLeftRemapLoading, sbsRightRemapLoading, sbsLeft, sbsRight, sbsLeftPayload, sbsRightPayload, sbsLeftError, sbsRightError, sbsLeftLoading, sbsRightLoading | `[sbsLeftRemap]`, `[sbsRightRemap]`, `[sbsLeft]`, `[sbsRight]`, `[sbsRemapSource, leftRemapKey]`, `[sbsRemapSource, rightRemapKey]` |
@@ -101,6 +101,12 @@ App.tsx if they are genuinely cross-cutting wiring. The editor cluster
 - **`usePaletteState`** — owns the 19 snapshot fields + the ramp-generation /
   harmony pipeline (effects 3740/3797). Exposes the document state and the
   bulk handlers (Generate, Harmonize, Load, GPL import, Add/Remove ramp).
+  This includes `aiColorNames` and `aiReasoning`: the AI *request* is
+  ephemeral (`useAIAssist`), but the AI *results* are document state — written
+  by the generate handler into `usePaletteState` and restored by
+  `applyUndoSnapshot`, same as `baseColors`. Leaving them in `useAIAssist`
+  would force `useHistory`'s restore to reach into the request hook's setters,
+  re-introducing the cross-hook leak this design exists to contain.
 - **`useHistory`** — owns historyEntries, historyIndex, historyOpen, the refs
   (historyEntriesRef, historyIndexRef, isReplayingHistoryRef,
   pendingLabelRef), the debounced watcher, `buildUndoSnapshot`,
