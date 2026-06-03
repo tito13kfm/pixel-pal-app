@@ -112,34 +112,68 @@ note it for a possible follow-up, do not address.)
 - **N up to 64:** verify monotonic L, no duplicate-adjacent L (respect the
   existing `STEP_DELTA` min-gap so the base reads distinct), uniform-ish steps.
 
-### 2. Versioning + render routing
+### 2. Shared per-ramp pipeline — make the mirror STRUCTURAL, not test-enforced
+
+The live `App.tsx` memos and `buildRampsForSnapshot` currently duplicate the
+per-ramp pipeline (generate → pin → hardware-snap → hidden-filter). Adding v1+v2
+on top would make that **two engines × two call sites = four places to keep in
+sync** — the exact duplication that produced #30. **Before** wiring v2, extract
+the per-ramp pipeline into ONE pure function (e.g. `buildRamp(params, style,
+engineVersion)` in a shared lib module) that both the live memos and
+`buildRampsForSnapshot` call. The mirror then can't diverge by construction; the
+mirror test becomes a guard on a single code path, not a cross-check of two.
+This extraction is part of THIS plan, not deferred debt.
+
+### 3. Versioning + render routing
 
 - Add `engineVersion?: number` to the saved-palette payload and to the history
   snapshot shape (`RampSnapshot`). **Absent → 1** (legacy).
 - New palettes / fresh generation → `engineVersion: 2`.
-- Both renderers select the engine by the active palette's version:
-  - Live: the `rampsPunchy/Balanced/Muted` useMemos in `App.tsx`.
-  - Snapshot: `buildRampsForSnapshot` in `src/lib/snapshot-ramps.ts`.
-- **Mirror constraint (CLAUDE.md rule):** the version→engine selection MUST be
-  identical in both paths. A snapshot rendered at version V must equal the live
-  render of the same data at version V. This is a first-class test.
+- Both renderers select the engine by the active palette's version — via the
+  shared `buildRamp` from §2, so selection logic lives in exactly one place.
+- **Working-palette semantics (state explicitly):** loading a v1 (or
+  version-absent) palette sets the working session's `engineVersion` to 1 and
+  renders v1 until an *explicit* upgrade (deferred UI). The working palette does
+  NOT silently adopt v2 on load. New/empty sessions start at v2.
+- **Mirror constraint (CLAUDE.md rule):** a snapshot rendered at version V must
+  equal the live render of the same data at version V — now guaranteed by the
+  shared pipeline (§2) and verified by test at both V=1 and V=2.
 
 **Result:** opening an old (v1 / version-absent) palette renders via v1 →
 pixel-identical to before. No baking, no migration of stored data required for
 the MVP.
 
-### 3. Testing
+### 4. Acceptance — visual sign-off FIRST, then freeze numbers as guards
+
+The acceptance criterion must not be circular: deferring ΔL tolerances to the
+plan *and* tuning `w(N)` until they pass makes the test self-fulfilling. The
+user's complaint is **visual** ("a ton"), so the judge is the eye; the numbers
+are only the lock.
+
+1. **Principled design target, stated up front (not reverse-derived):**
+   *no adjacent ΔL exceeds 1.5× the ramp's median ΔL*, for every hue × N in the
+   matrix. Tune `w(N)` / `guaranteed` / step curve to hit THIS target.
+2. **Visual sign-off gate:** render before/after ramp strips (v1 vs v2) for the
+   hero cases — green @ N=4 and 7, navy, a mid-tone, a grey — as a screenshot,
+   and get the user's visual approval. (Remote user → deliver via screenshot, as
+   in this session.)
+3. **Only after visual sign-off, freeze the observed v2 output as snapshot
+   regression guards.** The numeric snapshot is the lock that prevents
+   regressions; it is NOT the arbiter of "good."
+
+### 5. Testing
 
 - **Characterize v1** before adding v2: snapshot test pinning current output for
   a representative set (light/dark/saturated/grey bases × N ∈ {2,4,7,16,64}) so
   the legacy path is provably frozen.
-- **v2 snapshot tests:** new expected output for the same matrix.
-- **Step-ratio assertions (the core of the fix):** for v2, assert
-  `base→bright ΔL` and `base→shadow ΔL` are within a tolerance of each other and
-  below a max for a light hue (green) and dark hue (navy) at N ∈ {4,7,16,64};
-  assert ≥ `guaranteed` shades exist on each side where N allows.
+- **v2 snapshot tests:** the visually-approved output for the same matrix (§4.3).
+- **Principled-threshold assertion (the core of the fix):** for v2, assert
+  *no adjacent ΔL > 1.5× median ΔL* (§4.1) for a light hue (green) and dark hue
+  (navy) at N ∈ {4,7,16,64}; assert ≥ `guaranteed` shades on each side where N
+  allows.
 - **Mirror test:** `buildRampsForSnapshot(snap, style)` equals the live render
-  for the same data, at both `engineVersion` 1 and 2.
+  for the same data, at both `engineVersion` 1 and 2 — exercising the shared
+  `buildRamp` (§2).
 - **Edge tests:** N=2/3/4 explicit expected ramps; monotonic L; min-gap respected.
 
 ---
@@ -147,9 +181,12 @@ the MVP.
 ## Scope
 
 **MVP (this spec / plan):**
+- Extract the per-ramp pipeline into one shared pure function (§2) — structural
+  mirror, done before v2 wiring.
 - v2 engine (allocation + stepping) + v1 preserved.
-- `engineVersion` field; live + snapshot routing; old palettes auto-render v1.
-- Full test suite above.
+- `engineVersion` field; live + snapshot routing through the shared function;
+  old palettes auto-render v1.
+- Visual sign-off gate (§4) + full test suite (§5).
 
 **Deferred (separate follow-up, not blocking):**
 - Per-palette "Update shading to v2" action and/or a one-time migration banner
