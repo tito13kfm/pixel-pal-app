@@ -37,7 +37,6 @@ import { quantizeToHardware } from './lib/hardware-quantize';
 import { extractDominantColors } from './lib/image-extract';
 import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
-import { inferLabel } from './lib/history-snapshot';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
@@ -50,6 +49,8 @@ import { useSideBySide } from './hooks/useSideBySide';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
+import { usePaletteState } from './hooks/usePaletteState';
+import { useHistory } from './hooks/useHistory';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -140,20 +141,30 @@ const PixelSprite = ({ palette, scale = 6, spriteKey = 'vase', spriteLibrary }) 
 
 // ---------- Main ----------
 export default function PixelPalGenerator() {
+  // Document core (25 fields: 19 snapshot + 6 editor/compare) + the snapshot
+  // helpers live in usePaletteState (Tier B Wave 2). It is a thin state-bag:
+  // the generation pipeline + all bulk handlers STAY below in App.tsx and read
+  // these via the destructured `palette`. See src/hooks/usePaletteState.ts.
+  const palette = usePaletteState();
+  const {
+    baseColors, setBaseColors, aiColorNames, setAiColorNames,
+    aiReasoning, setAiReasoning, rampSize, setRampSize,
+    shuffleSeed, setShuffleSeed, overrides, setOverrides,
+    harmonyAnchor, setHarmonyAnchor, rampSizeOverrides, setRampSizeOverrides,
+    rampSatOverrides, setRampSatOverrides, hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp,
+    hiddenShades, setHiddenShades, rampShuffleOffsets, setRampShuffleOffsets,
+    hardwareLock, setHardwareLock, hueShiftStrength, setHueShiftStrength,
+    lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
+    lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
+    stylePresets, setStylePresets,
+    editingIndex, setEditingIndex, editorHsv, setEditorHsv,
+    pinEditor, setPinEditor, compareMode, setCompareMode,
+    compareAnchor, setCompareAnchor, compareResult, setCompareResult,
+    buildSnapshot, applySnapshotFields, resetTransientEditors,
+  } = palette;
   const [mode, setMode] = useState('color');
   const [colorInput, setColorInput] = useState('#ff00ff');
-  const [aiReasoning, setAiReasoning] = useState('');
-  const [aiColorNames, setAiColorNames] = useState([]);
   const imageRef = useRef(null);
-  const [rampSize, setRampSize] = useState(6);
-  // hueShiftStrength scales the shadow/highlight hue shifts applied
-  // inside generateRamp. 1.0 = default (current behavior, byte-identical
-  // to pre-E saved palettes). 0.0 = no hue shift (flatter ramps).
-  // 2.0 = double shift (more painterly stylized). Stored as a number
-  // in [0.0, 2.0]; UI surfaces it as a percentage. Per-palette, NOT a
-  // global user preference: it's a creative choice that belongs to the
-  // palette's identity.
-  const [hueShiftStrength, setHueShiftStrength] = useState(1.0);
   // Display settings (theme, cvdMode, crtEnabled) + their load/persist effects
   // live in useDisplaySettings. See src/hooks/useDisplaySettings.ts.
   const { theme, setTheme, cvdMode, setCvdMode, crtEnabled, setCrtEnabled } = useDisplaySettings();
@@ -220,22 +231,11 @@ export default function PixelPalGenerator() {
   } = usePanelLayout();
   const { updateInfo, setUpdateInfo, updateReady, setUpdateReady, updateDownloading, setUpdateDownloading } = useUpdater();
   const tourSnapshot = useRef(null);
-  const [baseColors, setBaseColors] = useState(['#ff00ff']);
-  const [shuffleSeed, setShuffleSeed] = useState(0);
   // Brief inline feedback shown next to the "Add to Palette" button on the
   // Single Color tab. Separate from exportFeedback because the export
   // badge lives near the bottom of the page and is invisible to a user
   // working at the top. Clears itself via setTimeout.
   const [addBaseFeedback, setAddBaseFeedback] = useState('');
-  // WCAG Check (internal state: compareMode): when on, clicking a swatch sets the compareAnchor
-  // instead of copying the hex. A second click on a different swatch
-  // (in any ramp / style) populates compareResult with the ratio.
-  // Click the anchored swatch again to unlock. Click any swatch when
-  // a result is showing to start a fresh comparison from that swatch.
-  // All transient; not persisted.
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareAnchor, setCompareAnchor] = useState(null); // { baseIndex, shadeIndex, style, hex } | null
-  const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
   // ----- Image Remap Preview state -----
@@ -253,166 +253,36 @@ export default function PixelPalGenerator() {
   // two-click download confirmation (remapDownloadConfirmPending). Kept here
   // (not in the hook) because it's only touched by the download handler.
   const remapDownloadConfirmTimerRef = useRef(null);
-  // harmonyAnchor: index into baseColors[] used as the source for the Harmony
-  // Colors panel. Originally hardcoded to 0; now user-selectable via the
-  // thumbnail row at the top of the Harmony section. When a base is removed
-  // we clamp the anchor in removeRamp; if the anchor base itself is removed,
-  // it falls back to 0. We deliberately do NOT auto-switch the anchor when
-  // new bases are added (e.g. via Add Both / Add All in the harmony panel
-  // itself), since that would yank the harmony view out from under the user
-  // mid-click.
-  const [harmonyAnchor, setHarmonyAnchor] = useState(0);
-  // hardwareLock: when non-null, all generated ramp shades and added harmony
-  // colors are snapped to the nearest color in the named hardware palette.
-  // Values: null (no lock, free generation), 'nes', 'gameboy', 'cga16',
-  // 'ega64', or 'c64'. Persisted with the palette since the lock IS part
-  // of the palette's identity (a "Game Boy palette" loses meaning if you
-  // load it free).
-  // When set, the per-ramp output is also deduped (consecutive duplicates
-  // collapsed) and capped at min(rampSize, hardwarePaletteSize). The dedupe
-  // means a Game Boy ramp with 8 requested shades visually shows 4 since
-  // the hardware only has 4 colors.
-  const [hardwareLock, setHardwareLock] = useState(null);
-
-  // Base color editor (feature #1). At most one ramp's editor is open at a
-  // time; toggling another closes the previous. editorHsv holds the live
-  // slider values for the currently-open editor; we keep HSV as the editor's
-  // source of truth so slider drags feel continuous (writing through hex would
-  // jitter due to round-trip quantization). When the editor opens, editorHsv
-  // is seeded from the corresponding baseColors[i] via hexToHsv.
-  //
-  // HSV (also called HSB) is chosen over HSL because it matches the mental
-  // model of pixel art tools like Aseprite. Note that in HSV, V=100 with
-  // S=100 is the pure saturated color (not white); reaching white requires
-  // S=0 AND V=100. This is by design.
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [editorHsv, setEditorHsv] = useState({ h: 0, s: 0, v: 0 });
-
-  // Per-shade overrides (feature A). Sparse map keyed by baseIndex then
-  // shadeIndex: { [baseIndex]: { [shadeIndex]: '#rrggbb' } }. Overrides are
-  // applied AFTER generateRamp returns and AFTER its internal sortByLightness,
-  // so a pinned shade can sit anywhere in the ramp regardless of its
-  // lightness. This is intentional: the user pinned it on purpose and the
-  // pushpin badge makes the override visible. Overrides are SHARED across the
-  // three styles (Punchy/Balanced/Muted): a pin on base i, shade j means
-  // shade j of base i is the pinned hex in all three styles. When the user
-  // removes a base, overrides for that base are dropped and later indices
-  // shift down (see removeRamp). When the ramp size changes, overrides on
-  // shade indices >= the new size become inert but stay in state so that
-  // switching back to a larger size restores them.
-  const [overrides, setOverrides] = useState({});
-  // pinEditor: which shade's editor is currently open. null when closed.
-  // Shape: { baseIndex, shadeIndex } or null. At most one pin editor open at
-  // a time, mirroring how the base editor works.
-  const [pinEditor, setPinEditor] = useState(null);
-
-  // Per-ramp overrides (in addition to per-shade pins). Both are sparse maps
-  // keyed by baseIndex; absent entries inherit the global default.
-  //   rampSizeOverrides[i] = 4..8     overrides the global rampSize for ramp i
-  //   rampSatOverrides[i] = 0.5..2.0  multiplies the base color's saturation
-  //                                   before passing it to generateRamp.
-  // Range/validation enforcement happens at the setter site. Both are cleared
-  // on every full-palette-replace path (Generate, AI, image load, classics).
-  // removeRamp also shifts later keys down by 1.
-  const [rampSizeOverrides, setRampSizeOverrides] = useState({});
-  const [rampSatOverrides, setRampSatOverrides] = useState({});
-  const [hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp] = useState({});
-
-  // Per-ramp shuffle offsets. Sparse map keyed by baseIndex; value is a
-  // non-negative integer that the user has incremented by clicking the
-  // per-ramp Shuffle button. Feeds into the generator's jitter seed so
-  // each ramp can be reshuffled independently. Without an entry the
-  // offset is treated as 0, so the user only pays the state-bloat cost
-  // for ramps they actually shuffled. Cleared on full-palette replace.
-  // Shifted on removeRamp via shiftBaseKeyedMap.
-  const [rampShuffleOffsets, setRampShuffleOffsets] = useState({});
-
-  // Hidden shades per base. Sparse map keyed by baseIndex; value is an
-  // array of shadeIndex numbers that should be filtered out of display
-  // and export for that base. Filtering applies across all three styles
-  // simultaneously (a single decision per base). Ramps are still
-  // computed at their full size internally so pin overrides keep their
-  // shade-position semantics; the hidden indices are filtered at
-  // display/export time only. Cleared on every full-palette-replace
-  // path. Shifted on removeRamp via shiftBaseKeyedMap.
-  const [hiddenShades, setHiddenShades] = useState({});
 
 
-  // Per-base ramp-card collapse state. A Set of baseIndex values that are
-  // currently collapsed (showing only the three sprite icons, hiding the
-  // swatch rows). Transient UI state, not persisted across sessions. NOT
-  // cleared on palette-replace paths because the threshold-transition
-  // effect below handles defaults: <=2 bases auto-expands, >=3 auto-collapses.
-  // Manual toggles persist as long as the base count stays in the same bucket.
-  // Keys must be shifted on removeRamp the same way overrides are.
-  const [collapsedRamps, setCollapsedRamps] = useState(() => new Set());
 
-  // lockedRamps: Set of base indices whose per-ramp inputs are exempt from
-  // global regeneration. When a ramp is locked, the global Generate / Shuffle
-  // / dice button does NOT alter its base color, size override, sat override,
-  // or effective shuffle seed. Pins and hidden shades on locked ramps are
-  // ALSO preserved (they were anyway, since they're addressed by index).
-  // Hardware lock still applies to locked ramps (it's a global output
-  // filter, not an input). The harmonize() helper uses this set to decide
-  // which ramps to leave alone vs which to nudge to harmony positions.
-  //
-  // Implementation note: ramps are computed by useMemo from baseColors
-  // and shuffleSeed (a global counter). To keep a locked ramp visually
-  // unchanged when shuffleSeed advances, we compensate by setting that
-  // ramp's `rampShuffleOffsets[i]` to a counter-value such that the
-  // effective per-ramp seed stays constant. See `bumpShuffleSeed` below.
-  //
-  // Keys must be shifted on removeRamp the same way overrides are.
-  const [lockedRamps, setLockedRamps] = useState(() => new Set());
+  // History (undo / redo / jump-to-state) lives in useHistory: Photoshop-style
+  // whole-state snapshots (NOT diff patches), 50-entry cap, session-only. The
+  // document core is owned by usePaletteState; useHistory is wired to it via
+  // buildSnapshot / applySnapshotFields / resetTransientEditors. The watcher's
+  // dep array (snapshotInputs) is the 17 snapshot INPUT values — it deliberately
+  // OMITS lightnessCurvePerRamp / satCurvePerRamp (preserved verbatim from the
+  // pre-extraction behavior; do not "complete" it to 19). `tagNextLabel`
+  // replaces the old scattered `pendingLabelRef.current = ...` handler writes:
+  // tagged actions (Generate, Harmonize, Load, …) call it before mutating state;
+  // untagged changes fall back to inferLabel. See src/hooks/useHistory.ts.
+  const {
+    historyEntries, historyIndex, undo, redo, jumpToHistoryIndex,
+    canUndo, canRedo, tagNextLabel,
+  } = useHistory({
+    buildSnapshot,
+    applySnapshotFields,
+    resetTransientEditors,
+    setExportFeedback,
+    snapshotInputs: [
+      baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
+      overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
+      hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
+      lockedRamps, collapsedRamps, stylePresets,
+    ],
+  });
 
-  // ============================================================
-  // History (undo / redo / jump-to-state)
-  // ============================================================
-  // Photoshop-style: a collapsible list of past states, each labeled
-  // with the action that produced it and the time it happened. Users
-  // can Cmd+Z / Cmd+Y for sequential navigation or click any entry in
-  // the panel to jump.
-  //
-  // Architecture: whole-state snapshots, NOT diff patches. Each entry
-  // holds a JSON-serializable snapshot of every undoable state field
-  // (the working-palette fields, plus lockedRamps and collapsedRamps;
-  // see buildUndoSnapshot below for the full list). 50-entry cap;
-  // overflow drops the oldest. Session-only (NOT persisted to storage):
-  // a page reload starts fresh with a single "Initial state" entry.
-  //
-  // Sprite library, theme/CRT/CVD chrome preferences, side-by-side
-  // slot assignments, compare-mode state, save-name input, pin editor
-  // and base editor open state are all NOT in the snapshot. Those are
-  // asset-library / UI-chrome / transient-edit-mode state. Undo only
-  // covers "what is the palette", not "how am I viewing it".
-  //
-  // Watcher effect (declared further down, near the other useEffects):
-  // observes a serialized snapshot, debounces 300ms so a slider drag
-  // collapses into a single history entry, and pushes a new entry when
-  // the snapshot stabilizes at a value different from the current
-  // entry's. The `isReplayingHistory` ref short-circuits the watcher
-  // during undo/redo/jump so replayed states don't recursively create
-  // new entries (which would also break the redo stack).
-  //
-  // pendingLabel: handler-tagged actions (Generate, Harmonize, Load,
-  // etc) set this before mutating state. The watcher consumes it as
-  // the new entry's label. Anything that mutates state without setting
-  // this gets a label inferred by diffing the new snapshot against
-  // the current one.
-  const HISTORY_DEPTH_CAP = 50;
-  const HISTORY_DEBOUNCE_MS = 300;
-  const [historyEntries, setHistoryEntries] = useState(() => [
-    { snapshot: null, label: 'Initial state', timestamp: Date.now() },
-  ]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const isReplayingHistoryRef = useRef(false);
-  const historyDebounceRef = useRef(null);
-  const pendingLabelRef = useRef(null);
-
-  const [lightnessCurvePerRamp, setLightnessCurvePerRamp] = useState<Record<string, CurvePoints>>({});
-  const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
-  const [stylePresets, setStylePresets] = useState(DEFAULT_STYLE_PRESETS);
   const resetStylePresets = () => setStylePresets(DEFAULT_STYLE_PRESETS);
   const confirmTimerRef = useRef(null);
   // Ref to the Save Palette name input. Used by the `S` keyboard
@@ -694,7 +564,7 @@ export default function PixelPalGenerator() {
   }, [baseColors, safeAnchor, activeHardware]);
 
   const handleGenerate = () => {
-    pendingLabelRef.current = mode === 'color' ? 'New palette' : 'Shuffle';
+    tagNextLabel(mode === 'color' ? 'New palette' : 'Shuffle');
     if (mode === 'color') {
       setBaseColors([colorInput]); setAiReasoning(''); setAiColorNames([]);
       resetPaletteState();
@@ -728,7 +598,7 @@ export default function PixelPalGenerator() {
       const names = (result.names && result.names.length === result.colors.length)
         ? hexes.map((_, i) => result.names[i] || `Color ${i + 1}`)
         : hexes.map((_, i) => `Color ${i + 1}`);
-      pendingLabelRef.current = 'AI generate';
+      tagNextLabel('AI generate');
       setBaseColors(hexes); setAiColorNames(names); setAiReasoning(result.description || '');
       resetPaletteState();
       setShuffleSeed(s => s + 1);
@@ -759,7 +629,7 @@ export default function PixelPalGenerator() {
       const names = (result.names && result.names.length === result.colors.length)
         ? hexes.map((_, i) => result.names[i] || `Color ${i + 1}`)
         : hexes.map((_, i) => `Color ${i + 1}`);
-      pendingLabelRef.current = 'Surprise me';
+      tagNextLabel('Surprise me');
       if (result.subject) setAiInput(result.subject);
       setBaseColors(hexes); setAiColorNames(names); setAiReasoning(result.description || '');
       resetPaletteState();
@@ -801,7 +671,7 @@ export default function PixelPalGenerator() {
           const colors = extractDominantColors(imageData, imageColorCount);
           if (colors.length === 0) { setImageError('No colors found'); setImageLoading(false); return; }
           const finalColors = colors.slice(0, imageColorCount);
-          pendingLabelRef.current = 'Extract from image';
+          tagNextLabel('Extract from image');
           setBaseColors(finalColors);
           setAiColorNames(finalColors.map((_, i) => `Color ${i + 1}`));
           resetPaletteState();
@@ -833,7 +703,7 @@ export default function PixelPalGenerator() {
         const imageData = ctx.getImageData(0, 0, w, h);
         const colors = extractDominantColors(imageData, imageColorCount);
         const finalColors = colors.slice(0, imageColorCount);
-        pendingLabelRef.current = 'Re-extract from image';
+        tagNextLabel('Re-extract from image');
         setBaseColors(finalColors);
         setAiColorNames(finalColors.map((_, i) => `Color ${i + 1}`));
         resetPaletteState();
@@ -966,7 +836,7 @@ export default function PixelPalGenerator() {
     const result = getPixelColorFromImage(event);
     if (!result || result.alpha < 128) return;
     if (!baseColors.includes(result.hex)) {
-      pendingLabelRef.current = 'Eyedropper add';
+      tagNextLabel('Eyedropper add');
       setBaseColors(prev => [...prev, result.hex]);
       setAiColorNames(prev => {
         const padded = [...prev];
@@ -1440,7 +1310,7 @@ export default function PixelPalGenerator() {
       return;
     }
     const newLen = baseColors.length + 1;
-    pendingLabelRef.current = 'Add base color';
+    tagNextLabel('Add base color');
     setRampSizeOverrides(prev => ({ ...prev, [baseColors.length]: rampSize }));
     setBaseColors(prev => [...prev, norm]);
     setAiColorNames(prev => {
@@ -1613,7 +1483,7 @@ export default function PixelPalGenerator() {
   // N != i discrepancy from the old HSV engine no longer matters.
   const duplicateRamp = (i) => {
     if (i < 0 || i >= baseColors.length) return;
-    pendingLabelRef.current = 'Duplicate ramp';
+    tagNextLabel('Duplicate ramp');
     // Deep-clone helper for per-base entries. Plain JSON is sufficient:
     // the contents are POJO maps / arrays / primitives.
     const deepClone = (entry) => (entry === undefined ? undefined : JSON.parse(JSON.stringify(entry)));
@@ -1872,7 +1742,7 @@ export default function PixelPalGenerator() {
   // resetPaletteState: clears every customization layer that the eight
   // full-palette-replace paths share. Callers are still responsible for
   // setting baseColors (or aiColorNames / aiReasoning when applicable),
-  // tagging pendingLabelRef, and bumping the shuffle seed if their path
+  // tagging the next history label via tagNextLabel, and bumping the shuffle seed if their path
   // requires it. Preserves rampSize, hardwareLock, theme, CRT, CVD on
   // purpose: those are session-level settings, not per-palette state.
   //
@@ -1909,7 +1779,7 @@ export default function PixelPalGenerator() {
     if (confirmReset) {
       if (resetConfirmTimerRef.current) { clearTimeout(resetConfirmTimerRef.current); resetConfirmTimerRef.current = null; }
       setConfirmReset(false);
-      pendingLabelRef.current = 'Reset to defaults';
+      tagNextLabel('Reset to defaults');
       const fresh = buildRandomHex();
       setColorInput(fresh);
       setBaseColors([fresh]);
@@ -1990,7 +1860,7 @@ export default function PixelPalGenerator() {
       newBaseColors[i] = hslToHex({ h: newH, s: orig.s, l: orig.l });
     }
     const modeLabel = harmonizeMode.replace('-', ' ');
-    pendingLabelRef.current = `Harmonize (${targets.length}, ${modeLabel})`;
+    tagNextLabel(`Harmonize (${targets.length}, ${modeLabel})`);
     setBaseColors(newBaseColors);
     setCompareAnchor(null);
     setCompareResult(null);
@@ -1999,7 +1869,7 @@ export default function PixelPalGenerator() {
   };
   const restoreHarmonizeBaseline = () => {
     if (!harmonizeBaseline) return;
-    pendingLabelRef.current = 'Restore pre-harmonize hues';
+    tagNextLabel('Restore pre-harmonize hues');
     setBaseColors(harmonizeBaseline.slice());
     setHarmonizeBaseline(null);
     setCompareAnchor(null);
@@ -2289,106 +2159,7 @@ export default function PixelPalGenerator() {
     return () => { if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current); };
   }, []);
 
-  // History watcher: observes the snapshot inputs, debounces, and records
-  // a new history entry on stabilization.
-  //
-  // The dependencies are the SNAPSHOT INPUTS, not historyEntries/
-  // historyIndex (which would loop). We read those two via refs that
-  // are kept in sync with the rendered values via a separate effect
-  // below. The ref pattern avoids invalidating this effect's closure
-  // every time we push a new entry.
-  //
-  // The debounce serves two purposes: it collapses rapid slider input
-  // into a single entry, and it lets React batch the state updates of
-  // a single user action (which often touch multiple state fields)
-  // into one snapshot rather than two near-identical ones.
-  const historyEntriesRef = useRef(historyEntries);
-  const historyIndexRef = useRef(historyIndex);
-  useEffect(() => { historyEntriesRef.current = historyEntries; }, [historyEntries]);
-  useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
-
-  useEffect(() => {
-    // Replay path: undo/redo/jump set this flag, and React then re-runs
-    // this effect because the state fields changed. Clear the flag and
-    // skip recording.
-    if (isReplayingHistoryRef.current) {
-      isReplayingHistoryRef.current = false;
-      // Cancel any pending debounce too: we don't want a queued snapshot
-      // recording the replayed state.
-      if (historyDebounceRef.current) {
-        clearTimeout(historyDebounceRef.current);
-        historyDebounceRef.current = null;
-      }
-      return;
-    }
-
-    if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
-    historyDebounceRef.current = setTimeout(() => {
-      historyDebounceRef.current = null;
-      const entries = historyEntriesRef.current;
-      const index = historyIndexRef.current;
-      const current = entries[index];
-      const newSnap = buildUndoSnapshot();
-      // Skip if the snapshot is byte-identical to the current entry.
-      // This guards against effect runs where a setter was called with
-      // the same value (React still re-runs the effect because the
-      // dependency identity may have changed).
-      if (current && current.snapshot && JSON.stringify(current.snapshot) === JSON.stringify(newSnap)) {
-        return;
-      }
-      const label = pendingLabelRef.current || inferLabel(current ? current.snapshot : null, newSnap);
-      pendingLabelRef.current = null;
-      // Truncate forward entries (redo stack) and append the new entry.
-      // Cap at HISTORY_DEPTH_CAP by dropping from the front.
-      const next = entries.slice(0, index + 1);
-      next.push({ snapshot: newSnap, label, timestamp: Date.now() });
-      let newIndex = next.length - 1;
-      if (next.length > HISTORY_DEPTH_CAP) {
-        const dropped = next.length - HISTORY_DEPTH_CAP;
-        next.splice(0, dropped);
-        newIndex -= dropped;
-      }
-      setHistoryEntries(next);
-      setHistoryIndex(newIndex);
-    }, HISTORY_DEBOUNCE_MS);
-
-    // Cleanup: if the effect re-fires before the timer, the new run will
-    // clear the old timer at the top.
-    return () => {};
-  }, [
-    baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
-    overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
-    hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
-    lockedRamps, collapsedRamps, stylePresets,
-  ]);
-
-  // Keyboard shortcuts for undo/redo. Bound at the window level so they
-  // fire regardless of focus, but skipped when the focused element is
-  // a text input / textarea (so native browser text-undo works inside
-  // the hex input, AI prompt, save name field, etc).
-  useEffect(() => {
-    const handler = (e) => {
-      const target = e.target;
-      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
-      const isEditable = tag === 'input' || tag === 'textarea' || (target && target.isContentEditable);
-      if (isEditable) return;
-      const mod = e.ctrlKey || e.metaKey;
-      if (!mod) return;
-      const key = e.key.toLowerCase();
-      if (key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
-        // Also support Cmd+Shift+Z as an alias for redo. Most users
-        // expect it; binding both is cheap.
-        e.preventDefault();
-        redo();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [historyEntries, historyIndex]);  // re-bind whenever history changes so handler closures see fresh undo/redo
-
+  // History watcher, ref-sync, and undo/redo keybinds now live in useHistory.
   // Side-by-side slot fetcher. When a slot points at a saved-palette slug,
   // pull the full payload from storage so ramps render at full fidelity
   // (pins, hidden shades, hardware lock, per-ramp sizes/sats, shuffleSeed).
@@ -2711,129 +2482,10 @@ export default function PixelPalGenerator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sbsRemapSource, rightRemapKey]);
 
-  // ============================================================
-  // History snapshot machinery
-  // ============================================================
-  // Build a JSON-serializable snapshot of every undoable state field.
-  // Sets are serialized as sorted arrays so equality comparisons via
-  // JSON.stringify are deterministic. Object maps with numeric keys
-  // (overrides, rampSizeOverrides, etc.) are passed through; JSON
-  // serialization preserves their structure.
-  const buildUndoSnapshot = () => ({
-    baseColors,
-    aiColorNames,
-    aiReasoning,
-    rampSize,
-    shuffleSeed,
-    overrides,
-    harmonyAnchor,
-    rampSizeOverrides,
-    rampSatOverrides,
-    hueShiftStrengthPerRamp,
-    hiddenShades,
-    rampShuffleOffsets,
-    hardwareLock,
-    hueShiftStrength,
-    lockedRamps: [...lockedRamps].sort((a, b) => a - b),
-    collapsedRamps: [...collapsedRamps].sort((a, b) => a - b),
-    lightnessCurvePerRamp,
-    satCurvePerRamp,
-    stylePresets,
-  });
-
-  // Apply a snapshot back to all state setters. Wraps the calls in the
-  // isReplayingHistory flag so the watcher effect doesn't record this
-  // application as a new entry.
-  //
-  // setHueShiftStrength etc. all fire synchronously into React's update
-  // queue, but the rendered effect happens on the next render. The flag
-  // is read by the watcher's debounced timer when it actually fires, so
-  // it'll still be set when the timer runs after the batched render.
-  const applyUndoSnapshot = (snap) => {
-    if (!snap) return;
-    isReplayingHistoryRef.current = true;
-    setBaseColors(snap.baseColors);
-    setAiColorNames(snap.aiColorNames);
-    setAiReasoning(snap.aiReasoning);
-    setRampSize(snap.rampSize);
-    setShuffleSeed(snap.shuffleSeed);
-    setOverrides(snap.overrides);
-    setHarmonyAnchor(snap.harmonyAnchor);
-    setRampSizeOverrides(snap.rampSizeOverrides);
-    setRampSatOverrides(snap.rampSatOverrides);
-    setHueShiftStrengthPerRamp(snap.hueShiftStrengthPerRamp ?? {});
-    setHiddenShades(snap.hiddenShades);
-    setRampShuffleOffsets(snap.rampShuffleOffsets);
-    setHardwareLock(snap.hardwareLock);
-    setHueShiftStrength(snap.hueShiftStrength);
-    setLockedRamps(new Set(snap.lockedRamps || []));
-    setCollapsedRamps(new Set(snap.collapsedRamps || []));
-    setLightnessCurvePerRamp(snap.lightnessCurvePerRamp ?? {});
-    setSatCurvePerRamp(snap.satCurvePerRamp ?? {});
-    setStylePresets(snap.stylePresets ?? DEFAULT_STYLE_PRESETS);
-    // Side effects of applying: clear in-flight UI editor states that
-    // could reference stale indices.
-    setPinEditor(null);
-    setEditingIndex(null);
-    setCompareAnchor(null);
-    setCompareResult(null);
-  };
-
-  // Diff-based label fallback: when a state change wasn't tagged by its
-  // handler with pendingLabelRef, infer a label from which fields
-  // changed between previous and new snapshots. Most fine-grained edits
-  // (HSV sliders, sat slider, size dropdown, ramp lock toggle, etc) go
-  // through this path. The bulk handlers (Generate, Harmonize, Load,
-  // GPL import, etc) tag explicitly because their action name is
-  // user-visible.
-  // inferLabel lives in ./lib/history-snapshot (imported above).
-
-  // Sequential undo / redo / jump-to-index. All three share the
-  // snapshot-application path. The jump variant lets the History panel
-  // user click any entry.
-  const canUndo = historyIndex > 0;
-  const canRedo = historyIndex < historyEntries.length - 1;
-  const undo = () => {
-    if (!canUndo) {
-      setExportFeedback('Nothing to undo');
-      setTimeout(() => setExportFeedback(''), 1500);
-      return;
-    }
-    const targetIndex = historyIndex - 1;
-    const entry = historyEntries[targetIndex];
-    applyUndoSnapshot(entry.snapshot);
-    setHistoryIndex(targetIndex);
-    setExportFeedback(`Undo: ${entry.label}`);
-    setTimeout(() => setExportFeedback(''), 1500);
-  };
-  const redo = () => {
-    if (!canRedo) {
-      setExportFeedback('Nothing to redo');
-      setTimeout(() => setExportFeedback(''), 1500);
-      return;
-    }
-    const targetIndex = historyIndex + 1;
-    const entry = historyEntries[targetIndex];
-    applyUndoSnapshot(entry.snapshot);
-    setHistoryIndex(targetIndex);
-    setExportFeedback(`Redo: ${entry.label}`);
-    setTimeout(() => setExportFeedback(''), 1500);
-  };
-  const jumpToHistoryIndex = (targetIndex) => {
-    if (targetIndex < 0 || targetIndex >= historyEntries.length) return;
-    if (targetIndex === historyIndex) return;
-    const entry = historyEntries[targetIndex];
-    // Index 0 is the "Initial state" sentinel; its snapshot is null because
-    // we hadn't built the snapshot machinery yet. Jumping to index 0 is a
-    // no-op for state application: we just move the cursor and let the
-    // user keep editing from "wherever they were when the app loaded".
-    // This is intentionally imperfect (Initial state can't actually
-    // restore mount state) but it's still a useful anchor in the panel.
-    if (entry.snapshot) applyUndoSnapshot(entry.snapshot);
-    setHistoryIndex(targetIndex);
-    setExportFeedback(`Jumped to: ${entry.label}`);
-    setTimeout(() => setExportFeedback(''), 1500);
-  };
+  // History snapshot machinery (applyUndoSnapshot, undo/redo/jumpToHistoryIndex,
+  // canUndo/canRedo) lives in useHistory. inferLabel lives in
+  // ./lib/history-snapshot. undo/redo/jump/canUndo/canRedo are destructured from
+  // the useHistory() call above.
 
   // Format a unix-ms timestamp as a short relative-time string for the
   // History panel. Resolution drops as ages grow: "just now" (<10s),
@@ -2948,7 +2600,7 @@ export default function PixelPalGenerator() {
           return merged;
         });
       }
-      pendingLabelRef.current = `Load: ${parsed.name || slug}`;
+      tagNextLabel(`Load: ${parsed.name || slug}`);
       setBaseColors(parsed.baseColors);
       setAiColorNames(Array.isArray(parsed.aiColorNames) ? parsed.aiColorNames : []);
       setAiReasoning(typeof parsed.aiReasoning === 'string' ? parsed.aiReasoning : '');
@@ -3167,7 +2819,7 @@ export default function PixelPalGenerator() {
   // depend on whatever shuffle the user happened to be on.
   const loadClassicPalette = (classic) => {
     if (!classic || !Array.isArray(classic.baseColors) || classic.baseColors.length === 0) return;
-    pendingLabelRef.current = `Load classic: ${classic.name}`;
+    tagNextLabel(`Load classic: ${classic.name}`);
     setBaseColors(classic.baseColors);
     setAiColorNames(classic.names || classic.baseColors.map((_, i) => `${classic.name} ${i + 1}`));
     setAiReasoning(`Inspired by ${classic.name}. ${classic.tip}`);
@@ -3231,7 +2883,7 @@ export default function PixelPalGenerator() {
       chosen = uniq;
     }
     if (chosen.length === 0) return;
-    pendingLabelRef.current = `Import GPL: ${gplImport.name}`;
+    tagNextLabel(`Import GPL: ${gplImport.name}`);
     setBaseColors(chosen);
     setAiColorNames(chosen.map((_, i) => `${gplImport.name} ${i + 1}`));
     setAiReasoning(`Imported from ${gplImport.name}. ${chosen.length} base color${chosen.length === 1 ? '' : 's'} loaded.`);
@@ -3292,12 +2944,12 @@ export default function PixelPalGenerator() {
   // when unlocked.
   const toggleHardwareLock = (hardwareId) => {
     if (hardwareLock === hardwareId) {
-      pendingLabelRef.current = 'Unlock hardware';
+      tagNextLabel('Unlock hardware');
       setHardwareLock(null);
       setExportFeedback(`Unlocked from hardware`);
     } else {
       const hw = HARDWARE_PALETTES.find(h => h.id === hardwareId);
-      pendingLabelRef.current = hw ? `Lock to ${hw.name}` : 'Lock hardware';
+      tagNextLabel(hw ? `Lock to ${hw.name}` : 'Lock hardware');
       setHardwareLock(hardwareId);
       setExportFeedback(hw ? `Locked to ${hw.name}` : 'Locked');
     }
@@ -3335,7 +2987,7 @@ export default function PixelPalGenerator() {
   // are now baked in. History entry tagged 'Bake hardware lock'.
   const bakeHardwareLock = () => {
     if (!activeHardware) return;
-    pendingLabelRef.current = 'Bake hardware lock';
+    tagNextLabel('Bake hardware lock');
     const STYLES = ['punchy', 'balanced', 'muted'];
     setOverrides(prev => {
       const next = JSON.parse(JSON.stringify(prev));
@@ -4136,7 +3788,7 @@ export default function PixelPalGenerator() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                pendingLabelRef.current = 'Add base from shade';
+                tagNextLabel('Add base from shade');
                 setBaseColors(prev => [...prev, hex]);
               }}
               title={`Add ${hex.toUpperCase()} as a new base color`}

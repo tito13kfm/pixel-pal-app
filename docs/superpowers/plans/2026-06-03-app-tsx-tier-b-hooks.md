@@ -272,68 +272,110 @@ The per-hook field/effect inventory (all line numbers anchored to HEAD `276333e`
 
 ---
 
-## Wave 2 — document core + history (last, co-located)
+## Wave 2 — document core + history (last, co-located) — CORRECTED 2026-06-03
 
-Behavior-sensitive. The Task 1 characterization tests + e2e are the net. Do NOT start Wave 2 until all Wave 1 tasks are merged/green and Task 1 tests pass.
+Behavior-sensitive. The Task 1 characterization tests + e2e are the net.
 
-### Task 14: `usePaletteState` — create the document-core hook
+**Corrected scope (supersedes earlier Task 14/15 drafts):** `usePaletteState` is a
+**thin state-bag** — the 25 document fields + 3 snapshot helpers, nothing else. The
+**generation pipeline + ALL bulk handlers STAY in App.tsx** (they read the fields via
+the destructured `palette` object). `useHistory` owns the history machinery and the
+`pendingLabelRef`; the ~19 scattered `pendingLabelRef.current =` writes in App.tsx
+handlers become `tagNextLabel(...)` calls. The 2 writes *inside the watcher*
+(read + null-reset) move into `useHistory` verbatim — NOT converted.
 
-**Files:**
-- Create: `src/hooks/usePaletteState.ts`
-- Modify: `src/App.tsx`
+**Verification gate (both, every move):**
+1. **grep-per-symbol:** `decl=0` in App.tsx, `refs>0`.
+2. **TS2304 completeness gate** (catches the deleted-but-not-destructured hole grep
+   misses — `@ts-nocheck` + no-eslint-in-CI hide it otherwise): temporarily replace
+   line-1 `// @ts-nocheck`, `npx tsc --noEmit`, collect `TS2304 Cannot find name`
+   hits, restore. **Baseline = `__APP_VERSION__`, `__BUILD_DATE__` only.** Any *new*
+   TS2304 name = a dangling reference (missing destructure). Fix before commit.
 
-- [ ] **Step 1:** Create `src/hooks/usePaletteState.ts`. Move the 19 `SNAPSHOT_FIELDS` `useState` declarations verbatim, PLUS the editor/compare-adjacent fields that the generation pipeline reads: `editingIndex`, `editorHsv`, `pinEditor`, `compareMode`, `compareAnchor`, `compareResult`, `gplImport`, `mode`, `colorInput`, `addBaseFeedback`. (These are the cross-domain cluster from effects 3770/3828.) Also move the ramp-generation/harmony effects (~3740, ~3797) and the bulk handlers (Generate, Harmonize, Load, GPL import, Add/Remove ramp, shade-editor handlers).
-- [ ] **Step 2:** Return `{ ...all fields, ...setters, ...handlers, buildUndoSnapshot }`. Define `buildUndoSnapshot` here using `SNAPSHOT_FIELDS` (read each field), so the snapshot shape stays byte-identical:
+### Task 14: `usePaletteState` — thin document state-bag
 
+**Files:** Create `src/hooks/usePaletteState.ts`; modify `src/App.tsx`.
+
+The 25 fields (move `useState` verbatim, keep initializers byte-identical):
+- **19 snapshot:** baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
+  overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides,
+  hueShiftStrengthPerRamp, hiddenShades, rampShuffleOffsets, hardwareLock,
+  hueShiftStrength, lockedRamps, collapsedRamps, lightnessCurvePerRamp,
+  satCurvePerRamp, stylePresets
+- **6 editor/compare cluster:** editingIndex, editorHsv, pinEditor, compareMode,
+  compareAnchor, compareResult
+- **STAY in App.tsx:** mode, colorInput, addBaseFeedback, gplImport (input/mode fields,
+  read by the staying bulk handlers — not document core).
+
+Hook imports `DEFAULT_STYLE_PRESETS` from `./lib/style-presets`, `CurvePoints` type from
+`./lib/curve`. Returns the 25 values + 25 setters + 3 helpers:
+- `buildSnapshot()` — the old `buildUndoSnapshot` body verbatim (sorts locked/collapsed).
+- `applySnapshotFields(snap)` — the 19 setter calls from old `applyUndoSnapshot`
+  (lines ~2755–2773), **without** the `isReplayingHistoryRef` flag and **without** the
+  4 transient resets.
+- `resetTransientEditors()` — `setPinEditor(null); setEditingIndex(null);
+  setCompareAnchor(null); setCompareResult(null);`.
+
+- [ ] **Step 1:** Create the hook with the 25 `useState` + 3 helpers.
+- [ ] **Step 2:** In App.tsx, remove the 25 `useState` lines; add
+  `const palette = usePaletteState();` and destructure all 25 values + setters +
+  `buildSnapshot, applySnapshotFields, resetTransientEditors`. Place the call ABOVE the
+  history machinery.
+- [ ] **Step 3:** Rewire the still-resident history machinery: watcher's
+  `buildUndoSnapshot()` → `buildSnapshot()`; App.tsx `applyUndoSnapshot(snap)` body →
+  `isReplayingHistoryRef.current = true; applySnapshotFields(snap); resetTransientEditors();`.
+  Delete the old local `buildUndoSnapshot` + `applyUndoSnapshot` bodies. `resetStylePresets`
+  and all bulk handlers stay (now call `palette` setters).
+- [ ] **Step 4 — gates:** grep `decl=0`/`refs>0` for all 25 symbols + their setters;
+  TS2304 gate clean (baseline only). `npx vitest run && npm run build` green.
+- [ ] **Step 5:** Commit: `refactor(hooks): extract usePaletteState thin document state-bag`.
+
+### Task 15: `useHistory` — history machinery + `tagNextLabel`
+
+**Files:** Create `src/hooks/useHistory.ts`; modify `src/App.tsx`.
+
+Move verbatim into the hook: `HISTORY_DEPTH_CAP`/`HISTORY_DEBOUNCE_MS` consts,
+`historyEntries` (incl. the `Initial state` sentinel initializer), `historyIndex`,
+refs (`historyEntriesRef`, `historyIndexRef`, `isReplayingHistoryRef`, `pendingLabelRef`,
+`historyDebounceRef`), the 2 ref-sync effects, the debounced watcher effect, the keybind
+rebind effect, `applyUndoSnapshot`, `undo`, `redo`, `jumpToHistoryIndex`, `canUndo`,
+`canRedo`. `inferLabel` already imported from `./lib/history-snapshot`.
+
+Interface:
 ```ts
-const buildUndoSnapshot = () => ({
-  baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed, overrides,
-  harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
-  hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
-  lockedRamps: [...lockedRamps].sort((a, b) => a - b),
-  collapsedRamps: [...collapsedRamps].sort((a, b) => a - b),
-  lightnessCurvePerRamp, satCurvePerRamp, stylePresets,
+const { historyEntries, historyIndex, undo, redo, jumpToHistoryIndex,
+        canUndo, canRedo, tagNextLabel } = useHistory({
+  buildSnapshot, applySnapshotFields, resetTransientEditors, // from palette
+  setExportFeedback,                                          // from useExportSettings
+  snapshotInputs,  // the 17-value watcher dep array (see below) — used AS the dep array
 });
 ```
+- `useHistory.applyUndoSnapshot(snap)` = `if(!snap) return; isReplayingHistoryRef.current = true;
+  applySnapshotFields(snap); resetTransientEditors();`.
+- `tagNextLabel(label)` = `pendingLabelRef.current = label;` — returned, called by App.tsx handlers.
+- The watcher's two internal `pendingLabelRef` touches (read for `label`, then `= null`) stay
+  inside the hook verbatim.
+- **`snapshotInputs` dep array — preserve VERBATIM at 17 fields** (deliberately omits
+  `lightnessCurvePerRamp` + `satCurvePerRamp`; do NOT "complete" to 19 — behavior change):
+  `[baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed, overrides, harmonyAnchor,
+  rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp, hiddenShades,
+  rampShuffleOffsets, hardwareLock, hueShiftStrength, lockedRamps, collapsedRamps, stylePresets]`.
 
-- [ ] **Step 3:** Wire into App.tsx: `const palette = usePaletteState({ ... });` and destructure. Remove the moved declarations/effects/handlers from App.tsx.
-- [ ] **Step 4 — grep gate:** For each of the 19 + editor/compare symbols: zero declaration hits in App.tsx, >0 references. Critical here — a missed call site won't fail the build (`@ts-nocheck`).
-   ```bash
-   for s in baseColors aiColorNames aiReasoning rampSize shuffleSeed overrides harmonyAnchor rampSizeOverrides rampSatOverrides hueShiftStrengthPerRamp hiddenShades rampShuffleOffsets hardwareLock hueShiftStrength lockedRamps collapsedRamps lightnessCurvePerRamp satCurvePerRamp stylePresets editingIndex editorHsv pinEditor compareMode compareAnchor compareResult gplImport; do
-     n=$(grep -cE "const \[?\b$s\b" src/App.tsx); echo "$s decl=$n"; done
-   ```
-   Every `decl` must be `0`.
-- [ ] **Step 5:** `npx vitest run && npm run build`. Both green.
-- [ ] **Step 6:** Commit: `git commit -m "refactor(hooks): extract usePaletteState document core + generation pipeline"`.
+- [ ] **Step 1:** Create the hook; the watcher uses `}, snapshotInputs);` as its dep array
+  (CI runs no eslint, so the variable dep array is safe for the merge gate).
+- [ ] **Step 2:** Wire into App.tsx; pass the options; destructure the return.
+- [ ] **Step 3:** Convert the ~19 handler-site `pendingLabelRef.current = X` → `tagNextLabel(X)`.
+- [ ] **Step 4 — gates:** `pendingLabelRef` must be **0 refs** in App.tsx (clean gate);
+  `decl=0`/`refs>0` for historyEntries/historyIndex/undo/redo/jumpToHistoryIndex/canUndo/canRedo;
+  TS2304 gate clean. `npx vitest run && npm run build` green.
+- [ ] **Step 5:** Commit: `refactor(hooks): extract useHistory; tagNextLabel + explicit editor-reset interface`.
 
-### Task 15: `useHistory` — create the history hook
+### Task 16: e2e + integration verification + PR
 
-**Files:**
-- Create: `src/hooks/useHistory.ts`
-- Modify: `src/App.tsx`
-
-- [ ] **Step 1:** Create `src/hooks/useHistory.ts`. Move verbatim: `historyEntries`, `historyIndex`, the refs (`historyEntriesRef`, `historyIndexRef`, `isReplayingHistoryRef`, `pendingLabelRef`), the ref-sync effects (~2645/2646), the debounced watcher effect (~2648, dep array ~2696), the keybind rebind effect (~2728), `applyUndoSnapshot`, `undo`, `redo`, jump, `canUndo`, `canRedo`.
-- [ ] **Step 2 — the cross-hook interface:** `useHistory` takes options:
-  ```ts
-  useHistory({
-    buildSnapshot,        // from usePaletteState
-    applySnapshotFields,  // from usePaletteState: sets the 19 fields from a snap
-    resetTransientEditors,// () => { setPinEditor(null); setEditingIndex(null); setCompareAnchor(null); setCompareResult(null); }
-    setExportFeedback,    // from useExportSettings, for undo/redo toasts
-    historyOpen, setHistoryOpen, // from usePanelLayout (or App)
-  })
-  ```
-  `applyUndoSnapshot` becomes: call `applySnapshotFields(snap)` for the 19, then `resetTransientEditors()` for the 4 impure setters. This makes the impurity explicit at the wiring layer (spec §"Key interface"). `applySnapshotFields` lives in `usePaletteState` (it owns those setters).
-- [ ] **Step 3:** Wire into App.tsx, passing the callbacks above (sourced from `palette` and the other hooks). Remove moved code from App.tsx.
-- [ ] **Step 4 — grep gate:** zero declaration hits for `historyEntries`, `historyIndex`, `applyUndoSnapshot`, `undo`, `redo`, the refs; >0 references.
-- [ ] **Step 5:** Run characterization + full suite + build: `npx vitest run && npm run build`. Green.
-- [ ] **Step 6:** Commit: `git commit -m "refactor(hooks): extract useHistory; explicit editor-reset interface"`.
-
-### Task 16: Full e2e + integration verification
-
-- [ ] **Step 1:** Run the desktop e2e suite locally if the dev server is available: `npm run test:e2e`. If browsers/server unavailable on this box, skip and rely on CI (note in PR).
-- [ ] **Step 2:** Manual smoke (or e2e assertion) of the behavior-sensitive path: make 3+ palette edits (edit base color, change shade count, lock a ramp) → undo ×3 → redo ×3 → jump to a middle history entry. Assert the palette + history labels round-trip correctly. This is the one path the unit tests can't fully cover.
-- [ ] **Step 3:** Push the branch and open the PR. **Wait for full CI (vitest + Playwright desktop + web) to go green before merging** (obs #6). Do not `gh pr merge` before CI completes.
+- [ ] **Step 1:** `npm run test:e2e` locally if the dev server is available; else rely on CI (note in PR).
+- [ ] **Step 2:** Behavior-sensitive smoke: 3+ edits (edit base color, change shade count, lock a ramp)
+  → undo ×3 → redo ×3 → jump to a middle history entry; palette + labels round-trip.
+- [ ] **Step 3:** Push, open PR. **Wait for full green CI before merging** (obs #6).
 - [ ] **Step 4:** After green CI, finish via `superpowers:finishing-a-development-branch`.
 
 ---
