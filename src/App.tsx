@@ -41,6 +41,7 @@ import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
 import { inferLabel } from './lib/history-snapshot';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
+import { useVizSettings } from './hooks/useVizSettings';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -177,6 +178,7 @@ export default function PixelPalGenerator() {
   // Display settings (theme, cvdMode, crtEnabled) + their load/persist effects
   // live in useDisplaySettings. See src/hooks/useDisplaySettings.ts.
   const { theme, setTheme, cvdMode, setCvdMode, crtEnabled, setCrtEnabled } = useDisplaySettings();
+  const { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern } = useVizSettings();
   const [spriteKey, setSpriteKey] = useState('vase');
   const [customSprites, setCustomSprites] = useState({});
   const [showSpriteImporter, setShowSpriteImporter] = useState(false);
@@ -210,10 +212,6 @@ export default function PixelPalGenerator() {
   const [gplStyle, setGplStyle] = useState('punchy');
   const [exportFormat, setExportFormat] = useState('gpl'); // gpl | pal | ase | png-strip | txt
   const [lastSavedPath, setLastSavedPath] = useState(null); // desktop: path of last export, for Reveal
-  const [vizStyle, setVizStyle] = useState('punchy');
-  const [matrixColorSet, setMatrixColorSet] = useState('unique'); // 'unique' | 'bases'
-  const [matrixView, setMatrixView] = useState('pair');           // 'pair' | 'heatmap'
-  const [ditherPattern, setDitherPattern] = useState('checker');  // 'checker' | 'bayer'
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
   const [rampsOpen, setRampsOpen] = useState(_panels.rampsOpen);
@@ -2339,32 +2337,6 @@ export default function PixelPalGenerator() {
       try { await window.storage.set('ui:rampSize', JSON.stringify(rampSize)); } catch {}
     })();
   }, [rampSize]);
-
-  // vizStyle: persisted at ui:vizStyle. Valid values punchy/balanced/muted.
-  useEffect(() => {
-    (async () => {
-      if (typeof window === 'undefined' || !window.storage) return;
-      try {
-        const got = await window.storage.get('ui:vizStyle');
-        if (got && got.value) {
-          const parsed = JSON.parse(got.value);
-          if (typeof parsed === 'string' && ['punchy', 'balanced', 'muted'].includes(parsed)) {
-            setVizStyle(parsed);
-          }
-        }
-      } catch {
-        // No saved value or storage failed; keep default.
-      }
-    })();
-  }, []);
-  const vizStyleMountRef = useRef(false);
-  useEffect(() => {
-    if (!vizStyleMountRef.current) { vizStyleMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !window.storage) return;
-    (async () => {
-      try { await window.storage.set('ui:vizStyle', JSON.stringify(vizStyle)); } catch {}
-    })();
-  }, [vizStyle]);
 
   // gplStyle: persisted at ui:gplStyle. Valid values punchy/balanced/muted.
   useEffect(() => {
