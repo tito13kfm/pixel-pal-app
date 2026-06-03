@@ -46,6 +46,7 @@ import { useExportSettings } from './hooks/useExportSettings';
 import { useTour } from './hooks/useTour';
 import { useSpriteImport } from './hooks/useSpriteImport';
 import { useAIAssist } from './hooks/useAIAssist';
+import { useImageExtract } from './hooks/useImageExtract';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -142,29 +143,7 @@ export default function PixelPalGenerator() {
   const [colorInput, setColorInput] = useState('#ff00ff');
   const [aiReasoning, setAiReasoning] = useState('');
   const [aiColorNames, setAiColorNames] = useState([]);
-  const [imageDataUrl, setImageDataUrl] = useState(null);
-  const [imageColorCount, setImageColorCount] = useState(4);
-  const [imageLoading, setImageLoading] = useState(false);
-  const [imageError, setImageError] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
-  const [eyedropperActive, setEyedropperActive] = useState(false);
-  // Image zoom for eyedropper precision. Integer multipliers ONLY because we
-  // use image-rendering: pixelated to display at the scaled size. The
-  // underlying image data is never resampled, so no new colors are invented.
-  // The eyedropper math already maps mouse coords back to naturalWidth /
-  // naturalHeight via getBoundingClientRect, so zoom changes display only.
-  // Note: 1x means CSS max-h-48 (192px) applies; >1x removes the cap and
-  // explicitly sets width=naturalWidth*zoom so the scroll container can size
-  // correctly.
-  const [imageZoom, setImageZoom] = useState(1);
-  // naturalWidth/Height of the loaded image. Captured in the img's onLoad
-  // and used to compute display width when zoom > 1. Stored in state rather
-  // than a ref because we need re-renders to pick up the new value when the
-  // user uploads a different image. Defaults to 0 so the conditional in the
-  // img style waits until the image actually loads.
-  const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
   const imageRef = useRef(null);
-  const [hoveredColor, setHoveredColor] = useState(null);
   const [rampSize, setRampSize] = useState(6);
   // hueShiftStrength scales the shadow/highlight hue shifts applied
   // inside generateRamp. 1.0 = default (current behavior, byte-identical
@@ -197,6 +176,13 @@ export default function PixelPalGenerator() {
     spriteDragging, setSpriteDragging, spriteLibrary,
   } = useSpriteImport();
   const { aiInput, setAiInput, aiLoading, setAiLoading, aiError, setAiError, showAISettings, setShowAISettings, aiConfigured, setAiConfigured } = useAIAssist();
+  const {
+    imageDataUrl, setImageDataUrl, imageColorCount, setImageColorCount,
+    imageLoading, setImageLoading, imageError, setImageError,
+    isDragging, setIsDragging, eyedropperActive, setEyedropperActive,
+    imageZoom, setImageZoom, imageNaturalSize, setImageNaturalSize,
+    hoveredColor, setHoveredColor,
+  } = useImageExtract();
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [shuffleSeed, setShuffleSeed] = useState(0);
