@@ -49,6 +49,7 @@ import { useAIAssist } from './hooks/useAIAssist';
 import { useImageExtract } from './hooks/useImageExtract';
 import { useImageRemap } from './hooks/useImageRemap';
 import { useSideBySide } from './hooks/useSideBySide';
+import { useSavedPalettes } from './hooks/useSavedPalettes';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -203,6 +204,14 @@ export default function PixelPalGenerator() {
     sbsLeftError, setSbsLeftError, sbsRightError, setSbsRightError,
     sbsLeftLoading, setSbsLeftLoading, sbsRightLoading, setSbsRightLoading,
   } = useSideBySide();
+  const {
+    savedPalettes, setSavedPalettes, saveName, setSaveName,
+    savedError, setSavedError, savedBusy, setSavedBusy,
+    confirmDeleteSlug, setConfirmDeleteSlug, renamingSlug, setRenamingSlug,
+    renameDraft, setRenameDraft, renameError, setRenameError,
+    confirmReset, setConfirmReset, savedFilter, setSavedFilter,
+    classicLoaderId, setClassicLoaderId,
+  } = useSavedPalettes();
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [shuffleSeed, setShuffleSeed] = useState(0);
@@ -402,12 +411,6 @@ export default function PixelPalGenerator() {
   const historyDebounceRef = useRef(null);
   const pendingLabelRef = useRef(null);
 
-  // Saved palettes (persisted via window.storage). Each entry is a small index
-  // record { slug, name, savedAt, baseColors }; the full payload lives at
-  // `palettes:{slug}`. We keep an in-memory list to avoid re-listing on every
-  // render. Loading the full payload happens on demand when the user clicks
-  // Load. Storage operations are best-effort; failures show in `savedError`.
-  const [savedPalettes, setSavedPalettes] = useState([]);
   const [lightnessCurvePerRamp, setLightnessCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
@@ -438,40 +441,14 @@ export default function PixelPalGenerator() {
   // { key, pos: 'before'|'after' } — drop target + which edge, from cursor half
   const [dragOver, setDragOver] = useState(null);
   const [draggingKey, setDraggingKey] = useState(null);
-  const [saveName, setSaveName] = useState('');
-  const [savedError, setSavedError] = useState('');
-  const [savedBusy, setSavedBusy] = useState(false);
-  const [confirmDeleteSlug, setConfirmDeleteSlug] = useState(null);
   const confirmTimerRef = useRef(null);
-  // Rename UI state. renamingSlug holds the slug whose row is in rename
-  // mode (or null if no rename is active); renameDraft is the in-progress
-  // text; renameError is per-row inline validation. Only one palette can
-  // be in rename mode at a time. Click Rename to enter the mode, Enter or
-  // the check button to commit, Escape or the X button to cancel.
-  const [renamingSlug, setRenamingSlug] = useState(null);
-  const [renameDraft, setRenameDraft] = useState('');
-  const [renameError, setRenameError] = useState('');
   // Ref to the Save Palette name input. Used by the `S` keyboard
   // shortcut to scroll the saved-palettes section into view and focus
   // the field for immediate typing. Set via the ref attribute on the
   // input element down in the JSX tree.
   const saveNameInputRef = useRef(null);
   const SAVED_PALETTE_LIMIT = 100;
-  // Two-click confirmation for the Reset to Defaults button. First click
-  // arms it (button shows "Confirm?"), second click within 3s commits.
-  const [confirmReset, setConfirmReset] = useState(false);
   const resetConfirmTimerRef = useRef(null);
-  // Text filter for the Saved Palettes list. Case-insensitive substring
-  // match on palette name. Render-only: does not mutate savedPalettes.
-  const [savedFilter, setSavedFilter] = useState('');
-  // Compact classics loader dropdown selection (lives inside the Saved
-  // Palettes section). UI-local, ephemeral, no persistence. Defaults to
-  // the first classic so the preview row below the dropdown shows
-  // something on first render. Empty string is not a valid value
-  // because we always want a classic selected when the section is open.
-  const [classicLoaderId, setClassicLoaderId] = useState(
-    CLASSIC_PALETTES.length > 0 ? CLASSIC_PALETTES[0].id : ''
-  );
 
   // applyOverrides: given the raw ramp for base `i` and the current overrides
   // map, substitute any pinned shade indices. Out-of-range pin indices (e.g.
