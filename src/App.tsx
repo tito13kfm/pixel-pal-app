@@ -50,6 +50,7 @@ import { useSideBySide } from './hooks/useSideBySide';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
+import { usePaletteState } from './hooks/usePaletteState';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -140,20 +141,30 @@ const PixelSprite = ({ palette, scale = 6, spriteKey = 'vase', spriteLibrary }) 
 
 // ---------- Main ----------
 export default function PixelPalGenerator() {
+  // Document core (25 fields: 19 snapshot + 6 editor/compare) + the snapshot
+  // helpers live in usePaletteState (Tier B Wave 2). It is a thin state-bag:
+  // the generation pipeline + all bulk handlers STAY below in App.tsx and read
+  // these via the destructured `palette`. See src/hooks/usePaletteState.ts.
+  const palette = usePaletteState();
+  const {
+    baseColors, setBaseColors, aiColorNames, setAiColorNames,
+    aiReasoning, setAiReasoning, rampSize, setRampSize,
+    shuffleSeed, setShuffleSeed, overrides, setOverrides,
+    harmonyAnchor, setHarmonyAnchor, rampSizeOverrides, setRampSizeOverrides,
+    rampSatOverrides, setRampSatOverrides, hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp,
+    hiddenShades, setHiddenShades, rampShuffleOffsets, setRampShuffleOffsets,
+    hardwareLock, setHardwareLock, hueShiftStrength, setHueShiftStrength,
+    lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
+    lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
+    stylePresets, setStylePresets,
+    editingIndex, setEditingIndex, editorHsv, setEditorHsv,
+    pinEditor, setPinEditor, compareMode, setCompareMode,
+    compareAnchor, setCompareAnchor, compareResult, setCompareResult,
+    buildSnapshot, applySnapshotFields, resetTransientEditors,
+  } = palette;
   const [mode, setMode] = useState('color');
   const [colorInput, setColorInput] = useState('#ff00ff');
-  const [aiReasoning, setAiReasoning] = useState('');
-  const [aiColorNames, setAiColorNames] = useState([]);
   const imageRef = useRef(null);
-  const [rampSize, setRampSize] = useState(6);
-  // hueShiftStrength scales the shadow/highlight hue shifts applied
-  // inside generateRamp. 1.0 = default (current behavior, byte-identical
-  // to pre-E saved palettes). 0.0 = no hue shift (flatter ramps).
-  // 2.0 = double shift (more painterly stylized). Stored as a number
-  // in [0.0, 2.0]; UI surfaces it as a percentage. Per-palette, NOT a
-  // global user preference: it's a creative choice that belongs to the
-  // palette's identity.
-  const [hueShiftStrength, setHueShiftStrength] = useState(1.0);
   // Display settings (theme, cvdMode, crtEnabled) + their load/persist effects
   // live in useDisplaySettings. See src/hooks/useDisplaySettings.ts.
   const { theme, setTheme, cvdMode, setCvdMode, crtEnabled, setCrtEnabled } = useDisplaySettings();
@@ -220,22 +231,11 @@ export default function PixelPalGenerator() {
   } = usePanelLayout();
   const { updateInfo, setUpdateInfo, updateReady, setUpdateReady, updateDownloading, setUpdateDownloading } = useUpdater();
   const tourSnapshot = useRef(null);
-  const [baseColors, setBaseColors] = useState(['#ff00ff']);
-  const [shuffleSeed, setShuffleSeed] = useState(0);
   // Brief inline feedback shown next to the "Add to Palette" button on the
   // Single Color tab. Separate from exportFeedback because the export
   // badge lives near the bottom of the page and is invisible to a user
   // working at the top. Clears itself via setTimeout.
   const [addBaseFeedback, setAddBaseFeedback] = useState('');
-  // WCAG Check (internal state: compareMode): when on, clicking a swatch sets the compareAnchor
-  // instead of copying the hex. A second click on a different swatch
-  // (in any ramp / style) populates compareResult with the ratio.
-  // Click the anchored swatch again to unlock. Click any swatch when
-  // a result is showing to start a fresh comparison from that swatch.
-  // All transient; not persisted.
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareAnchor, setCompareAnchor] = useState(null); // { baseIndex, shadeIndex, style, hex } | null
-  const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
   // ----- Image Remap Preview state -----
@@ -253,117 +253,8 @@ export default function PixelPalGenerator() {
   // two-click download confirmation (remapDownloadConfirmPending). Kept here
   // (not in the hook) because it's only touched by the download handler.
   const remapDownloadConfirmTimerRef = useRef(null);
-  // harmonyAnchor: index into baseColors[] used as the source for the Harmony
-  // Colors panel. Originally hardcoded to 0; now user-selectable via the
-  // thumbnail row at the top of the Harmony section. When a base is removed
-  // we clamp the anchor in removeRamp; if the anchor base itself is removed,
-  // it falls back to 0. We deliberately do NOT auto-switch the anchor when
-  // new bases are added (e.g. via Add Both / Add All in the harmony panel
-  // itself), since that would yank the harmony view out from under the user
-  // mid-click.
-  const [harmonyAnchor, setHarmonyAnchor] = useState(0);
-  // hardwareLock: when non-null, all generated ramp shades and added harmony
-  // colors are snapped to the nearest color in the named hardware palette.
-  // Values: null (no lock, free generation), 'nes', 'gameboy', 'cga16',
-  // 'ega64', or 'c64'. Persisted with the palette since the lock IS part
-  // of the palette's identity (a "Game Boy palette" loses meaning if you
-  // load it free).
-  // When set, the per-ramp output is also deduped (consecutive duplicates
-  // collapsed) and capped at min(rampSize, hardwarePaletteSize). The dedupe
-  // means a Game Boy ramp with 8 requested shades visually shows 4 since
-  // the hardware only has 4 colors.
-  const [hardwareLock, setHardwareLock] = useState(null);
-
-  // Base color editor (feature #1). At most one ramp's editor is open at a
-  // time; toggling another closes the previous. editorHsv holds the live
-  // slider values for the currently-open editor; we keep HSV as the editor's
-  // source of truth so slider drags feel continuous (writing through hex would
-  // jitter due to round-trip quantization). When the editor opens, editorHsv
-  // is seeded from the corresponding baseColors[i] via hexToHsv.
-  //
-  // HSV (also called HSB) is chosen over HSL because it matches the mental
-  // model of pixel art tools like Aseprite. Note that in HSV, V=100 with
-  // S=100 is the pure saturated color (not white); reaching white requires
-  // S=0 AND V=100. This is by design.
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [editorHsv, setEditorHsv] = useState({ h: 0, s: 0, v: 0 });
-
-  // Per-shade overrides (feature A). Sparse map keyed by baseIndex then
-  // shadeIndex: { [baseIndex]: { [shadeIndex]: '#rrggbb' } }. Overrides are
-  // applied AFTER generateRamp returns and AFTER its internal sortByLightness,
-  // so a pinned shade can sit anywhere in the ramp regardless of its
-  // lightness. This is intentional: the user pinned it on purpose and the
-  // pushpin badge makes the override visible. Overrides are SHARED across the
-  // three styles (Punchy/Balanced/Muted): a pin on base i, shade j means
-  // shade j of base i is the pinned hex in all three styles. When the user
-  // removes a base, overrides for that base are dropped and later indices
-  // shift down (see removeRamp). When the ramp size changes, overrides on
-  // shade indices >= the new size become inert but stay in state so that
-  // switching back to a larger size restores them.
-  const [overrides, setOverrides] = useState({});
-  // pinEditor: which shade's editor is currently open. null when closed.
-  // Shape: { baseIndex, shadeIndex } or null. At most one pin editor open at
-  // a time, mirroring how the base editor works.
-  const [pinEditor, setPinEditor] = useState(null);
-
-  // Per-ramp overrides (in addition to per-shade pins). Both are sparse maps
-  // keyed by baseIndex; absent entries inherit the global default.
-  //   rampSizeOverrides[i] = 4..8     overrides the global rampSize for ramp i
-  //   rampSatOverrides[i] = 0.5..2.0  multiplies the base color's saturation
-  //                                   before passing it to generateRamp.
-  // Range/validation enforcement happens at the setter site. Both are cleared
-  // on every full-palette-replace path (Generate, AI, image load, classics).
-  // removeRamp also shifts later keys down by 1.
-  const [rampSizeOverrides, setRampSizeOverrides] = useState({});
-  const [rampSatOverrides, setRampSatOverrides] = useState({});
-  const [hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp] = useState({});
-
-  // Per-ramp shuffle offsets. Sparse map keyed by baseIndex; value is a
-  // non-negative integer that the user has incremented by clicking the
-  // per-ramp Shuffle button. Feeds into the generator's jitter seed so
-  // each ramp can be reshuffled independently. Without an entry the
-  // offset is treated as 0, so the user only pays the state-bloat cost
-  // for ramps they actually shuffled. Cleared on full-palette replace.
-  // Shifted on removeRamp via shiftBaseKeyedMap.
-  const [rampShuffleOffsets, setRampShuffleOffsets] = useState({});
-
-  // Hidden shades per base. Sparse map keyed by baseIndex; value is an
-  // array of shadeIndex numbers that should be filtered out of display
-  // and export for that base. Filtering applies across all three styles
-  // simultaneously (a single decision per base). Ramps are still
-  // computed at their full size internally so pin overrides keep their
-  // shade-position semantics; the hidden indices are filtered at
-  // display/export time only. Cleared on every full-palette-replace
-  // path. Shifted on removeRamp via shiftBaseKeyedMap.
-  const [hiddenShades, setHiddenShades] = useState({});
 
 
-  // Per-base ramp-card collapse state. A Set of baseIndex values that are
-  // currently collapsed (showing only the three sprite icons, hiding the
-  // swatch rows). Transient UI state, not persisted across sessions. NOT
-  // cleared on palette-replace paths because the threshold-transition
-  // effect below handles defaults: <=2 bases auto-expands, >=3 auto-collapses.
-  // Manual toggles persist as long as the base count stays in the same bucket.
-  // Keys must be shifted on removeRamp the same way overrides are.
-  const [collapsedRamps, setCollapsedRamps] = useState(() => new Set());
-
-  // lockedRamps: Set of base indices whose per-ramp inputs are exempt from
-  // global regeneration. When a ramp is locked, the global Generate / Shuffle
-  // / dice button does NOT alter its base color, size override, sat override,
-  // or effective shuffle seed. Pins and hidden shades on locked ramps are
-  // ALSO preserved (they were anyway, since they're addressed by index).
-  // Hardware lock still applies to locked ramps (it's a global output
-  // filter, not an input). The harmonize() helper uses this set to decide
-  // which ramps to leave alone vs which to nudge to harmony positions.
-  //
-  // Implementation note: ramps are computed by useMemo from baseColors
-  // and shuffleSeed (a global counter). To keep a locked ramp visually
-  // unchanged when shuffleSeed advances, we compensate by setting that
-  // ramp's `rampShuffleOffsets[i]` to a counter-value such that the
-  // effective per-ramp seed stays constant. See `bumpShuffleSeed` below.
-  //
-  // Keys must be shifted on removeRamp the same way overrides are.
-  const [lockedRamps, setLockedRamps] = useState(() => new Set());
 
   // ============================================================
   // History (undo / redo / jump-to-state)
@@ -409,10 +300,7 @@ export default function PixelPalGenerator() {
   const historyDebounceRef = useRef(null);
   const pendingLabelRef = useRef(null);
 
-  const [lightnessCurvePerRamp, setLightnessCurvePerRamp] = useState<Record<string, CurvePoints>>({});
-  const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
-  const [stylePresets, setStylePresets] = useState(DEFAULT_STYLE_PRESETS);
   const resetStylePresets = () => setStylePresets(DEFAULT_STYLE_PRESETS);
   const confirmTimerRef = useRef(null);
   // Ref to the Save Palette name input. Used by the `S` keyboard
@@ -2328,7 +2216,7 @@ export default function PixelPalGenerator() {
       const entries = historyEntriesRef.current;
       const index = historyIndexRef.current;
       const current = entries[index];
-      const newSnap = buildUndoSnapshot();
+      const newSnap = buildSnapshot();
       // Skip if the snapshot is byte-identical to the current entry.
       // This guards against effect runs where a setter was called with
       // the same value (React still re-runs the effect because the
@@ -2714,69 +2602,16 @@ export default function PixelPalGenerator() {
   // ============================================================
   // History snapshot machinery
   // ============================================================
-  // Build a JSON-serializable snapshot of every undoable state field.
-  // Sets are serialized as sorted arrays so equality comparisons via
-  // JSON.stringify are deterministic. Object maps with numeric keys
-  // (overrides, rampSizeOverrides, etc.) are passed through; JSON
-  // serialization preserves their structure.
-  const buildUndoSnapshot = () => ({
-    baseColors,
-    aiColorNames,
-    aiReasoning,
-    rampSize,
-    shuffleSeed,
-    overrides,
-    harmonyAnchor,
-    rampSizeOverrides,
-    rampSatOverrides,
-    hueShiftStrengthPerRamp,
-    hiddenShades,
-    rampShuffleOffsets,
-    hardwareLock,
-    hueShiftStrength,
-    lockedRamps: [...lockedRamps].sort((a, b) => a - b),
-    collapsedRamps: [...collapsedRamps].sort((a, b) => a - b),
-    lightnessCurvePerRamp,
-    satCurvePerRamp,
-    stylePresets,
-  });
-
-  // Apply a snapshot back to all state setters. Wraps the calls in the
-  // isReplayingHistory flag so the watcher effect doesn't record this
-  // application as a new entry.
-  //
-  // setHueShiftStrength etc. all fire synchronously into React's update
-  // queue, but the rendered effect happens on the next render. The flag
-  // is read by the watcher's debounced timer when it actually fires, so
-  // it'll still be set when the timer runs after the batched render.
+  // Snapshot read/write now live in usePaletteState (it owns the 25 document
+  // fields). `buildSnapshot`, `applySnapshotFields`, `resetTransientEditors`
+  // are destructured from `palette` above. applyUndoSnapshot stays here as the
+  // thin replay wrapper (layers the isReplayingHistory flag); Task 15 moves it
+  // into useHistory.
   const applyUndoSnapshot = (snap) => {
     if (!snap) return;
     isReplayingHistoryRef.current = true;
-    setBaseColors(snap.baseColors);
-    setAiColorNames(snap.aiColorNames);
-    setAiReasoning(snap.aiReasoning);
-    setRampSize(snap.rampSize);
-    setShuffleSeed(snap.shuffleSeed);
-    setOverrides(snap.overrides);
-    setHarmonyAnchor(snap.harmonyAnchor);
-    setRampSizeOverrides(snap.rampSizeOverrides);
-    setRampSatOverrides(snap.rampSatOverrides);
-    setHueShiftStrengthPerRamp(snap.hueShiftStrengthPerRamp ?? {});
-    setHiddenShades(snap.hiddenShades);
-    setRampShuffleOffsets(snap.rampShuffleOffsets);
-    setHardwareLock(snap.hardwareLock);
-    setHueShiftStrength(snap.hueShiftStrength);
-    setLockedRamps(new Set(snap.lockedRamps || []));
-    setCollapsedRamps(new Set(snap.collapsedRamps || []));
-    setLightnessCurvePerRamp(snap.lightnessCurvePerRamp ?? {});
-    setSatCurvePerRamp(snap.satCurvePerRamp ?? {});
-    setStylePresets(snap.stylePresets ?? DEFAULT_STYLE_PRESETS);
-    // Side effects of applying: clear in-flight UI editor states that
-    // could reference stale indices.
-    setPinEditor(null);
-    setEditingIndex(null);
-    setCompareAnchor(null);
-    setCompareResult(null);
+    applySnapshotFields(snap);
+    resetTransientEditors();
   };
 
   // Diff-based label fallback: when a state change wasn't tagged by its
