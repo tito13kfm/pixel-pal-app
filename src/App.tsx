@@ -14,7 +14,7 @@ import {
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
   HARDWARE_PALETTES,
 } from './lib/constants';
-import { getCachedAIConfig, loadAIConfigAsync, createAIClient, generatePaletteFromPrompt } from './lib/ai';
+import { getCachedAIConfig, createAIClient, generatePaletteFromPrompt } from './lib/ai';
 import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
 import { TourOverlay } from './components/TourOverlay'
@@ -45,6 +45,7 @@ import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
 import { useTour } from './hooks/useTour';
 import { useSpriteImport } from './hooks/useSpriteImport';
+import { useAIAssist } from './hooks/useAIAssist';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -138,14 +139,9 @@ const _panels = loadPanelState()
 // ---------- Main ----------
 export default function PixelPalGenerator() {
   const [mode, setMode] = useState('color');
-  const [showAISettings, setShowAISettings] = useState(false);
-  const [aiConfigured, setAiConfigured] = useState(undefined);
   const [colorInput, setColorInput] = useState('#ff00ff');
-  const [aiInput, setAiInput] = useState('a holographic jellyfish');
   const [aiReasoning, setAiReasoning] = useState('');
   const [aiColorNames, setAiColorNames] = useState([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState('');
   const [imageDataUrl, setImageDataUrl] = useState(null);
   const [imageColorCount, setImageColorCount] = useState(4);
   const [imageLoading, setImageLoading] = useState(false);
@@ -200,6 +196,7 @@ export default function PixelPalGenerator() {
     spriteImportName, setSpriteImportName, spriteImportError, setSpriteImportError,
     spriteDragging, setSpriteDragging, spriteLibrary,
   } = useSpriteImport();
+  const { aiInput, setAiInput, aiLoading, setAiLoading, aiError, setAiError, showAISettings, setShowAISettings, aiConfigured, setAiConfigured } = useAIAssist();
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [shuffleSeed, setShuffleSeed] = useState(0);
@@ -980,12 +977,6 @@ export default function PixelPalGenerator() {
     const file = e.dataTransfer.files?.[0];
     if (file) handleImageUpload(file);
   };
-
-  useEffect(() => {
-    loadAIConfigAsync().then(({ config }) => {
-      setAiConfigured(config !== null);
-    });
-  }, []);
 
   useEffect(() => {
     if (!localStorage.getItem('pixel-pal-tour-seen')) {
