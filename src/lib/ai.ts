@@ -1,3 +1,5 @@
+// Gotchas before editing: see docs/ARCHITECTURE.md → "AI Client" (openai SDK v6
+// overload trap, Anthropic response_format skip, web provider filtering, tauriFetch).
 import OpenAI from 'openai'
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions'
 import type { AIConfig } from './palette'
