@@ -43,6 +43,7 @@ import { inferLabel } from './lib/history-snapshot';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
+import { useTour } from './hooks/useTour';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -188,6 +189,10 @@ export default function PixelPalGenerator() {
     copiedHex, setCopiedHex, exportFeedback, setExportFeedback,
     lastSavedPath, setLastSavedPath, sessionRampGplFolder, setSessionRampGplFolder,
   } = useExportSettings();
+  // Tour UI state (open/guide/step + help-launcher toggle) lives in useTour.
+  // The snapshot/restore/start/exit orchestration stays below in App.tsx
+  // because it spans other domains. See src/hooks/useTour.ts.
+  const { tourOpen, setTourOpen, tourGuideId, setTourGuideId, tourStep, setTourStep, launcherOpen, setLauncherOpen } = useTour();
   const [spriteKey, setSpriteKey] = useState('vase');
   const [customSprites, setCustomSprites] = useState({});
   const [showSpriteImporter, setShowSpriteImporter] = useState(false);
@@ -195,10 +200,6 @@ export default function PixelPalGenerator() {
   const [spriteImportName, setSpriteImportName] = useState('');
   const [spriteImportError, setSpriteImportError] = useState('');
   const [spriteDragging, setSpriteDragging] = useState(false);
-  const [tourOpen, setTourOpen] = useState(false);
-  const [tourGuideId, setTourGuideId] = useState(null);
-  const [tourStep, setTourStep] = useState(0);
-  const [launcherOpen, setLauncherOpen] = useState(false);
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [shuffleSeed, setShuffleSeed] = useState(0);
