@@ -1,40 +1,18 @@
 # PIXEL.PAL: Project Context
 
-Pixel art palette generator. Vite 8 + React 19 + TS 6, packaged as Tauri v2 desktop. Also hosted as a static browser build on GitHub Pages.
-Multi-provider AI, user brings own key. Ported from a 7820-line Claude artifact
-(`tests/pixel-pal.tsx` — a local-only dev file, gitignored; see File Map).
+Pixel-art palette generator. Vite 8 + React 19 + TS 6, packaged as Tauri v2
+desktop; also a static browser build on GitHub Pages. Multi-provider AI, user
+brings own key. Ported from a 7820-line Claude artifact (`tests/pixel-pal.tsx`,
+local-only/gitignored).
 
----
+**Detailed file map + AI-client/Playwright deep-dives:** `docs/ARCHITECTURE.md`
+(read the relevant section before working in that area).
 
-## Feature Inventory
-
-**Input modes:** single hex color, image upload/paste (extracts 3-6 colors,
-eyedropper with 8x zoom), AI Assist (text prompt to language model)
-
-**Output:** 4-8 shade ramps, 3 contrast styles per ramp (Punchy, Balanced,
-Muted), pixel-art slot labels (outline/shadow/base/highlight/bright)
-
-**Per-ramp controls:** HSV sliders, saturation multiplier, shade count
-override, per-shade pins (lock to custom hex), hide shades, shuffle, lock
-ramp from global ops
-
-**Global tools:** Harmonize (rotate unlocked ramps to color-theory positions
-relative to anchor), Hardware Lock snaps all shades to nearest legal color
-(NES, Game Boy DMG, CGA 16, EGA 64, C64), color harmony derivation
-(complementary, analogous, triadic, split-complementary, tetradic, square)
-
-**Views:** Mosaic, lightness distribution strip, chromatic polar plot,
-sprite previews (4 built-in 32x32 sprites, Piskel import), side-by-side
-palette comparison
-
-**Accessibility:** WCAG contrast check with Compare Mode picker, CVD
-simulation (protanopia, deuteranopia, tritanopia)
-
-**State:** up to 100 palettes in localStorage, 50-entry session history
-(undo/redo/jump). Theme persists via Tauri plugin-store (desktop) or
-localStorage (web).
-
-**Export:** plain text, GIMP .gpl (Punchy/Balanced/Muted selectable)
+What it does: hex/image/AI input → 4-8 shade ramps (Punchy/Balanced/Muted) with
+pixel-art slot labels; per-ramp HSV/sat/pin/hide/shuffle/lock; global Harmonize +
+Hardware Lock (NES/GB/CGA/EGA/C64) + harmony derivation; mosaic/lightness/polar/
+adjacency views; sprite previews; side-by-side compare; WCAG check + CVD sim;
+≤100 saved palettes + 50-entry undo/redo history; export gpl/pal/ase/png-strip/txt.
 
 ---
 
@@ -50,247 +28,99 @@ npm test               # vitest unit suite
 npm run test:e2e       # Playwright (desktop dev server)
 ```
 
-Run the web e2e suite separately:
+Web e2e runs separately: `npm run build:web` then
+`npx playwright test --config=playwright.web.config.ts`.
 
-```powershell
-npm run build:web
-npx playwright test --config=playwright.web.config.ts
-```
-
-Legacy JS unit tests in `tests/test_*.js` (parsed via vm sandbox) run individually.
-**These are local-only dev files** (gitignored, not in origin) and may be absent on
-a given machine — if the glob matches nothing, that's expected, not an error:
-
-```powershell
-foreach ($f in Get-ChildItem tests\test_*.js) { node $f }
-```
+Legacy JS tests (`tests/test_*.js`, vm-sandbox) are local-only/gitignored — if the
+glob matches nothing that's expected, not an error:
+`foreach ($f in Get-ChildItem tests\test_*.js) { node $f }`
 
 ---
 
 ## Versioning & Releases
 
-**Semantic Versioning, enforced from 0.13.0 on.** `MAJOR.MINOR.PATCH`. Pre-1.0
-(standard SemVer): new features bump MINOR; backward-compatible bug fixes bump
-PATCH; breaking changes also bump MINOR (no MAJOR until 1.0). Choose the bump
-from what actually changed, not by habit. (History before 0.13.0 was
-inconsistent — see the `Versioning notes` block in `CHANGELOG.md`. An earlier
-revision of this rule had features→PATCH / breaking→MINOR pre-1.0; that was
-non-standard and was corrected to the conventional scheme at 0.14.0.)
+**SemVer, enforced from 0.13.0 on.** Pre-1.0 (standard): features → MINOR;
+backward-compatible fixes → PATCH; breaking → MINOR (no MAJOR until 1.0). Choose
+the bump from what changed, not by habit. (Pre-0.13.0 history was inconsistent —
+see `CHANGELOG.md` `Versioning notes`.)
 
-**Every release gets a CHANGELOG entry — no silent releases.** Before tagging,
-move the relevant notes out of `## [Unreleased]` into a new
-`## [x.y.z] - YYYY-MM-DD` section (Keep a Changelog buckets:
-Added / Changed / Fixed / Removed) and add the matching `compare/` footer link.
+**Every release gets a CHANGELOG entry.** Before tagging, move notes from
+`## [Unreleased]` into `## [x.y.z] - YYYY-MM-DD` (Keep-a-Changelog buckets:
+Added/Changed/Fixed/Removed) + add the `compare/` footer link.
 
-**Never bump a version without releasing it.** Don't commit a version change to
-`package.json` / `tauri.conf.json` / `Cargo.toml` / `Cargo.lock` unless that
-version will be tagged and released. (`0.3.0` was bumped and never tagged — do
-not repeat that.)
+**Never bump a version without releasing it** — don't commit a version change to
+`package.json`/`tauri.conf.json`/`Cargo.toml`/`Cargo.lock` unless it'll be tagged.
 
-**Four version files move in lockstep, and the tag must match.** See the
-`release-flow.md` memory for the exact file list and tag/push procedure.
+**Four version files move in lockstep, tag must match.** See `release-flow.md`
+memory for the exact file list + tag/push procedure.
 
 ---
 
 ## Architecture
 
-**Web build target:** Vite → `dist/`. `base: './'` for Tauri (file:// loading)
-or `/pixel-pal-app/` for GH Pages, branched on `VITE_BUILD_TARGET=web` in
-`vite.config.ts`. Do not flatten that branch.
+**Build target:** Vite → `dist/`. `base: './'` for Tauri (file://) or
+`/pixel-pal-app/` for GH Pages, branched on `VITE_BUILD_TARGET=web` in
+`vite.config.ts`. Custom domain would change web base to `/`. Do not flatten.
 
-**Desktop runtime:** Tauri v2. Rust shell in `src-tauri/`. Window management,
-secure AI-config storage (OS keychain via `keyring` crate), native Save As
-dialogs (plugin-dialog), HTTP proxy for CORS-blocked providers
-(plugin-http). All AI calls run in the renderer; user's own key,
+**Desktop runtime:** Tauri v2, Rust shell in `src-tauri/`. Secure AI-config storage
+(OS keychain via `keyring`), native Save-As (plugin-dialog), HTTP proxy for
+CORS-blocked providers (plugin-http). AI calls run in the renderer; user's own key,
 `dangerouslyAllowBrowser: true` is safe.
 
-**Web runtime:** plain browser. `window.__TAURI_INTERNALS__` is undefined.
-All Tauri imports are dynamic and gated on that check (`src/main.tsx`,
-`src/lib/ai.ts` for `tauriFetch`). Tree-shaker drops the Tauri runtime
-from the web bundle.
+**Web runtime:** plain browser — `window.__TAURI_INTERNALS__` is undefined. ALL
+Tauri imports must be dynamic + gated on that check (`main.tsx`, `lib/ai.ts`); static
+imports bloat the bundle / defeat tree-shaking. The `IS_WEB` build flag
+(`src/lib/env.ts`) drives provider filtering + the key-warning banner + the desktop
+footer link; runtime `isTauri()`/`__TAURI_INTERNALS__` drives storage/dialog/IPC
+fallbacks.
 
-**Persistence:** Tauri plugin-store for desktop settings (AI config,
-last-folder), localStorage for palette list, theme, and (web-only)
-AI key. `window.storage` shim in `src/App.tsx` bridges the artifact's
-async storage API to localStorage. Do not remove.
-
----
-
-## File Map
-
-```
-src/
-  App.tsx               ~7960 lines, // @ts-nocheck intentional
-  main.tsx              entry; dynamic-imports Tauri bridge when in Tauri
-  settings/
-    AISettingsPanel.tsx provider selector, base URL, key, model
-  components/
-    WebKeyWarning.tsx   web-only: localStorage key-storage banner
-    DesktopAppLink.tsx  web-only: footer link to releases page
-    AdjacencyMatrix.tsx viz: pairwise ΔE_OK heatmap (canvas + hover readout)
-    DitherBlend.tsx     viz: 2-color dither-blend preview (canvas)
-    CurveEditor.tsx     SVG lightness/sat curve editor (drag anchors, presets)
-    RampAdvancedPanel.tsx per-ramp Advanced disclosure: 2 CurveEditors + gamut
-    PixelPlayground.tsx pixel drawing canvas (line/rect/ellipse/fill/eyedropper)
-    TourOverlay.tsx     spotlight tour overlay (portal, SVG cutout, popover)
-    TourPanel.tsx       help-center launcher modal
-  lib/
-    ai.ts               multi-provider OpenAI-compat client, provider filter
-    color.ts            15 color math fns, // @ts-nocheck intentional
-    oklch.ts            OKLab/OKLCH conversion, ΔE_OK distance, gamut mapping
-    ramp-engine.ts      perceptual base-anchored generateRamp (reach/chroma falloff)
-    curve.ts            Catmull-Rom evalCurve, curve presets
-    hex-utils.ts        dedupeHexes
-    pixel-brush.ts      pure brush-stamp library (Playground)
-    viz-interaction.ts  adjacency-matrix metric + dither pattern logic
-    strip-export.ts     flat-color PNG renderers + computeVizData (all 4 viz exports)
-    tours.ts            tour step data + interactive guides
-    tour-runtime.ts     tour geometry helpers (cutout + popover placement)
-    constants.ts        WORD_POOL, sprites, CLASSIC_PALETTES, HARDWARE_PALETTES
-    env.ts              IS_WEB build-time flag, isTauri() runtime check
-    palette.ts          AIConfig, SavedPalettePayload, localStorage helpers
-    save-file.ts        polymorphic save (Tauri native dialog OR browser anchor)
-    tauri-bridge.ts     Tauri IPC, updater, plugin-store
-  vite-env.d.ts
-
-src-tauri/
-  src/                  Rust shell: main.rs, lib.rs, command handlers
-  Cargo.toml, Cargo.lock
-  tauri.conf.json       Tauri config (window, bundle, updater)
-
-tests/
-  # --- LOCAL-ONLY dev files (gitignored, NOT in origin, absent on a fresh
-  #     clone). May exist on one dev machine and not another. Their absence
-  #     is expected, not a deletion. See "Dev Environment" memory note. ---
-  pixel-pal.tsx         source artifact; legacy JS tests parse this, do not modify
-  extract.js            text-extracts const-arrow fns by name
-  test_*.js             legacy unit tests, each reads pixel-pal.tsx via fs + vm sandbox
-  package.json          {"type":"commonjs"} (CJS isolation from root ESM)
-  # --- tracked (in origin, run in CI) ---
-  test_contrast.js      WCAG AA contrast lint (tracked exception)
-  test_curve.ts         curve math unit test (tracked exception, run via npx tsx)
-  unit/                 vitest unit tests (.spec.ts)
-  e2e/
-    app.spec.ts          Playwright: app load, palette ops
-    ai-settings.spec.ts  Playwright: AI settings panel
-    web-build.spec.ts    Playwright: web build (vite preview at :4173)
-
-scripts/
-  sync-tauri-version.mjs  TRACKED: syncs Cargo.toml/.lock + tauri.conf.json to
-                          package.json version; wired into `npm version` lifecycle
-  verify_color_extraction.js  LOCAL-ONLY (gitignored): checks color.ts fns match
-                          pixel-pal.tsx verbatim
-  package.json               LOCAL-ONLY (gitignored): {"type":"commonjs"}
-
-.github/workflows/
-  ci.yml                push/PR → tsc, vitest, Playwright (desktop + web)
-  release.yml           v* tags → Tauri 3-platform matrix + GitHub Release
-  deploy-web.yml        v* tags → build:web + GH Pages deploy
-```
+**Persistence:** Tauri plugin-store for desktop settings; localStorage for palette
+list, theme, web-only AI key. The `window.storage` shim in `src/App.tsx` bridges the
+artifact's async storage API to localStorage — **do not remove**. (Typed globally in
+`vite-env.d.ts`.)
 
 ---
 
 ## Critical Constraints
 
-**ESM project.** `"type": "module"` in package.json. Config files: `export default`,
-never `module.exports`. Affects tailwind.config.js, postcss.config.js,
-vite.config.ts, playwright.config.ts, playwright.web.config.ts.
+- **ESM project** (`"type": "module"`). Config files use `export default`, never
+  `module.exports` (tailwind/postcss/vite/playwright configs).
+- **`// @ts-nocheck` in `color.ts` + `App.tsx` is intentional — do not remove.**
+  `color.ts` = 15 color-math fns extracted verbatim from the artifact (untyped). A
+  consequence for refactors: `tsc`/`npm run build` does NOT catch dangling refs to
+  removed locals inside these files — grep is the real gate.
+- **`tests/package.json` + `scripts/package.json` = `{"type":"commonjs"}`** to scope
+  CJS without touching root ESM. Do not delete — but both are LOCAL-ONLY (gitignored,
+  absent on fresh clones).
+- **Tailwind v3, not v4.** PostCSS integration (tailwind.config.js + postcss.config.js),
+  3 `@tailwind` directives in `src/index.css`. No Tailwind plugin in vite.config.ts.
+  Don't upgrade to v4 without config rework.
 
-**`// @ts-nocheck` in `color.ts` and `App.tsx` is intentional. Do not remove.**
-`color.ts` is the 15 original color-math fns extracted verbatim from the artifact
-(untyped; `tsc --noEmit` would flag them). The newer `oklch.ts` / `ramp-engine.ts`
-are NOT verbatim and are normally typed. (The local-only verbatim-extraction check
-lives in `scripts/verify_color_extraction.js` — see File Map; absent on some machines.)
+**AI-client landmines** (full detail: `docs/ARCHITECTURE.md` → AI Client; a breadcrumb
+is at the top of `ai.ts`): use `ChatCompletionCreateParamsNonStreaming` (the generic
+`Parameters<…create>[0]` breaks under openai SDK v6); Anthropic skips
+`response_format: json_object`; Anthropic + Ollama are filtered from the web dropdown
+and auto-migrate to OpenAI defaults on web load.
 
-**`tests/package.json` and `scripts/package.json` contain `{"type":"commonjs"}`**
-to scope CJS to those dirs without touching root ESM. **Do not delete — but note
-both are LOCAL-ONLY** (gitignored, not in origin); they only exist on machines that
-have the legacy JS test/verify tooling checked out.
-
-**Web build runtime is plain browser, not Tauri.** `window.__TAURI_INTERNALS__`
-is undefined. All Tauri imports must be dynamic, gated behind that check
-(`main.tsx`, `lib/ai.ts`). Static Tauri imports will bloat the bundle and
-may defeat tree-shaking. The `IS_WEB` build-time flag (from `src/lib/env.ts`)
-drives provider filtering, key-warning banner, and the desktop-app footer
-link; runtime checks (`isTauri()` / `__TAURI_INTERNALS__`) drive
-storage / dialog / IPC fallbacks.
-
-**`base: '/pixel-pal-app/'` for web, `'./'` for Tauri.** `vite.config.ts`
-branches on `VITE_BUILD_TARGET=web`. Custom domain would change web base to `/`.
-
-**Anthropic and Ollama are filtered out of the web provider dropdown.**
-Anthropic: CORS blocked. Ollama: https→http mixed-content blocked.
-A saved AIConfig with either provider auto-migrates to OpenAI defaults
-on first web load (`migrateStaleProvider` in `src/lib/ai.ts`).
-
----
-
-## AI Client (`src/lib/ai.ts`)
-
-Uses `ChatCompletionCreateParamsNonStreaming` from `'openai/resources/chat/completions'`.
-Generic `Parameters<typeof client.chat.completions.create>[0]` does not work in
-openai SDK v6 (wrong overload, TS2339 on `.choices`).
-
-Anthropic endpoints skip `response_format: { type: 'json_object' }` (unsupported).
-All other providers get it.
-
-Response schema: `{ colors: [{hex, name}], description }` → `AIResponse { colors: string[], names: string[], description: string }`.
-
-`tauriFetch` is dynamically imported and cached via `loadTauriFetch()`; in
-Tauri windows it's preloaded from `main.tsx` via `ensureTauriFetchLoaded()`.
-In browser, `_tauriFetch` stays null and the OpenAI SDK uses `globalThis.fetch`.
-
----
-
-## Playwright Gotchas
-
-- Use `toBeAttached()` / `not.toBeAttached()` for conditionally rendered
-  elements, not `toBeVisible()`: removed DOM nodes aren't visible OR attached.
-- `getByTitle()` needs exact title text: `getByTitle('Light: off-white background')`,
-  not `getByTitle('Light')`.
-- Ambiguous button selectors: add `{ exact: true }`.
-- `vite preview` for the web build MUST be invoked with `--base /pixel-pal-app/`;
-  otherwise SPA fallback returns `index.html` for `/pixel-pal-app/assets/*.js`,
-  the JS bundle never loads, and every selector times out. The
-  `playwright.web.config.ts` `webServer.command` already does this.
-- AI Settings button (`[title="AI Settings"]`) is only present after switching
-  to AI mode. Click the AI tab first.
+**Playwright landmines** (full detail: `docs/ARCHITECTURE.md` → Playwright Gotchas):
+use `toBeAttached()` not `toBeVisible()` for conditional nodes; `getByTitle()`/buttons
+need exact text + `{ exact: true }`; web preview needs `--base /pixel-pal-app/`.
 
 ---
 
 ## Known Issues / Deferred
 
-- **No custom icon**: default Tauri icon. Need 256x256 icon set in
-  `src-tauri/icons/` before customizing the bundle.
-- **GitHub remote set** at `github.com/tito13kfm/pixel-pal-app`, branch `master`.
-- **GH Pages source must be set to "GitHub Actions"** under repo Settings →
-  Pages before the first `deploy-web.yml` run; otherwise the deploy step
-  produces a 404. One-time UI step; not code.
-
----
-
-## Tailwind
-
-v3 not v4. PostCSS integration (tailwind.config.js + postcss.config.js). No
-Tailwind plugin in vite.config.ts. Three `@tailwind` directives in
-src/index.css. Do not upgrade to v4 without config rework.
+- **No custom icon**: default Tauri icon; need a 256x256 set in `src-tauri/icons/`
+  before customizing the bundle.
 
 ---
 
 ## Bug Report Protocol
 
-When user reports anything broken, wrong, or missing — **run these three tool calls before writing any response text:**
+When the user reports anything broken/wrong/missing, **before writing any response**
+run: (1) `git log --oneline <base>..HEAD`, (2) `git diff <base>..HEAD -- <file>`,
+(3) read the file if the diff isn't enough. Then respond, grounded in the code.
 
-1. `git log --oneline <base>..HEAD` — see what changed
-2. `git diff <base>..HEAD -- <relevant-file>` — see exactly what the branch changed
-3. Read the file if diff isn't enough
-
-Only then write a response, grounded in what the code actually shows.
-
-**Never write before completing those steps:**
-- "can you share the error"
-- "is it possible this was pre-existing"
-- "have you tried"
-- anything that redirects toward user error
-
-User is the source of truth on what they see. Code is the source of truth on why. Investigate the code.
+Never open with "can you share the error / is this pre-existing / have you tried" or
+anything redirecting toward user error. The user is the source of truth on what they
+see; the code is the source of truth on why. Investigate the code.
