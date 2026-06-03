@@ -157,10 +157,14 @@ export const buildRampsForSnapshot = (snapshot: RampSnapshot | null, style: stri
     return deduped;
   };
 
-  // Filter out hidden shade indices for base `i`. Operates on the post-pin,
-  // post-hardware ramp; we use the pre-snap length to interpret hidden
-  // indices, which matches how the working pipeline displays things (hidden
-  // is computed against the un-snapped index space).
+  // Filter out hidden shade indices for base `i`. Applied to the post-pin,
+  // POST-hardware (snapped + deduped) ramp — the SAME index space the live
+  // working pipeline uses: rampsPunchy[i] in App.tsx is hardware-locked, and
+  // the swatch grid captures hide-indices from `originalIndices` of that
+  // post-snap array (see hideShade / origJ). So hidden indices are post-snap,
+  // NOT the pre-snap/un-snapped space; this mirrors the live display exactly.
+  // (Caveat, not a divergence: toggling a hardware lock that dedupes a ramp
+  // shorter can leave a previously-captured index stale — same in both paths.)
   const filterHidden = (ramp: string[], baseIndex: number) => {
     const hidden = hiddenShades[baseIndex];
     if (!Array.isArray(hidden) || hidden.length === 0) return ramp;
