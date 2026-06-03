@@ -8,7 +8,6 @@ import {
 import { generateRamp as generateRampNew } from './lib/ramp-engine';
 import { LIGHTNESS_PRESETS, SAT_PRESETS, presetToPoints } from './lib/curve';
 import type { CurvePoints } from './lib/curve';
-import { hexToOklch, deltaEOK } from './lib/oklch';
 import { saveFile } from './lib/save-file';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
@@ -33,7 +32,7 @@ import { DesktopAppLink } from './components/DesktopAppLink';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 import { PANEL_STORAGE_KEY, loadPanelState } from './lib/panel-state';
-import { pickRandom, buildRandomDescription, buildRandomHex } from './lib/randomizer';
+import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
 import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
