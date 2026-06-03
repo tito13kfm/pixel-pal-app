@@ -25,9 +25,10 @@ import { useState, useEffect, useRef } from 'react';
  *     to match the default vizStyle so a brand-new session has both at
  *     'punchy'; from then on they diverge as the user chooses. Persisted under
  *     'ui:rampExportStyle' as a session-level default. Not part of the saved
- *     palette payload (matches vizStyle / gplStyle treatment as UI / export
- *     preferences rather than palette content). See "Per-ramp export style is
- *     independent" in ARCHITECTURE.
+ *     palette payload, and NOT part of undo history (matches vizStyle /
+ *     gplStyle treatment as UI / export preferences rather than palette
+ *     content — none of these are in the undo snapshot). See "Per-ramp export
+ *     style is independent" in ARCHITECTURE.
  *
  * FOUR EPHEMERAL settings (state only, no effects, not persisted):
  *
