@@ -42,6 +42,7 @@ import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
 import { inferLabel } from './lib/history-snapshot';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
+import { useExportSettings } from './hooks/useExportSettings';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -179,6 +180,14 @@ export default function PixelPalGenerator() {
   // live in useDisplaySettings. See src/hooks/useDisplaySettings.ts.
   const { theme, setTheme, cvdMode, setCvdMode, crtEnabled, setCrtEnabled } = useDisplaySettings();
   const { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern } = useVizSettings();
+  // Export settings (gpl/format/ramp styles + copy/export feedback state) +
+  // their load/persist effects live in useExportSettings. See
+  // src/hooks/useExportSettings.ts.
+  const {
+    gplStyle, setGplStyle, exportFormat, setExportFormat, rampExportStyle, setRampExportStyle,
+    copiedHex, setCopiedHex, exportFeedback, setExportFeedback,
+    lastSavedPath, setLastSavedPath, sessionRampGplFolder, setSessionRampGplFolder,
+  } = useExportSettings();
   const [spriteKey, setSpriteKey] = useState('vase');
   const [customSprites, setCustomSprites] = useState({});
   const [showSpriteImporter, setShowSpriteImporter] = useState(false);
@@ -192,9 +201,7 @@ export default function PixelPalGenerator() {
   const [launcherOpen, setLauncherOpen] = useState(false);
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
-  const [copiedHex, setCopiedHex] = useState(null);
   const [shuffleSeed, setShuffleSeed] = useState(0);
-  const [exportFeedback, setExportFeedback] = useState('');
   // Brief inline feedback shown next to the "Add to Palette" button on the
   // Single Color tab. Separate from exportFeedback because the export
   // badge lives near the bottom of the page and is invisible to a user
@@ -209,9 +216,6 @@ export default function PixelPalGenerator() {
   const [compareMode, setCompareMode] = useState(false);
   const [compareAnchor, setCompareAnchor] = useState(null); // { baseIndex, shadeIndex, style, hex } | null
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
-  const [gplStyle, setGplStyle] = useState('punchy');
-  const [exportFormat, setExportFormat] = useState('gpl'); // gpl | pal | ase | png-strip | txt
-  const [lastSavedPath, setLastSavedPath] = useState(null); // desktop: path of last export, for Reveal
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
   const [rampsOpen, setRampsOpen] = useState(_panels.rampsOpen);
@@ -222,16 +226,6 @@ export default function PixelPalGenerator() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateReady, setUpdateReady] = useState(false);
   const [updateDownloading, setUpdateDownloading] = useState(false);
-  // Per-ramp export style. Independent of vizStyle (which controls the
-  // Visualization panel near the bottom of the page) and of gplStyle
-  // (which controls the full-palette .gpl Download button in the bottom
-  // export bar). Used by the per-ramp Copy and Download buttons on every
-  // ramp card. Initialized to match the default vizStyle so a brand-new
-  // session has both at 'punchy'; from then on they diverge as the user
-  // chooses. Not undoable, not saved with palettes (matches vizStyle and
-  // gplStyle treatment as UI / export preferences rather than palette
-  // content). See "Per-ramp export style is independent" in ARCHITECTURE.
-  const [rampExportStyle, setRampExportStyle] = useState('punchy');
   // ----- Image Remap Preview state -----
   // Separate image slot from the From Image extraction feature. The user
   // uploads a reference image and remaps every pixel to the nearest color
@@ -334,11 +328,6 @@ export default function PixelPalGenerator() {
   // means a Game Boy ramp with 8 requested shades visually shows 4 since
   // the hardware only has 4 colors.
   const [hardwareLock, setHardwareLock] = useState(null);
-
-  // Per-ramp .gpl session folder. After the first dialog, this is set so
-  // subsequent per-ramp .gpl saves in the same session write silently to
-  // the same folder. Cleared on app reload OR on a failed silent write.
-  const [sessionRampGplFolder, setSessionRampGplFolder] = useState<string | null>(null);
 
   // Base color editor (feature #1). At most one ramp's editor is open at a
   // time; toggling another closes the previous. editorHsv holds the live
@@ -2337,87 +2326,6 @@ export default function PixelPalGenerator() {
       try { await window.storage.set('ui:rampSize', JSON.stringify(rampSize)); } catch {}
     })();
   }, [rampSize]);
-
-  // gplStyle: persisted at ui:gplStyle. Valid values punchy/balanced/muted.
-  useEffect(() => {
-    (async () => {
-      if (typeof window === 'undefined' || !window.storage) return;
-      try {
-        const got = await window.storage.get('ui:gplStyle');
-        if (got && got.value) {
-          const parsed = JSON.parse(got.value);
-          if (typeof parsed === 'string' && ['punchy', 'balanced', 'muted'].includes(parsed)) {
-            setGplStyle(parsed);
-          }
-        }
-      } catch {
-        // No saved value or storage failed; keep default.
-      }
-    })();
-  }, []);
-  const gplStyleMountRef = useRef(false);
-  useEffect(() => {
-    if (!gplStyleMountRef.current) { gplStyleMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !window.storage) return;
-    (async () => {
-      try { await window.storage.set('ui:gplStyle', JSON.stringify(gplStyle)); } catch {}
-    })();
-  }, [gplStyle]);
-
-  // exportFormat: persisted at ui:exportFormat. Valid values gpl/pal/ase/png-strip/txt.
-  useEffect(() => {
-    (async () => {
-      if (typeof window === 'undefined' || !window.storage) return;
-      try {
-        const got = await window.storage.get('ui:exportFormat');
-        if (got && got.value) {
-          const parsed = JSON.parse(got.value);
-          if (typeof parsed === 'string' && ['gpl', 'pal', 'ase', 'png-strip', 'txt'].includes(parsed)) {
-            setExportFormat(parsed);
-          }
-        }
-      } catch {
-        // No saved value or storage failed; keep default.
-      }
-    })();
-  }, []);
-  const exportFormatMountRef = useRef(false);
-  useEffect(() => {
-    if (!exportFormatMountRef.current) { exportFormatMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !window.storage) return;
-    (async () => {
-      try { await window.storage.set('ui:exportFormat', JSON.stringify(exportFormat)); } catch {}
-    })();
-  }, [exportFormat]);
-
-  // rampExportStyle: persisted at ui:rampExportStyle. Valid values
-  // punchy/balanced/muted. Not part of the saved palette payload (it is
-  // a pure UI preference for the per-ramp Copy and Download buttons),
-  // but persists as a session-level default like the others.
-  useEffect(() => {
-    (async () => {
-      if (typeof window === 'undefined' || !window.storage) return;
-      try {
-        const got = await window.storage.get('ui:rampExportStyle');
-        if (got && got.value) {
-          const parsed = JSON.parse(got.value);
-          if (typeof parsed === 'string' && ['punchy', 'balanced', 'muted'].includes(parsed)) {
-            setRampExportStyle(parsed);
-          }
-        }
-      } catch {
-        // No saved value or storage failed; keep default.
-      }
-    })();
-  }, []);
-  const rampExportStyleMountRef = useRef(false);
-  useEffect(() => {
-    if (!rampExportStyleMountRef.current) { rampExportStyleMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !window.storage) return;
-    (async () => {
-      try { await window.storage.set('ui:rampExportStyle', JSON.stringify(rampExportStyle)); } catch {}
-    })();
-  }, [rampExportStyle]);
 
   // Auto-open the visualization section when the user transitions from 1 to 2+
   // base colors, but never force it closed (user can collapse manually any time).
