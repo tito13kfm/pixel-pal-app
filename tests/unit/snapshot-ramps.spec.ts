@@ -28,4 +28,10 @@ describe('buildRampsForSnapshot', () => {
     const snap = { baseColors: ['#3366cc', '#cc6633'], rampSize: 6 };
     expect(buildRampsForSnapshot(snap, 'punchy')).toEqual(buildRampsForSnapshot(snap, 'punchy'));
   });
+  it('drops hidden shade indices from the ramp', () => {
+    const full = buildRampsForSnapshot({ baseColors: ['#cc3344'], rampSize: 5 }, 'balanced');
+    const withHidden = buildRampsForSnapshot(
+      { baseColors: ['#cc3344'], rampSize: 5, hiddenShades: { 0: [0, 4] } }, 'balanced');
+    expect(withHidden[0]).toEqual([full[0][1], full[0][2], full[0][3]]);
+  });
 });
