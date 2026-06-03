@@ -31,7 +31,6 @@ import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
-import { PANEL_STORAGE_KEY, loadPanelState } from './lib/panel-state';
 import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
 import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
@@ -50,6 +49,7 @@ import { useImageExtract } from './hooks/useImageExtract';
 import { useImageRemap } from './hooks/useImageRemap';
 import { useSideBySide } from './hooks/useSideBySide';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
+import { usePanelLayout } from './hooks/usePanelLayout';
 
 // ---------- window.storage shim ----------
 // The original artifact used a custom async window.storage key-value API.
@@ -138,8 +138,6 @@ const PixelSprite = ({ palette, scale = 6, spriteKey = 'vase', spriteLibrary }) 
 };
 
 
-const _panels = loadPanelState()
-
 // ---------- Main ----------
 export default function PixelPalGenerator() {
   const [mode, setMode] = useState('color');
@@ -212,6 +210,14 @@ export default function PixelPalGenerator() {
     confirmReset, setConfirmReset, savedFilter, setSavedFilter,
     classicLoaderId, setClassicLoaderId,
   } = useSavedPalettes();
+  const {
+    rampsOpen, setRampsOpen, harmonyOpen, setHarmonyOpen, tipsOpen, setTipsOpen,
+    hwPickerOpen, setHwPickerOpen, exportOpen, setExportOpen,
+    historyOpen, setHistoryOpen, advancedOpen, setAdvancedOpen,
+    savedOpen, setSavedOpen, sbsOpen, setSbsOpen, pgOpen, setPgOpen,
+    sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
+    dragOver, setDragOver, draggingKey, setDraggingKey,
+  } = usePanelLayout();
   const tourSnapshot = useRef(null);
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [shuffleSeed, setShuffleSeed] = useState(0);
@@ -231,11 +237,6 @@ export default function PixelPalGenerator() {
   const [compareResult, setCompareResult] = useState(null); // { aHex, bHex, ratio, tier } | null
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
-  const [rampsOpen, setRampsOpen] = useState(_panels.rampsOpen);
-  const [harmonyOpen, setHarmonyOpen] = useState(_panels.harmonyOpen);
-  const [tipsOpen, setTipsOpen] = useState(_panels.tipsOpen);
-  const [hwPickerOpen, setHwPickerOpen] = useState(_panels.hwPickerOpen);
-  const [exportOpen, setExportOpen] = useState(_panels.exportOpen);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateReady, setUpdateReady] = useState(false);
   const [updateDownloading, setUpdateDownloading] = useState(false);
@@ -406,7 +407,6 @@ export default function PixelPalGenerator() {
     { snapshot: null, label: 'Initial state', timestamp: Date.now() },
   ]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [historyOpen, setHistoryOpen] = useState(_panels.historyOpen);
   const isReplayingHistoryRef = useRef(false);
   const historyDebounceRef = useRef(null);
   const pendingLabelRef = useRef(null);
@@ -416,31 +416,6 @@ export default function PixelPalGenerator() {
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
   const [stylePresets, setStylePresets] = useState(DEFAULT_STYLE_PRESETS);
   const resetStylePresets = () => setStylePresets(DEFAULT_STYLE_PRESETS);
-  const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
-  const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
-  // Side-by-side compare: dedicated section with two slots. Each slot
-  // holds either null (empty), the string 'working' (the live working
-  // palette, which re-renders live as edits happen), or a saved palette
-  // slug. The section starts collapsed; sbsOpen is the user's UI choice
-  // and persists across palette resets (matches savedOpen).
-  // Slot assignments are transient analysis state, NOT part of a saved
-  // palette's identity, so they reset on every "new palette" path.
-  // Named sbsLeft/sbsRight rather than compareLeft/compareRight to avoid
-  // confusion with the existing WCAG Check (formerly "Compare Mode") picker.
-  const [sbsOpen, setSbsOpen] = useState(_panels.sbsOpen);
-  const [pgOpen, setPgOpen] = useState(_panels.pgOpen);
-  const DEFAULT_SECTION_ORDER = ['playground', 'viz', 'saved', 'history', 'export'];
-  const [sectionOrder, setSectionOrder] = useState(() => {
-    const loaded = JSON.parse(localStorage.getItem('ui:sectionOrder') || 'null');
-    const valid = Array.isArray(loaded)
-      && loaded.length === DEFAULT_SECTION_ORDER.length
-      && DEFAULT_SECTION_ORDER.every(k => loaded.includes(k));
-    return valid ? loaded : DEFAULT_SECTION_ORDER;
-  });
-  const resetSectionOrder = () => setSectionOrder(DEFAULT_SECTION_ORDER);
-  // { key, pos: 'before'|'after' } — drop target + which edge, from cursor half
-  const [dragOver, setDragOver] = useState(null);
-  const [draggingKey, setDraggingKey] = useState(null);
   const confirmTimerRef = useRef(null);
   // Ref to the Save Palette name input. Used by the `S` keyboard
   // shortcut to scroll the saved-palettes section into view and focus
@@ -892,14 +867,6 @@ export default function PixelPalGenerator() {
     window.electronAPI?.onUpdateReady?.((info) => { setUpdateInfo(info); setUpdateReady(true); setUpdateDownloading(false); });
     window.electronAPI?.onUpdateError?.((err) => { console.error('Update failed:', err); setUpdateDownloading(false); setUpdateInfo(null); });
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, rampsOpen }))
-  }, [harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, rampsOpen]);
-
-  useEffect(() => {
-    localStorage.setItem('ui:sectionOrder', JSON.stringify(sectionOrder));
-  }, [sectionOrder]);
 
   function handleAISettingsClose() {
     setShowAISettings(false);
