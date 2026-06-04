@@ -22,7 +22,7 @@ import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
 import { dedupeHexes } from './lib/hex-utils';
-import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatrixPng, drawDitherBlendPng, drawPaletteStripPng } from './lib/strip-export';
+import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatrixPng, drawDitherBlendPng, drawPaletteStripPng, lightnessMarkers, LIGHTNESS_GRIDLINES } from './lib/strip-export';
 import { buildGpl, buildJascPal, buildAse } from './lib/palette-export';
 import { AdjacencyMatrix } from './components/AdjacencyMatrix';
 import { DitherBlend } from './components/DitherBlend';
@@ -5705,10 +5705,13 @@ export default function PixelPalGenerator() {
                   <button onClick={() => exportLightnessPng(snap)} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>
                 ), compact, (
                   <>
-                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">All colors sorted darkest to lightest. Gaps indicate missing tonal ranges.</p>}
-                  <div className="flex w-full rounded overflow-hidden border" style={{ height: lightnessH, borderColor: t.vizDataBorder }}>
-                    {sortedByL.map((hex, i) => (
-                      <div key={i} className="flex-1" style={{ background: hex }} title={`${hex.toUpperCase()} L=${hexToHsl(hex).l.toFixed(0)}`} />
+                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">All colors placed on a 0→100 lightness axis (left = darkest). Blank stretches are missing tonal ranges.</p>}
+                  <div className="relative w-full rounded overflow-hidden border" style={{ height: lightnessH, borderColor: t.vizDataBorder, background: '#15151f' }}>
+                    {LIGHTNESS_GRIDLINES.map((p) => (
+                      <div key={`g${p}`} className="absolute top-0 bottom-0" style={{ left: `${p}%`, width: 1, background: 'rgba(255,255,255,0.18)' }} />
+                    ))}
+                    {lightnessMarkers(sortedByL).map(({ hex, l }, i) => (
+                      <div key={i} className="absolute top-0 bottom-0" style={{ left: `${l}%`, width: 6, transform: 'translateX(-50%)', background: hex, boxShadow: '0 0 0 1px rgba(0,0,0,0.45)' }} title={`${hex.toUpperCase()} L=${l.toFixed(0)}`} />
                     ))}
                   </div>
                   </>

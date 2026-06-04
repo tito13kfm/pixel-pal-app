@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeVizData, paletteStripLayout } from '../../src/lib/strip-export';
+import { computeVizData, paletteStripLayout, lightnessMarkers } from '../../src/lib/strip-export';
 
 // Three ramps. Ramp 0 has an internal duplicate (#000000 twice).
 // Ramp 2 is fully contained in earlier ramps, so its mosaic row is empty
@@ -38,6 +38,26 @@ describe('computeVizData', () => {
 
   it('handles empty input', () => {
     expect(computeVizData([])).toEqual({ allColors: [], sortedByL: [], mosaicRamps: [] });
+  });
+});
+
+describe('lightnessMarkers', () => {
+  // The shared L source for BOTH the on-screen Lightness Distribution and the
+  // exported PNG (#51) — position on a 0→100 axis encodes lightness.
+  it('maps each hex to its HSL lightness, preserving input order', () => {
+    // #ff0000 has HSL lightness exactly 50 ((255+0)/2/255); #808080 is ~50.2.
+    expect(lightnessMarkers(['#000000', '#ff0000', '#ffffff'])).toEqual([
+      { hex: '#000000', l: 0 },
+      { hex: '#ff0000', l: 50 },
+      { hex: '#ffffff', l: 100 },
+    ]);
+  });
+  it('keeps the caller-provided order (does not re-sort)', () => {
+    const out = lightnessMarkers(['#ffffff', '#000000']);
+    expect(out.map((m) => m.hex)).toEqual(['#ffffff', '#000000']);
+  });
+  it('handles empty input', () => {
+    expect(lightnessMarkers([])).toEqual([]);
   });
 });
 
