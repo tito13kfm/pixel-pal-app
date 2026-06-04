@@ -29,14 +29,14 @@ import { useState, useEffect, useRef } from 'react';
  * existing `if (!window.storage)` guards.
  */
 export function useDisplaySettings() {
-  const [crtEnabled, setCrtEnabled] = useState(true);
-  const [theme, setTheme] = useState('dark');
+  const [crtEnabled, setCrtEnabled] = useState(false);
+  const [theme, setTheme] = useState('neutral');
   const [cvdMode, setCvdMode] = useState('none');
 
   // Load theme preference once at mount. We use a try/catch and best-effort
-  // semantics: if storage isn't available, just stay on 'dark'. The first
-  // render uses 'dark' regardless; once this effect runs we update to the
-  // saved value, which may cause a brief flash. Acceptable.
+  // semantics: if storage isn't available, just stay on the 'neutral' default.
+  // The first render uses 'neutral' regardless; once this effect runs we update
+  // to the saved value, which may cause a brief flash. Acceptable.
   useEffect(() => {
     (async () => {
       if (typeof window === 'undefined' || !window.storage) return;

@@ -5556,7 +5556,7 @@ export default function PixelPalGenerator() {
               </div>
               <PixelPlayground
                 ramps={vizStyle === 'balanced' ? rampsBalanced : vizStyle === 'muted' ? rampsMuted : rampsPunchy}
-                theme={{ glowStrong: t.glowStrong, text: t.text }}
+                theme={{ dark: theme !== 'light', text: t.text }}
               />
             </div>
         </div>
