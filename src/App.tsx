@@ -2309,6 +2309,8 @@ export default function PixelPalGenerator() {
       satCurvePerRamp,
       gamutPerRamp,
       stylePresets,
+      engineVersion, // mirror the main-grid liveRampSnapshot so viz/export/compare
+                     // of the working palette use the same v1/v2 engine (#35)
     };
   };
   // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
@@ -2329,6 +2331,8 @@ export default function PixelPalGenerator() {
       hiddenShades: {},
       hardwareLock: null,
       hueShiftStrength,
+      engineVersion: 2, // classics preview/compare with the current engine, matching
+                        // what loadClassicPalette produces (resetPaletteState → v2)
     };
   };
   const getSnapshotForSlot = (slot, cachedPayload) => {

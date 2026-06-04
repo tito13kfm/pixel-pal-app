@@ -26,6 +26,18 @@ describe('buildRamp ↔ buildRampsForSnapshot mirror', () => {
     expect(viaBuild).toEqual(viaSnapshot);
   });
 
+  it('engineVersion drives the snapshot path: v2 ≠ v1 for off-center bases', () => {
+    // The two mirror assertions above are near-tautological — they'd pass even
+    // if buildRamp ignored engineVersion. This guards the actual contract the
+    // viz/export/compare paths rely on: buildRampsForSnapshot (the snapshot
+    // path) IS engine-sensitive. A light + a dark base both sit off-center, so
+    // v2's re-centered allocation must change at least one of them (#35).
+    const offCenter = { baseColors: ['#f4e8a0', '#101a3a'], rampSize: 7, hardwareLock: null };
+    const v1 = buildRampsForSnapshot(offCenter, 'punchy');
+    const v2 = buildRampsForSnapshot({ ...offCenter, engineVersion: 2 }, 'punchy');
+    expect(v2).not.toEqual(v1);
+  });
+
   it('holds with the live field set (pins, per-ramp curve/hue, sat override, shuffle)', () => {
     const live = {
       baseColors: ['#37cd76', '#1a2f6b', '#cc3344'],
