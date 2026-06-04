@@ -289,24 +289,28 @@ export function drawDitherBlend(
         // exactly — no gap and no overflow into the neighbouring solid cell
         // (same approach as blockEdges above; avoids round/ceil overdraw).
         if (opts.pattern === 'bayer') {
-          // Bayer gradient ramp: 16 threshold columns × 4 Bayer rows.
-          // Column gx uses threshold gx, so the cell transitions from all-A
-          // (left) to all-B (right) using the Bayer ordered-dither sequence.
-          // At 50% both patterns are identical, so a gradient is necessary to
-          // show the visually distinctive Bayer texture.
-          const bSubX = 16;
-          const bSubY = 4;
-          for (let gx = 0; gx < bSubX; gx++) {
-            const bx0 = Math.round((gx * blendW) / bSubX);
-            const bx1 = Math.round(((gx + 1) * blendW) / bSubX);
-            for (let gy = 0; gy < bSubY; gy++) {
-              const by0 = Math.round((gy * rowH) / bSubY);
-              const by1 = Math.round(((gy + 1) * rowH) / bSubY);
-              ctx.fillStyle = BAYER_4X4[gy][gx % 4] < gx ? b : a;
+          // Bayer's 16-level ordering only shows across NON-50% ratios: the matrix
+          // is balanced, so at a flat 50% blend BAYER_4X4 >= 8 is exactly a
+          // checkerboard, indistinguishable from the 2×2 checker. So render the
+          // blend cell as a left→right A→B Bayer gradient — threshold swept across
+          // the width, with the 4×4 matrix tiled in BOTH axes (cx%4, cy%4) so it
+          // never collapses into vertical bands (the old #43 bug: 16 cols × 4 rows
+          // keyed to the column index). cols/rows ~= pixel resolution for smoothness.
+          const cols = Math.max(8, Math.round(blendW));
+          const rows = Math.max(8, Math.round(rowH));
+          for (let cx = 0; cx < cols; cx++) {
+            const bx0 = Math.round((cx * blendW) / cols);
+            const bx1 = Math.round(((cx + 1) * blendW) / cols);
+            const threshold = ((cx + 0.5) / cols) * 16; // 0..16 across the width
+            for (let cy = 0; cy < rows; cy++) {
+              const by0 = Math.round((cy * rowH) / rows);
+              const by1 = Math.round(((cy + 1) * rowH) / rows);
+              ctx.fillStyle = BAYER_4X4[cy % 4][cx % 4] < threshold ? b : a;
               ctx.fillRect(x + bx0, y + by0, bx1 - bx0, by1 - by0);
             }
           }
         } else {
+          // Checker: flat 50% parity (it has no levels to ramp).
           for (let gx = 0; gx < sub; gx++) {
             const bx0 = Math.round((gx * blendW) / sub);
             const bx1 = Math.round(((gx + 1) * blendW) / sub);
