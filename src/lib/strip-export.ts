@@ -7,7 +7,7 @@
 import { hexToHsl } from './color';
 import { dedupeHexes } from './hex-utils';
 import {
-  adjacencyDeltaE, normalizeDeltaE, heatColor, BAYER_4X4, BAYER_2X2,
+  adjacencyDeltaE, normalizeDeltaE, heatColor, ditherMatrix,
   type MatrixView, type DitherPattern,
 } from './viz-interaction';
 
@@ -289,17 +289,18 @@ export function drawDitherBlend(
         // exactly — no gap and no overflow into the neighbouring solid cell
         // (same approach as blockEdges above; avoids round/ceil overdraw).
         // Ordered-dither gradient between shade A (left) and shade B (right).
-        // Both options sweep an A→B threshold across the blend cell and tile an
-        // ordered-dither matrix in BOTH axes; the only difference is matrix size,
-        // i.e. how many tonal levels — and thus how smooth the ramp reads:
-        //   2×2 → 4 levels (coarse),  4×4 Bayer → 16 levels (smooth).
-        // At the midpoint both reduce to the classic checkerboard, so 2×2 still
-        // contains the old "checker" look as its 50% slice. Tiling in both axes
-        // (not keyed to the column index) is what keeps it from collapsing into
-        // vertical bands — the #43 bug. cols/rows ~= pixel resolution.
-        const matrix = opts.pattern === 'bayer' ? BAYER_4X4 : BAYER_2X2;
-        const mN = matrix.length;        // 4 or 2
-        const levels = mN * mN;          // 16 or 4
+        // Sweep an A→B threshold across the blend cell and tile the pattern's
+        // threshold matrix in BOTH axes. Matrix size sets the tonal levels:
+        //   2×2 → 4, 4×4 Bayer → 16, 8×8 Bayer → 64 (smoother ramps).
+        // Bayer at the midpoint reduces to the classic checkerboard. Non-Bayer
+        // matrices (clustered dot, scanline, cross-hatch) ride the SAME sweep —
+        // only the cell ordering differs (see DITHER_PATTERNS in
+        // viz-interaction.ts). Tiling in both axes (not keyed to the column
+        // index) is what keeps it from collapsing into vertical bands — the #43
+        // bug. cols/rows ~= pixel resolution.
+        const matrix = ditherMatrix(opts.pattern);
+        const mN = matrix.length;        // 2, 4 or 8
+        const levels = mN * mN;          // 4, 16 or 64
         const cols = Math.max(8, Math.round(blendW));
         const rows = Math.max(8, Math.round(rowH));
         for (let cx = 0; cx < cols; cx++) {

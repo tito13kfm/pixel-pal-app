@@ -18,8 +18,9 @@ import { useState, useEffect, useRef } from 'react';
  *
  *   - matrixView: adjacency-matrix layout ('pair' | 'heatmap'). Ephemeral.
  *
- *   - ditherPattern: dither-blend preview pattern ('checker' | 'bayer').
- *     Ephemeral.
+ *   - ditherPattern: dither-blend preview pattern id (see DITHER_PATTERNS in
+ *     viz-interaction.ts: 'bayer2'|'bayer4'|'bayer8'|'clustered'|'lines'|
+ *     'crosshatch'). Ephemeral.
  *
  * `window.storage` is the artifact's async key-value shim (installed in
  * App.tsx). It's typed globally as an optional `Window.storage` member in
@@ -30,7 +31,7 @@ export function useVizSettings() {
   const [vizStyle, setVizStyle] = useState('punchy');
   const [matrixColorSet, setMatrixColorSet] = useState('unique'); // 'unique' | 'bases'
   const [matrixView, setMatrixView] = useState('pair');           // 'pair' | 'heatmap'
-  const [ditherPattern, setDitherPattern] = useState('checker');  // 'checker' | 'bayer'
+  const [ditherPattern, setDitherPattern] = useState('bayer2');   // DITHER_PATTERNS id
 
   // vizStyle: persisted at ui:vizStyle. Valid values punchy/balanced/muted.
   useEffect(() => {
