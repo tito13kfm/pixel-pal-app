@@ -153,6 +153,19 @@ are only the lock.
 1. **Principled design target, stated up front (not reverse-derived):**
    *no adjacent ΔL exceeds 1.5× the ramp's median ΔL*, for every hue × N in the
    matrix. Tune `w(N)` / `guaranteed` / step curve to hit THIS target.
+
+   > **AMENDMENT (Session B, 2026-06-04, user-approved): this ΔL target is
+   > RETIRED.** A baseIndex sweep proved it unreachable via v2's only lever — ΔL
+   > is owned by the shared eased lightness curve (small step near base, big at
+   > extreme), not slot allocation: structural at N=4 (v1==v2==1.857 at every
+   > slot) and mutually exclusive with the balance guarantee at N=7. Touching the
+   > curve breaks the one-function v2 (§1); tuning toward the threshold would be
+   > the reverse-derivation this very section forbids. So the §4 premise holds —
+   > *the eye is the judge, the number is only the lock* — but the chosen number
+   > was wrong. Replacement automated gate: **balance guarantee** (base never at
+   > an end; ≥2 shadows AND ≥2 highlights when N≥5) + strict L-monotonicity. The
+   > visual sign-off (step 2) and frozen snapshot (step 3) are unchanged and did
+   > the real acceptance work.
 2. **Visual sign-off gate:** render before/after ramp strips (v1 vs v2) for the
    hero cases — green @ N=4 and 7, navy, a mid-tone, a grey — as a screenshot,
    and get the user's visual approval. (Remote user → deliver via screenshot, as

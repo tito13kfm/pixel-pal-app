@@ -448,6 +448,34 @@ After green CI, complete via `superpowers:finishing-a-development-branch`.
 
 ---
 
+## STATUS UPDATE — Session B complete (Tasks 4–7), 2026-06-04
+
+Commits `480a308` (v2 alloc) / `ee5a042` (tiny-N) / `d5163e2` (mirror v1+v2) /
+`e5536df` (freeze) / `1365fc2` (extend to N=5/6/8 + red/grey). Full unit suite +
+`npm run build` green; v1 characterization byte-identical.
+
+**ACCEPTANCE METRIC CHANGED — user-approved. Critical Rule 2 / Task 4's
+"max adjacent ΔL ≤ 1.5× median" is RETIRED.** A baseIndex sweep proved it
+unsatisfiable via v2's only lever: it is owned by the shared eased lightness curve
+(small step near base, large at the extreme), NOT by slot allocation — structural
+at N=4 (v1==v2==1.857 at every slot) and mutually exclusive with the balance
+guarantee at N=7 (all three hues). Touching the curve (breaks one-function v2) or
+loosening the threshold (reverse-derived) were both rejected. The replacement
+automated gate is the **balance guarantee** (base never at an end; ≥2 shadows AND
+≥2 highlights when N≥5) + strict L-monotonicity + the frozen v2 snapshot. "Looks
+even" is the human visual gate: v1-vs-v2 strips for {green/navy/yellow} × {N=4..16,
+incl. the 5/6/8 operating range} were rendered and approved before the freeze.
+
+**Behavior to know for Session C:** at N=5, `minSide = min(2, floor(4/2)) = 2` →
+range `[2,2]` → base sits **dead-center for every base regardless of lightness**
+(approved). v2 constants unchanged from the plan defaults
+(`V2_BIAS_C=1.5 / V2_BIAS_MAX=0.6 / V2_MIN_SIDE=2`) — the threshold was retired
+rather than tuned toward, so no constant tuning was needed.
+
+**Remaining: Session C = Tasks 8–9** (new palettes default v2; saved v1 stay v1;
+integration/e2e/PR/CI) + the Task 9 cleanup in memory `ramp-engine-v2.md`
+(orphaned `applyHardwareLock`/`resolveHueShiftForRamp`, `.gitattributes` `*.snap`→LF).
+
 ## Self-review notes (author)
 
 - **Spec coverage:** v2 engine (Tasks 4–5), shared pipeline / structural mirror (Task 2, verified Task 6), versioning + working-palette semantics (Tasks 3, 8), v1 frozen (Task 1), visual-sign-off-first + principled threshold (Tasks 4, 7), test matrix incl. light/dark/grey × N=2..64 (Tasks 1, 4, 5, 7). Deferred items (upgrade UI, chroma work) correctly excluded.
