@@ -44,3 +44,21 @@ describe('v2 distribution — balance guarantee', () => {
     }
   }
 });
+
+describe('v2 tiny N edge cases', () => {
+  it('N=2 light base → the one non-base shade is a shadow (base at top)', () => {
+    expect(baseIdx('#37cd76', 2)).toBe(1);   // farther cap is dark ⇒ 1 shadow, 0 highlight
+  });
+  it('N=2 dark base → the one non-base shade is a highlight (base at bottom)', () => {
+    expect(baseIdx('#1a2f6b', 2)).toBe(0);   // farther cap is light ⇒ 0 shadow, 1 highlight
+  });
+  it('N=3 and N=4 never place the base at an end', () => {
+    for (const hex of ['#37cd76', '#1a2f6b']) {
+      for (const N of [3, 4]) {
+        const i = baseIdx(hex, N);
+        expect(i).toBeGreaterThan(0);
+        expect(i).toBeLessThan(N - 1);
+      }
+    }
+  });
+});
