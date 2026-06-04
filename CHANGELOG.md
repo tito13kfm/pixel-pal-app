@@ -18,6 +18,20 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Added
+- Even shade distribution (v2 ramp engine): new palettes re-center the base
+  color within its ramp, so perceptually light or dark bases get a balanced
+  number of shadow and highlight shades instead of bunching toward one end.
+  Existing saved palettes keep their original look on load and only adopt the
+  new engine when you create fresh content (new color / AI / image / GPL /
+  classic) (#35).
+
+### Changed
+- Loading a saved palette that used per-ramp hue-shift overrides now renders its
+  ramps identically across the main grid, side-by-side compare, and undo/redo.
+  Previously compare and undo could re-derive per-ramp hue slightly differently
+  than the main view (#35, #30).
+
 ## [0.15.0] - 2026-06-02
 
 ### Added

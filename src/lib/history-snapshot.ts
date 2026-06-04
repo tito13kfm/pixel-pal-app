@@ -5,8 +5,10 @@ export const SNAPSHOT_FIELDS = [
   'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
   'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',
   // engineVersion participates in undo/redo so a load→edit→undo round-trip
-  // preserves the palette's engine. It never changes mid-session (only at
-  // load, which clears history), so inferLabel needs no case for it.
+  // preserves the palette's engine. It changes only alongside a wholesale
+  // baseColors replace (load, or resetPaletteState on new-palette actions,
+  // which carry their own tagNextLabel) — never in isolation — so inferLabel
+  // needs no dedicated case for it.
   'engineVersion',
 ] as const;
 
