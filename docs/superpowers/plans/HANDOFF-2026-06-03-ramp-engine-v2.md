@@ -78,3 +78,33 @@ one fresh session, context never compounds):
   throwaway `npx tsx` script importing `generateRamp` + `styleToScalars`. The
   `#NaNNaNNaN` you may see if you omit `hueShiftStrength` is a test artifact, not
   a bug — always pass `hueShiftStrength: 1.0`.
+
+---
+
+## STATUS UPDATE — 2026-06-04 (Session A DONE)
+
+**Session A (Tasks 1-3) COMPLETE & committed** on `feat/ramp-engine-v2` (local,
+unpushed): `28b1db2` (T1 characterize) · `74d11f6` (T2 shared buildRamp) ·
+`e920f2a` (T3 thread engineVersion). 203/203 unit pass, build green, grep-gate 0.
+Still v1 everywhere — no v2 logic yet. Full detail in memory `ramp-engine-v2.md`.
+
+**Handoff premise #3 ("paths already mirror") was WRONG.** Found 3 live↔snapshot
+divergences (hidden, curvePerRamp, per-ramp hue). Mapped + handled — live snapshot
+OMITS `hiddenShades`+`curvePerRamp`, PASSES `hueShiftStrengthPerRamp`.
+
+**Design decision #2 ("old palettes must not change look") AMENDED by user.**
+`buildRamp` now honors per-ramp hue (required for one shared pipeline + live
+byte-identity). Side effect: compare-view & undo/redo render of saved v1 palettes
+that carry a `hueShiftStrengthPerRamp` entry now CHANGE — to match their live
+render (corrects latent #30-class divergence; spec §3 mandates snapshot==live).
+User explicitly approved "fix the mirror now". Live output byte-identical.
+**→ the eventual PR MUST surface this prominently + reference the approval.**
+
+**Session B starts at Task 4.** Fresh session (token-control + human visual gate
+at T7). Read memory `ramp-engine-v2.md` first. New shared module is
+`src/lib/ramp-pipeline.ts` — v2 engine work is in `ramp-engine.ts`
+(`computeBaseIndex` extraction), threaded through the already-wired `engineVersion`.
+
+**Task 9 cleanup (don't forget):** remove orphaned `applyHardwareLock` +
+`resolveHueShiftForRamp` in App.tsx (uncalled after T2); add `*.snap` → LF to
+`.gitattributes` before the push.
