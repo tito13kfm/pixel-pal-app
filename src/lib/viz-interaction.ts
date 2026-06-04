@@ -34,6 +34,14 @@ export function matrixColors(
   return colorSet === 'bases' ? bases : allColors;
 }
 
+// 2x2 ordered-dither (Bayer base) threshold matrix, values 0..3. Its 50% slice
+// is the classic checkerboard; tiled + threshold-swept it gives a coarse 4-level
+// ordered-dither ramp (vs the 4x4's 16 levels).
+export const BAYER_2X2: number[][] = [
+  [0, 2],
+  [3, 1],
+];
+
 // 4x4 Bayer ordered-dither threshold matrix, values 0..15.
 export const BAYER_4X4: number[][] = [
   [0, 8, 2, 10],

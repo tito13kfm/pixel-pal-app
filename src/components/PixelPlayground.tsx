@@ -7,7 +7,11 @@ type Tool = 'pencil' | 'eraser' | 'fill' | 'eyedropper' | 'line' | 'rect' | 'ell
 
 interface PixelPlaygroundProps {
   ramps: string[][];
-  theme: { glowStrong: number; text: string };
+  // `dark` = the surface behind the playground is dark (dark AND neutral themes),
+  // so text/buttons need light treatment. Derived from the theme id in App.tsx,
+  // NOT from glow strength — Neutral is a dark ~18% surface but has low glow, so
+  // a `glowStrong > 0.5` test wrongly picked light-theme dark text on it (#42).
+  theme: { dark: boolean; text: string };
 }
 
 const CANVAS_W = 64;
@@ -255,7 +259,7 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
   }, [pixels, pushUndo]);
 
   const canUndo = undoStack.length > 0;
-  const isDark = theme.glowStrong > 0.5;
+  const isDark = theme.dark;
   const iconBtn = `p-2 rounded transition-colors flex items-center justify-center`;
   const iconBtnOff = isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-black/10 hover:bg-black/20 text-gray-800';
   const iconBtnOn = isDark ? 'bg-cyan-500/30 text-cyan-200 ring-1 ring-cyan-400' : 'bg-cyan-500/20 text-cyan-700 ring-1 ring-cyan-500';

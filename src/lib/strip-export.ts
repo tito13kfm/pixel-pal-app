@@ -7,7 +7,7 @@
 import { hexToHsl } from './color';
 import { dedupeHexes } from './hex-utils';
 import {
-  adjacencyDeltaE, normalizeDeltaE, heatColor, ditherPixelIsB, BAYER_4X4,
+  adjacencyDeltaE, normalizeDeltaE, heatColor, BAYER_4X4, BAYER_2X2,
   type MatrixView, type DitherPattern,
 } from './viz-interaction';
 
@@ -288,34 +288,29 @@ export function drawDitherBlend(
         // Integer edge boundaries so sub-blocks tile [0,blendW) × [0,rowH)
         // exactly — no gap and no overflow into the neighbouring solid cell
         // (same approach as blockEdges above; avoids round/ceil overdraw).
-        if (opts.pattern === 'bayer') {
-          // Bayer gradient ramp: 16 threshold columns × 4 Bayer rows.
-          // Column gx uses threshold gx, so the cell transitions from all-A
-          // (left) to all-B (right) using the Bayer ordered-dither sequence.
-          // At 50% both patterns are identical, so a gradient is necessary to
-          // show the visually distinctive Bayer texture.
-          const bSubX = 16;
-          const bSubY = 4;
-          for (let gx = 0; gx < bSubX; gx++) {
-            const bx0 = Math.round((gx * blendW) / bSubX);
-            const bx1 = Math.round(((gx + 1) * blendW) / bSubX);
-            for (let gy = 0; gy < bSubY; gy++) {
-              const by0 = Math.round((gy * rowH) / bSubY);
-              const by1 = Math.round(((gy + 1) * rowH) / bSubY);
-              ctx.fillStyle = BAYER_4X4[gy][gx % 4] < gx ? b : a;
-              ctx.fillRect(x + bx0, y + by0, bx1 - bx0, by1 - by0);
-            }
-          }
-        } else {
-          for (let gx = 0; gx < sub; gx++) {
-            const bx0 = Math.round((gx * blendW) / sub);
-            const bx1 = Math.round(((gx + 1) * blendW) / sub);
-            for (let gy = 0; gy < sub; gy++) {
-              const by0 = Math.round((gy * rowH) / sub);
-              const by1 = Math.round(((gy + 1) * rowH) / sub);
-              ctx.fillStyle = ditherPixelIsB(opts.pattern, gx, gy) ? b : a;
-              ctx.fillRect(x + bx0, y + by0, bx1 - bx0, by1 - by0);
-            }
+        // Ordered-dither gradient between shade A (left) and shade B (right).
+        // Both options sweep an A→B threshold across the blend cell and tile an
+        // ordered-dither matrix in BOTH axes; the only difference is matrix size,
+        // i.e. how many tonal levels — and thus how smooth the ramp reads:
+        //   2×2 → 4 levels (coarse),  4×4 Bayer → 16 levels (smooth).
+        // At the midpoint both reduce to the classic checkerboard, so 2×2 still
+        // contains the old "checker" look as its 50% slice. Tiling in both axes
+        // (not keyed to the column index) is what keeps it from collapsing into
+        // vertical bands — the #43 bug. cols/rows ~= pixel resolution.
+        const matrix = opts.pattern === 'bayer' ? BAYER_4X4 : BAYER_2X2;
+        const mN = matrix.length;        // 4 or 2
+        const levels = mN * mN;          // 16 or 4
+        const cols = Math.max(8, Math.round(blendW));
+        const rows = Math.max(8, Math.round(rowH));
+        for (let cx = 0; cx < cols; cx++) {
+          const bx0 = Math.round((cx * blendW) / cols);
+          const bx1 = Math.round(((cx + 1) * blendW) / cols);
+          const threshold = ((cx + 0.5) / cols) * levels; // 0..levels across width
+          for (let cy = 0; cy < rows; cy++) {
+            const by0 = Math.round((cy * rowH) / rows);
+            const by1 = Math.round(((cy + 1) * rowH) / rows);
+            ctx.fillStyle = matrix[cy % mN][cx % mN] < threshold ? b : a;
+            ctx.fillRect(x + bx0, y + by0, bx1 - bx0, by1 - by0);
           }
         }
         x += blendW;

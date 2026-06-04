@@ -228,6 +228,7 @@ export default function PixelPalGenerator() {
     hwPickerOpen, setHwPickerOpen, exportOpen, setExportOpen,
     historyOpen, setHistoryOpen, advancedOpen, setAdvancedOpen,
     savedOpen, setSavedOpen, sbsOpen, setSbsOpen, pgOpen, setPgOpen,
+    vizSubOpen, toggleVizSub,
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,
   } = usePanelLayout();
@@ -5556,7 +5557,7 @@ export default function PixelPalGenerator() {
               </div>
               <PixelPlayground
                 ramps={vizStyle === 'balanced' ? rampsBalanced : vizStyle === 'muted' ? rampsMuted : rampsPunchy}
-                theme={{ glowStrong: t.glowStrong, text: t.text }}
+                theme={{ dark: theme !== 'light', text: t.text }}
               />
             </div>
         </div>
@@ -5567,6 +5568,35 @@ export default function PixelPalGenerator() {
           const leftSnap = getSnapshotForSlot(sbsLeft, sbsLeftPayload);
           const rightSnap = getSnapshotForSlot(sbsRight, sbsRightPayload);
           const isTwoColumn = sbsRight !== null;
+          // Collapsible subsection wrapper for the MAIN view (#38/#45): a header
+          // with a chevron toggle + optional inline controls, and a body shown
+          // when open. In compact (compare-slot) mode it degrades to the old
+          // plain <h4> + body, always expanded and control-free. Called as a
+          // function (not a <Component/>) so the body's canvases/SVGs don't
+          // remount on every parent render.
+          const vizSub = (subKey, title, controls, compact, body) => {
+            if (compact) {
+              return (
+                <div>
+                  <h4 className="text-[11px] font-bold text-cyan-200 uppercase tracking-widest mb-1">{title}</h4>
+                  {body}
+                </div>
+              );
+            }
+            const open = vizSubOpen[subKey] !== false;
+            return (
+              <div className="rounded border-2 border-cyan-700/40 bg-black/20 overflow-hidden">
+                <div className="flex items-center justify-between gap-2 px-3 py-2">
+                  <button onClick={() => toggleVizSub(subKey)} title={open ? `Collapse ${title}` : `Expand ${title}`} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                    <span className="text-cyan-200 shrink-0">{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+                    <h4 className="text-sm font-bold text-cyan-200 uppercase tracking-widest truncate">{title}</h4>
+                  </button>
+                  {controls && <div className="flex items-center gap-2 flex-wrap justify-end">{controls}</div>}
+                </div>
+                {open && <div className="px-3 pb-3">{body}</div>}
+              </div>
+            );
+          };
           const renderSlotViz = (snap, label, slotKey, compact) => {
             const slotValue = slotKey === 'left' ? sbsLeft : sbsRight;
             const loading = slotKey === 'left' ? sbsLeftLoading : sbsRightLoading;
@@ -5634,10 +5664,8 @@ export default function PixelPalGenerator() {
                     </div>
                   );
                 })()}
-                <div>
-                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
-                    {compact ? 'Chromatic Plot' : '▸ Chromatic Plot'}
-                  </h4>
+                {vizSub('chromatic', 'Chromatic Plot', null, compact, (
+                  <>
                   {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Each color positioned by hue (angle) and saturation (distance from center). Tight clusters = cohesive palette.</p>}
                   <div className="flex justify-center">
                     <svg width={plotSize} height={plotSize} viewBox="0 0 280 280">
@@ -5671,22 +5699,24 @@ export default function PixelPalGenerator() {
                       )}
                     </svg>
                   </div>
-                </div>
-                <div>
-                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
-                    {compact ? 'Lightness Distribution' : '▸ Lightness Distribution'}
-                  </h4>
+                  </>
+                ))}
+                {vizSub('lightness', 'Lightness Distribution', (
+                  <button onClick={() => exportLightnessPng(snap)} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>
+                ), compact, (
+                  <>
                   {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">All colors sorted darkest to lightest. Gaps indicate missing tonal ranges.</p>}
                   <div className="flex w-full rounded overflow-hidden border" style={{ height: lightnessH, borderColor: t.vizDataBorder }}>
                     {sortedByL.map((hex, i) => (
                       <div key={i} className="flex-1" style={{ background: hex }} title={`${hex.toUpperCase()} L=${hexToHsl(hex).l.toFixed(0)}`} />
                     ))}
                   </div>
-                </div>
-                <div>
-                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
-                    {compact ? 'Mosaic' : '▸ Mosaic'}
-                  </h4>
+                  </>
+                ))}
+                {vizSub('mosaic', 'Mosaic', (
+                  <button onClick={() => exportMosaicPng(snap)} title="Download the Mosaic as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>
+                ), compact, (
+                  <>
                   {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">All ramps side-by-side. Look for adjacent colors that clash or harmonize.</p>}
                   <div className="flex flex-col gap-1">
                     {mosaicRamps.map(({ hexes, originalIdx }) => (
@@ -5697,11 +5727,16 @@ export default function PixelPalGenerator() {
                       </div>
                     ))}
                   </div>
-                </div>
-                <div>
-                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
-                    {compact ? 'Adjacency' : '▸ Adjacency Matrix'}
-                  </h4>
+                  </>
+                ))}
+                {vizSub('adjacency', compact ? 'Adjacency' : 'Adjacency Matrix', (
+                  <>
+                    <button onClick={() => setMatrixColorSet(s => s === 'unique' ? 'bases' : 'unique')} title="Toggle matrix colors between all unique shades and ramp bases" className={`px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{matrixColorSet === 'unique' ? 'All colors' : 'Bases'}</button>
+                    <button onClick={() => setMatrixView(v => v === 'pair' ? 'heatmap' : 'pair')} title="Toggle matrix between pair-split and ΔE_OK heatmap" className={`px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{matrixView === 'pair' ? 'Pair' : 'Heatmap'}</button>
+                    <button onClick={() => exportMatrixPng(snap)} title="Download the Adjacency Matrix as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>
+                  </>
+                ), compact, (
+                  <>
                   {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Every color paired with every other. Pair mode shows the two together; heatmap shades each cell by perceptual distance (ΔE_OK) — dark = near-duplicate pair, bright = outlier. Hover for the exact pair. (Compare slots use heatmap.)</p>}
                   <div className="flex justify-center overflow-x-auto">
                     <AdjacencyMatrix
@@ -5713,11 +5748,15 @@ export default function PixelPalGenerator() {
                       borderColor={t.vizDataBorder}
                     />
                   </div>
-                </div>
-                <div>
-                  <h4 className={`${compact ? 'text-[11px]' : 'text-sm'} font-bold text-cyan-200 uppercase tracking-widest mb-1`}>
-                    {compact ? 'Dither Blend' : '▸ Dither-Blend Preview'}
-                  </h4>
+                  </>
+                ))}
+                {vizSub('dither', compact ? 'Dither Blend' : 'Dither-Blend Preview', (
+                  <>
+                    <button onClick={() => setDitherPattern(p => p === 'checker' ? 'bayer' : 'checker')} title="Toggle the ordered-dither matrix between 2×2 (coarse, 4 levels) and 4×4 Bayer (smooth, 16 levels)" className={`px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{ditherPattern === 'checker' ? '2×2 Bayer' : '4×4 Bayer'}</button>
+                    <button onClick={() => exportDitherPng(snap)} title="Download the Dither-Blend preview as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>
+                  </>
+                ), compact, (
+                  <>
                   {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Between each pair of consecutive ramp shades, the 2-color dither blend — the optical "in-between" shade you get for free when dithering at sprite scale.</p>}
                   <div className="flex justify-center overflow-x-auto">
                     <DitherBlend
@@ -5727,7 +5766,8 @@ export default function PixelPalGenerator() {
                       borderColor={t.vizDataBorder}
                     />
                   </div>
-                </div>
+                  </>
+                ))}
                 {compact && <div className="text-[10px] text-cyan-100/50 text-center font-mono">{ramps.length} ramps, {allColors.length} unique colors</div>}
               </div>
             );
@@ -5790,18 +5830,7 @@ export default function PixelPalGenerator() {
                     <button onClick={() => setVizStyle('punchy')} title="Show high-contrast Punchy ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={vizStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
                     <button onClick={() => setVizStyle('balanced')} title="Show mid-contrast Balanced ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={vizStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
                     <button onClick={() => setVizStyle('muted')} title="Show low-contrast Muted ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={vizStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
-                    <span className="mx-1 h-5 w-px bg-cyan-500/40" aria-hidden="true" />
-                    <button onClick={() => exportLightnessPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Lightness Distribution strip as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Lightness PNG</button>
-                    <button onClick={() => exportMosaicPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Mosaic as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Mosaic PNG</button>
-                    <span className="mx-1 h-5 w-px bg-cyan-500/40" aria-hidden="true" />
-                    <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Matrix:</span>
-                    <button onClick={() => setMatrixColorSet(s => s === 'unique' ? 'bases' : 'unique')} title="Toggle matrix colors between all unique shades and ramp bases" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{matrixColorSet === 'unique' ? 'All colors' : 'Bases'}</button>
-                    <button onClick={() => setMatrixView(v => v === 'pair' ? 'heatmap' : 'pair')} title="Toggle matrix between pair-split and ΔE_OK heatmap" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{matrixView === 'pair' ? 'Pair' : 'Heatmap'}</button>
-                    <button onClick={() => exportMatrixPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Adjacency Matrix as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Matrix PNG</button>
-                    <span className="mx-1 h-5 w-px bg-cyan-500/40" aria-hidden="true" />
-                    <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Dither:</span>
-                    <button onClick={() => setDitherPattern(p => p === 'checker' ? 'bayer' : 'checker')} title="Toggle dither pattern between 2×2 checkerboard and 4×4 Bayer" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{ditherPattern === 'checker' ? '2×2 Checker' : '4×4 Bayer'}</button>
-                    <button onClick={() => exportDitherPng(getSnapshotForSlot(sbsLeft, sbsLeftPayload))} title="Download the Dither-Blend preview as a PNG (current style)" className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 hover:scale-105 flex items-center gap-2" style={{ boxShadow: '0 0 10px #00ffff' }}><Download size={14} />Dither PNG</button>
+                    <span className="text-[10px] text-cyan-100/50 italic ml-1">Sets the style for all views below. Per-view options live in each section.</span>
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Image Preview</h3>

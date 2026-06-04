@@ -16,6 +16,12 @@ import { PANEL_STORAGE_KEY, loadPanelState } from '../lib/panel-state';
 const _panels = loadPanelState();
 const DEFAULT_SECTION_ORDER = ['playground', 'viz', 'saved', 'history', 'export'];
 
+// Collapsible subsections inside the Visualize & Compare card (main view only;
+// compare slots always render expanded). Persisted separately from the panel set
+// under its own key so the panel-state schema/test stays untouched. Default: all
+// open. Unknown/missing keys fall back to open via the base-merge below.
+const VIZ_SUBSECTIONS = ['imagePreview', 'chromatic', 'lightness', 'mosaic', 'adjacency', 'dither'];
+
 export function usePanelLayout() {
   const [rampsOpen, setRampsOpen] = useState(_panels.rampsOpen);
   const [harmonyOpen, setHarmonyOpen] = useState(_panels.harmonyOpen);
@@ -27,6 +33,17 @@ export function usePanelLayout() {
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   const [sbsOpen, setSbsOpen] = useState(_panels.sbsOpen);
   const [pgOpen, setPgOpen] = useState(_panels.pgOpen);
+
+  const [vizSubOpen, setVizSubOpen] = useState<Record<string, boolean>>(() => {
+    const base = Object.fromEntries(VIZ_SUBSECTIONS.map(k => [k, true]));
+    try {
+      const loaded = JSON.parse(localStorage.getItem('ui:vizSubOpen') || 'null');
+      return loaded && typeof loaded === 'object' && !Array.isArray(loaded)
+        ? { ...base, ...loaded }
+        : base;
+    } catch { return base; }
+  });
+  const toggleVizSub = (key: string) => setVizSubOpen(m => ({ ...m, [key]: !m[key] }));
 
   const [sectionOrder, setSectionOrder] = useState(() => {
     const loaded = JSON.parse(localStorage.getItem('ui:sectionOrder') || 'null');
@@ -51,11 +68,16 @@ export function usePanelLayout() {
     localStorage.setItem('ui:sectionOrder', JSON.stringify(sectionOrder));
   }, [sectionOrder]);
 
+  useEffect(() => {
+    localStorage.setItem('ui:vizSubOpen', JSON.stringify(vizSubOpen));
+  }, [vizSubOpen]);
+
   return {
     rampsOpen, setRampsOpen, harmonyOpen, setHarmonyOpen, tipsOpen, setTipsOpen,
     hwPickerOpen, setHwPickerOpen, exportOpen, setExportOpen,
     historyOpen, setHistoryOpen, advancedOpen, setAdvancedOpen,
     savedOpen, setSavedOpen, sbsOpen, setSbsOpen, pgOpen, setPgOpen,
+    vizSubOpen, toggleVizSub,
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,
   };
