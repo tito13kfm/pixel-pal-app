@@ -18,6 +18,27 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-06-04
+
+### Added
+- Visualize & Compare is reorganized: each view (Chromatic Plot, Lightness
+  Distribution, Mosaic, Adjacency Matrix, Dither-Blend) is now its own
+  collapsible section with its controls inline, instead of one crammed control
+  strip. Collapse state is remembered (#38, #45).
+
+### Changed
+- New sessions default to the Neutral theme with the CRT overlay off. Existing
+  saved theme preferences are untouched (#42).
+- The Dither-Blend preview now renders proper ordered-dither ramps: 2×2 (coarse)
+  and 4×4 Bayer (smooth) sweep from one shade to the next so the dither texture is
+  actually visible and the two are distinguishable (#43).
+
+### Fixed
+- The 4×4 Bayer dither preview no longer renders as vertical streaks — it now shows
+  a real Bayer ordered-dither pattern, on screen and in the PNG export (#43).
+- Pixel Playground tool labels and icons are legible on the Neutral theme (they were
+  dark-on-dark) (#42).
+
 ## [0.16.0] - 2026-06-04
 
 ### Added
@@ -368,7 +389,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.13.0...v0.14.0
