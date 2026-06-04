@@ -4,6 +4,10 @@ export const SNAPSHOT_FIELDS = [
   'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
   'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
   'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',
+  // engineVersion participates in undo/redo so a load→edit→undo round-trip
+  // preserves the palette's engine. It never changes mid-session (only at
+  // load, which clears history), so inferLabel needs no case for it.
+  'engineVersion',
 ] as const;
 
 // Verbatim from App.tsx inferLabel — do not "improve". Characterized by spec.

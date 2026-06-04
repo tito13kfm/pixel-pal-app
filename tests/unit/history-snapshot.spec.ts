@@ -11,13 +11,14 @@ const base = {
 };
 
 describe('SNAPSHOT_FIELDS', () => {
-  it('names exactly the 19 document fields', () => {
+  it('names exactly the 20 document fields', () => {
     expect(SNAPSHOT_FIELDS).toEqual([
       'baseColors', 'aiColorNames', 'aiReasoning', 'rampSize', 'shuffleSeed',
       'overrides', 'harmonyAnchor', 'rampSizeOverrides', 'rampSatOverrides',
       'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
       'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
       'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',
+      'engineVersion',
     ]);
   });
 });

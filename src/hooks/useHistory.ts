@@ -11,7 +11,7 @@ import { inferLabel } from '../lib/history-snapshot';
  *
  * The document core itself lives in usePaletteState; this hook is wired to it
  * via three callbacks:
- *   - buildSnapshot()           → read the 19 snapshot fields into an object
+ *   - buildSnapshot()           → read the 20 snapshot fields into an object
  *   - applySnapshotFields(snap) → write those fields back on undo/redo/jump
  *   - resetTransientEditors()   → clear the editor/compare states post-replay
  * `applyUndoSnapshot` wraps the latter two with the `isReplayingHistory` flag so

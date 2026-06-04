@@ -158,6 +158,7 @@ export default function PixelPalGenerator() {
     lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
     lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
+    engineVersion, setEngineVersion,
     editingIndex, setEditingIndex, editorHsv, setEditorHsv,
     pinEditor, setPinEditor, compareMode, setCompareMode,
     compareAnchor, setCompareAnchor, compareResult, setCompareResult,
@@ -571,7 +572,8 @@ export default function PixelPalGenerator() {
     shuffleSeed,
     rampShuffleOffsets,
     stylePresets,
-  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+    engineVersion, // selects v1/v2 slot allocation in buildRamp → generateRamp (#35)
+  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets, engineVersion]);
 
   const rampsPunchy = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'punchy', i)), [liveRampSnapshot]);
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
@@ -1793,6 +1795,13 @@ export default function PixelPalGenerator() {
     setSbsLeftError(''); setSbsRightError('');
     setSbsLeftLoading(false); setSbsRightLoading(false);
     setHueShiftStrength(1.0);
+    // Brand-new palette content (new color / AI / image / GPL / classic — all 8
+    // call sites discard baseColors wholesale) uses the v2 engine, even when the
+    // prior doc was a loaded v1 palette. This is NOT an in-place upgrade of a
+    // loaded palette (none of these reset paths fire during editing); it's the
+    // "new palettes default to v2" guarantee holding after a v1 load. (#35,
+    // user-approved.)
+    setEngineVersion(2);
     // Image remap: clear the cached output and error. The uploaded image
     // itself stays (the user uploaded it intentionally and likely wants to
     // remap against the new palette). See IMAGE_REMAP_PLAN.md reset paths.
@@ -2585,6 +2594,7 @@ export default function PixelPalGenerator() {
       gamutPerRamp,
       advancedOpen,
       stylePresets,
+      engineVersion, // 1 | 2 ramp engine (#35); absent in pre-v2 saves → restores as 1
     };
     setSavedBusy(true);
     try {
@@ -2647,6 +2657,10 @@ export default function PixelPalGenerator() {
       } else {
         setHueShiftStrength(1.0);
       }
+      // engineVersion: only the explicit value 2 selects the v2 engine; absent
+      // (pre-v2 saves) or anything else restores v1 so old palettes keep their
+      // exact look until an explicit upgrade (upgrade UI deferred, #35).
+      setEngineVersion(parsed.engineVersion === 2 ? 2 : 1);
       if (['punchy', 'balanced', 'muted'].includes(parsed.gplStyle)) setGplStyle(parsed.gplStyle);
       if (['punchy', 'balanced', 'muted'].includes(parsed.vizStyle)) setVizStyle(parsed.vizStyle);
       // Only restore the sprite key if it exists in the library after the merge above.
