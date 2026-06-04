@@ -19,17 +19,16 @@ export const seededHueDelta = (effectiveSeed: number, rampIdx: number): number =
 // Given a "snapshot" of a palette (the same shape as a saved-palette payload
 // or a synthesized snapshot of the live working palette), regenerate the
 // ramps for a single style. Self-contained: does NOT depend on component
-// state. The component's useMemos use their own per-style applyOverrides
-// and applyHardwareLock closures; we duplicate the tiny pure logic here
-// rather than refactor those (low risk, easy to test).
+// state. Delegates to the shared per-ramp pipeline (buildRamp in
+// ramp-pipeline.ts) — the same code path the live App.tsx memos use — so
+// there is no longer any per-style generate→pin→snap→filter logic duplicated
+// here (the #30 duplication is gone; the structural mirror is enforced).
 //
-// v0.6 perceptual engine: this function now uses generateRampNew (perceptual
-// OKLCH). shuffleSeed + rampShuffleOffsets feed the engine's hueJitter (a
-// per-ramp hue offset that leaves the base slot anchored), replacing the old
-// HSV base pre-jitter. Snapshots produced before v0.6 (history undo entries
-// from older sessions) render via the new engine and may look different than
-// they did at capture time; this matches the migration banner's "Keep new
-// look" semantics.
+// shuffleSeed + rampShuffleOffsets feed the perceptual engine's hueJitter (a
+// per-ramp hue offset that leaves the base slot anchored). Snapshots produced
+// before the perceptual engine (history undo entries from older sessions)
+// render via the current engine and may look different than they did at
+// capture time; this matches the migration banner's "Keep new look" semantics.
 
 // Snapshot fields used (all optional except baseColors):
 //   baseColors: string[]                 required

@@ -491,29 +491,6 @@ export default function PixelPalGenerator() {
     return HARDWARE_PALETTES.find(hw => hw.id === hardwareLock) || null;
   }, [hardwareLock]);
 
-  // applyHardwareLock: snap every shade to the nearest hardware color, then
-  // dedupe consecutive duplicates (after the inner lightness sort in
-  // generateRamp, duplicates land adjacent). Returns the snapped+deduped
-  // ramp. When the hardware palette is small (Game Boy = 4 colors), an
-  // 8-shade input ramp will collapse to <=4 unique entries. This is correct:
-  // the platform CAN'T display more than 4 unique colors, so showing them
-  // would be a lie.
-  const applyHardwareLock = (ramp, hardware) => {
-    if (!hardware || !hardware.colors || hardware.colors.length === 0) return ramp;
-    const snapped = ramp.map(hex => quantizeToHardware(hex, hardware));
-    // Dedupe consecutive duplicates while preserving lightness order. We
-    // don't fully dedupe set-style because that could reorder things; the
-    // input is already sorted by lightness (sortByLightness in generateRamp),
-    // so consecutive dedupe preserves that order.
-    const deduped = [];
-    for (const hex of snapped) {
-      if (deduped.length === 0 || deduped[deduped.length - 1] !== hex) {
-        deduped.push(hex);
-      }
-    }
-    return deduped;
-  };
-
   // Adapter over generateRampNew that returns hex[] (the rest of the pipeline
   // works in flat hex arrays). Resolves the style name + editable stylePresets
   // to the engine's { reach, chromaFalloff } scalars, threads per-ramp curve +
@@ -2979,12 +2956,13 @@ export default function PixelPalGenerator() {
   // to the given hardware, clicking again unlocks. If locked to a different
   // hardware, switches the lock target. Setting the lock is NON-destructive:
   // baseColors and overrides are preserved as-is. The lock is applied at
-  // render time via applyHardwareLock in the ramp useMemos. This means
-  // unlocking restores the full free-generation ramps without data loss.
+  // render time via the hardware-snap step in buildRamp (ramp-pipeline.ts).
+  // This means unlocking restores the full free-generation ramps without
+  // data loss.
   //
   // Pin overrides ARE retained while locked but get snapped on output via
-  // the order of operations in the useMemos (applyOverrides runs first,
-  // then applyHardwareLock snaps everything including the pinned hex).
+  // the order of operations in buildRamp (overrides run first, then the
+  // hardware snap covers everything including the pinned hex).
   // This was a deliberate choice: clearing pins on lock would force the
   // user to re-pin every time they toggled. Instead, pinned hexes get
   // visually snapped while locked and reappear as the user's chosen hex
@@ -3023,7 +3001,7 @@ export default function PixelPalGenerator() {
   // Per-style independence: a pin in (i, j, 'punchy') doesn't affect
   // (i, j, 'balanced'). Each style is baked independently.
   //
-  // Dedup note: applyHardwareLock dedupes consecutive duplicates for
+  // Dedup note: buildRamp's hardware snap dedupes consecutive duplicates for
   // DISPLAY, but bake pins by the pre-dedup shade index (every slot of
   // the full ramp). After unlocking, an 8-shade ramp on Game Boy will
   // show 8 slots with consecutive duplicates rather than the 4-color
