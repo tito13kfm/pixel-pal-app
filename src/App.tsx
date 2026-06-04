@@ -5752,7 +5752,7 @@ export default function PixelPalGenerator() {
                 ))}
                 {vizSub('dither', compact ? 'Dither Blend' : 'Dither-Blend Preview', (
                   <>
-                    <button onClick={() => setDitherPattern(p => p === 'checker' ? 'bayer' : 'checker')} title="Toggle dither pattern between 2×2 checkerboard and 4×4 Bayer" className={`px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{ditherPattern === 'checker' ? '2×2 Checker' : '4×4 Bayer'}</button>
+                    <button onClick={() => setDitherPattern(p => p === 'checker' ? 'bayer' : 'checker')} title="Toggle the ordered-dither matrix between 2×2 (coarse, 4 levels) and 4×4 Bayer (smooth, 16 levels)" className={`px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{ditherPattern === 'checker' ? '2×2 Bayer' : '4×4 Bayer'}</button>
                     <button onClick={() => exportDitherPng(snap)} title="Download the Dither-Blend preview as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>
                   </>
                 ), compact, (
