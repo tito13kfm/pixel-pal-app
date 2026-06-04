@@ -62,3 +62,20 @@ describe('v2 tiny N edge cases', () => {
     }
   });
 });
+
+// Frozen v2 output — the regression guard the visual sign-off (Task 7) restores.
+// Mirrors the v1 characterization matrix at engineVersion: 2. Recorded only AFTER
+// the v1-vs-v2 strips were user-approved; if a value here changes, v2 allocation
+// drifted — STOP.
+const BASES = { green: '#37cd76', navy: '#1a2f6b', red: '#cc3344', grey: '#888888', yellow: '#e8d24a' };
+const SIZES = [2, 4, 7, 16, 64];
+
+describe('v2 ramp characterization (frozen — must not change)', () => {
+  for (const [name, hex] of Object.entries(BASES)) {
+    for (const N of SIZES) {
+      it(`${name} N=${N}`, () => {
+        expect(ramp(hex, N).map(s => s.hex)).toMatchSnapshot();
+      });
+    }
+  }
+});

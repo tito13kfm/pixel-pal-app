@@ -1,0 +1,591 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`v2 ramp characterization (frozen — must not change) > green N=2 1`] = `
+[
+  "#010800",
+  "#37cd76",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > green N=4 1`] = `
+[
+  "#010800",
+  "#0b8226",
+  "#37cd76",
+  "#acffd3",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > green N=7 1`] = `
+[
+  "#010800",
+  "#064400",
+  "#0b8226",
+  "#29ab52",
+  "#37cd76",
+  "#4ce295",
+  "#acffd3",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > green N=16 1`] = `
+[
+  "#010800",
+  "#041c00",
+  "#073200",
+  "#044a00",
+  "#006309",
+  "#00791b",
+  "#158b30",
+  "#219a41",
+  "#28a84f",
+  "#2db45c",
+  "#31c068",
+  "#37cd76",
+  "#41d683",
+  "#4ee292",
+  "#62f5a8",
+  "#aeffd0",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > green N=64 1`] = `
+[
+  "#010800",
+  "#020c00",
+  "#021100",
+  "#031500",
+  "#041a00",
+  "#051f00",
+  "#052400",
+  "#062900",
+  "#072e00",
+  "#073300",
+  "#073900",
+  "#073f00",
+  "#064400",
+  "#044a00",
+  "#025000",
+  "#005500",
+  "#005b03",
+  "#006007",
+  "#00650b",
+  "#006b10",
+  "#007014",
+  "#007518",
+  "#007a1c",
+  "#057e21",
+  "#0b8226",
+  "#10872b",
+  "#148a30",
+  "#188e34",
+  "#1b9238",
+  "#1d953c",
+  "#20993f",
+  "#229c43",
+  "#239f46",
+  "#25a249",
+  "#26a54c",
+  "#28a84f",
+  "#29ab52",
+  "#2aae55",
+  "#2bb058",
+  "#2cb35b",
+  "#2db65e",
+  "#2eb961",
+  "#30bb64",
+  "#31be67",
+  "#32c169",
+  "#33c46d",
+  "#34c770",
+  "#36ca73",
+  "#37cd76",
+  "#3ad079",
+  "#3dd27d",
+  "#40d580",
+  "#42d783",
+  "#45da87",
+  "#49dd8a",
+  "#4ce08f",
+  "#51e493",
+  "#56e999",
+  "#5cee9e",
+  "#62f4a4",
+  "#68faab",
+  "#70ffb2",
+  "#93ffc1",
+  "#aeffcf",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > grey N=2 1`] = `
+[
+  "#060606",
+  "#888888",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > grey N=4 1`] = `
+[
+  "#060606",
+  "#555555",
+  "#888888",
+  "#e9e9e9",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > grey N=7 1`] = `
+[
+  "#060606",
+  "#2c2c2c",
+  "#555555",
+  "#717171",
+  "#888888",
+  "#a9a9a9",
+  "#e9e9e9",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > grey N=16 1`] = `
+[
+  "#060606",
+  "#151515",
+  "#272727",
+  "#3b3b3b",
+  "#4d4d4d",
+  "#5c5c5c",
+  "#696969",
+  "#737373",
+  "#7d7d7d",
+  "#888888",
+  "#929292",
+  "#9c9c9c",
+  "#a9a9a9",
+  "#bcbcbc",
+  "#d2d2d2",
+  "#e9e9e9",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > grey N=64 1`] = `
+[
+  "#060606",
+  "#080808",
+  "#0c0c0c",
+  "#101010",
+  "#141414",
+  "#181818",
+  "#1c1c1c",
+  "#202020",
+  "#252525",
+  "#292929",
+  "#2d2d2d",
+  "#323232",
+  "#363636",
+  "#3b3b3b",
+  "#3f3f3f",
+  "#434343",
+  "#474747",
+  "#4b4b4b",
+  "#4f4f4f",
+  "#535353",
+  "#575757",
+  "#5a5a5a",
+  "#5d5d5d",
+  "#606060",
+  "#636363",
+  "#666666",
+  "#696969",
+  "#6b6b6b",
+  "#6e6e6e",
+  "#707070",
+  "#727272",
+  "#757575",
+  "#777777",
+  "#797979",
+  "#7c7c7c",
+  "#7e7e7e",
+  "#808080",
+  "#838383",
+  "#858585",
+  "#888888",
+  "#8b8b8b",
+  "#8d8d8d",
+  "#8f8f8f",
+  "#929292",
+  "#949494",
+  "#979797",
+  "#999999",
+  "#9c9c9c",
+  "#9f9f9f",
+  "#a2a2a2",
+  "#a5a5a5",
+  "#a9a9a9",
+  "#adadad",
+  "#b2b2b2",
+  "#b7b7b7",
+  "#bcbcbc",
+  "#c1c1c1",
+  "#c7c7c7",
+  "#cdcdcd",
+  "#d2d2d2",
+  "#d8d8d8",
+  "#dedede",
+  "#e4e4e4",
+  "#e9e9e9",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > navy N=2 1`] = `
+[
+  "#1a2f6b",
+  "#e5e8ff",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > navy N=4 1`] = `
+[
+  "#000517",
+  "#1a2f6b",
+  "#5c6aa8",
+  "#e5e8ff",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > navy N=7 1`] = `
+[
+  "#000517",
+  "#041d53",
+  "#1a2f6b",
+  "#374986",
+  "#5c6aa8",
+  "#97a1e2",
+  "#e5e8ff",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > navy N=16 1`] = `
+[
+  "#000419",
+  "#000f3a",
+  "#061d54",
+  "#112760",
+  "#1a2f6b",
+  "#253975",
+  "#30427e",
+  "#3a4b88",
+  "#465593",
+  "#5462a0",
+  "#6572b1",
+  "#7a85c5",
+  "#919bdc",
+  "#aab3f4",
+  "#c7cdff",
+  "#e5e8ff",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > navy N=64 1`] = `
+[
+  "#000419",
+  "#000621",
+  "#000929",
+  "#000b32",
+  "#000e3b",
+  "#001145",
+  "#01154b",
+  "#031950",
+  "#061c54",
+  "#092058",
+  "#0c225b",
+  "#0e255e",
+  "#112761",
+  "#132963",
+  "#152b66",
+  "#182d68",
+  "#1a2f6b",
+  "#1d316d",
+  "#1f3470",
+  "#223672",
+  "#243874",
+  "#273a77",
+  "#293c79",
+  "#2c3f7b",
+  "#2e417d",
+  "#31437f",
+  "#334582",
+  "#364784",
+  "#384986",
+  "#3b4b89",
+  "#3d4e8b",
+  "#40508d",
+  "#435390",
+  "#465593",
+  "#495896",
+  "#4c5b99",
+  "#4f5e9c",
+  "#53619f",
+  "#5664a2",
+  "#5a68a6",
+  "#5e6baa",
+  "#626fae",
+  "#6773b2",
+  "#6b78b7",
+  "#707cbc",
+  "#7581c0",
+  "#7a86c6",
+  "#808bcb",
+  "#8590d0",
+  "#8a95d5",
+  "#909adb",
+  "#96a0e1",
+  "#9ca5e6",
+  "#a2abec",
+  "#a8b0f2",
+  "#aeb6f8",
+  "#b4bcfd",
+  "#bbc2ff",
+  "#c2c8ff",
+  "#c9cfff",
+  "#d0d5ff",
+  "#d7dbff",
+  "#dee2ff",
+  "#e5e8ff",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > red N=2 1`] = `
+[
+  "#130004",
+  "#cc3344",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > red N=4 1`] = `
+[
+  "#130004",
+  "#8c0030",
+  "#cc3344",
+  "#ffe2de",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > red N=7 1`] = `
+[
+  "#130004",
+  "#640024",
+  "#a61239",
+  "#cc3344",
+  "#e45652",
+  "#ff8e7c",
+  "#ffe2db",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > red N=16 1`] = `
+[
+  "#130004",
+  "#2f000f",
+  "#4e001c",
+  "#6e0027",
+  "#8c0030",
+  "#a10a37",
+  "#b01c3c",
+  "#be2840",
+  "#cc3344",
+  "#d7434a",
+  "#e15051",
+  "#ed6059",
+  "#ff7366",
+  "#ff9b8c",
+  "#ffc0b4",
+  "#ffe2db",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > red N=64 1`] = `
+[
+  "#130004",
+  "#190006",
+  "#1f0008",
+  "#26000b",
+  "#2d000e",
+  "#340011",
+  "#3b0014",
+  "#430017",
+  "#4a001a",
+  "#52001d",
+  "#5a0020",
+  "#610023",
+  "#690026",
+  "#700028",
+  "#78002a",
+  "#7f002d",
+  "#85002f",
+  "#8c0030",
+  "#920032",
+  "#970033",
+  "#9c0235",
+  "#a00936",
+  "#a40e38",
+  "#a81339",
+  "#ab173a",
+  "#ae1a3b",
+  "#b21d3c",
+  "#b5203d",
+  "#b8233e",
+  "#bb263f",
+  "#be2840",
+  "#c22b41",
+  "#c52d42",
+  "#c83043",
+  "#cc3344",
+  "#cf3746",
+  "#d13b47",
+  "#d43f49",
+  "#d6424a",
+  "#d9454c",
+  "#db494d",
+  "#de4c4f",
+  "#e04f50",
+  "#e35352",
+  "#e65654",
+  "#e95a56",
+  "#ec5e58",
+  "#f0625b",
+  "#f3665e",
+  "#f86b61",
+  "#fc7064",
+  "#ff776a",
+  "#ff8173",
+  "#ff8b7c",
+  "#ff9485",
+  "#ff9e8f",
+  "#ffa798",
+  "#ffb0a2",
+  "#ffb9ac",
+  "#ffc2b6",
+  "#ffcabf",
+  "#ffd2c9",
+  "#ffdad2",
+  "#ffe2dc",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > yellow N=2 1`] = `
+[
+  "#090500",
+  "#e8d24a",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > yellow N=4 1`] = `
+[
+  "#090500",
+  "#9a7d00",
+  "#e8d24a",
+  "#f3f07b",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > yellow N=7 1`] = `
+[
+  "#090500",
+  "#513e00",
+  "#9a7d00",
+  "#c7aa1e",
+  "#e8d24a",
+  "#eadd60",
+  "#f3f07b",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > yellow N=16 1`] = `
+[
+  "#090500",
+  "#1d1300",
+  "#332500",
+  "#4b3900",
+  "#634d00",
+  "#7b6100",
+  "#907400",
+  "#a38500",
+  "#b39400",
+  "#bfa10d",
+  "#caad22",
+  "#d3b931",
+  "#ddc53d",
+  "#e8d24a",
+  "#efdc58",
+  "#fded6d",
+]
+`;
+
+exports[`v2 ramp characterization (frozen — must not change) > yellow N=64 1`] = `
+[
+  "#090500",
+  "#0e0800",
+  "#120b00",
+  "#170f00",
+  "#1c1200",
+  "#211600",
+  "#261a00",
+  "#2b1e00",
+  "#302300",
+  "#352700",
+  "#3b2b00",
+  "#403000",
+  "#463500",
+  "#4c3900",
+  "#513e00",
+  "#574300",
+  "#5c4700",
+  "#624c00",
+  "#685100",
+  "#6d5500",
+  "#725a00",
+  "#785f00",
+  "#7d6300",
+  "#826800",
+  "#876c00",
+  "#8c7100",
+  "#917500",
+  "#967900",
+  "#9a7d00",
+  "#9e8100",
+  "#a28500",
+  "#a68800",
+  "#aa8c00",
+  "#ae8f00",
+  "#b19200",
+  "#b49600",
+  "#b79900",
+  "#ba9c00",
+  "#bd9f07",
+  "#c0a20f",
+  "#c2a515",
+  "#c5a81a",
+  "#c7aa1e",
+  "#c9ad22",
+  "#ccb026",
+  "#ceb329",
+  "#d0b52c",
+  "#d2b82f",
+  "#d5bb32",
+  "#d7bd35",
+  "#d9c038",
+  "#dcc33b",
+  "#dec63e",
+  "#e0c941",
+  "#e3cc44",
+  "#e5cf47",
+  "#e8d24a",
+  "#ead44e",
+  "#ebd751",
+  "#eeda55",
+  "#f1de5a",
+  "#f5e260",
+  "#f9e866",
+  "#feed6c",
+]
+`;
