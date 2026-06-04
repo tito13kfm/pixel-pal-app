@@ -19,6 +19,13 @@ describe('buildRamp ↔ buildRampsForSnapshot mirror', () => {
     expect(viaBuild).toEqual(viaSnapshot);
   });
 
+  it('snapshot path equals per-base buildRamp (v2)', () => {
+    const s2 = { ...snap, engineVersion: 2 };
+    const viaSnapshot = buildRampsForSnapshot(s2, 'punchy');
+    const viaBuild = s2.baseColors.map((_, i) => buildRamp(s2, 'punchy', i));
+    expect(viaBuild).toEqual(viaSnapshot);
+  });
+
   it('holds with the live field set (pins, per-ramp curve/hue, sat override, shuffle)', () => {
     const live = {
       baseColors: ['#37cd76', '#1a2f6b', '#cc3344'],
