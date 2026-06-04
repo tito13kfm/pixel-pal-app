@@ -5640,9 +5640,8 @@ export default function PixelPalGenerator() {
                   const canvasRef = slotKey === 'left' ? sbsLeftRemapCanvasRef : sbsRightRemapCanvasRef;
                   const slotPayload = slotKey === 'left' ? sbsLeftPayload : sbsRightPayload;
                   const slotLetter = slotKey === 'left' ? 'A' : 'B';
-                  return (
-                    <div>
-                      <h4 className="text-[11px] font-bold text-cyan-200 uppercase tracking-widest mb-1">Image Preview</h4>
+                  return vizSub('image', 'Image Preview', null, compact, (
+                    <>
                       <div className="flex justify-center bg-black/30 rounded border" style={{ borderColor: t.vizDataBorder, minHeight: '64px' }}>
                         {slotRemapLoading && !slotRemap && (
                           <div className="text-[11px] text-cyan-100/70 italic py-6">Computing...</div>
@@ -5661,8 +5660,8 @@ export default function PixelPalGenerator() {
                       <div className="text-[10px] text-cyan-100/60 italic text-center mt-1 font-mono truncate" title={`Slot ${slotLetter}: ${getSlotLabel(slotValue, slotPayload)}`}>
                         Slot {slotLetter}: {getSlotLabel(slotValue, slotPayload)}
                       </div>
-                    </div>
-                  );
+                    </>
+                  ));
                 })()}
                 {vizSub('chromatic', 'Chromatic Plot', null, compact, (
                   <>
