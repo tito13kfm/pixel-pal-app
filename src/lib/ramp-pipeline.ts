@@ -41,6 +41,7 @@ export function buildRamp(snapshot: RampSnapshot, style: string, baseIndex: numb
     shuffleSeed = 0,
     rampShuffleOffsets = {},
     stylePresets = DEFAULT_STYLE_PRESETS,
+    engineVersion = 1,
   } = snapshot;
 
   // Migrate legacy string presets from curvePerRamp into lightnessCurvePerRamp.
@@ -90,6 +91,7 @@ export function buildRamp(snapshot: RampSnapshot, style: string, baseIndex: numb
     size,
     hueShiftStrength: effectiveHueShift,
     hueJitter,
+    engineVersion,
     lightnessCurve: (effectiveLightnessCurves[i] ?? effectiveLightnessCurves[String(i)] ?? LIGHTNESS_PRESETS.eased) as CurvePoints,
     satCurve: ((satCurvePerRamp as Record<number, unknown>)[i] ?? (satCurvePerRamp as Record<string, unknown>)[String(i)] ?? SAT_PRESETS.flat) as CurvePoints,
     gamut: ((gamutPerRamp as Record<number, unknown>)[i] ?? (gamutPerRamp as Record<string, unknown>)[String(i)]) as GamutStrategy,

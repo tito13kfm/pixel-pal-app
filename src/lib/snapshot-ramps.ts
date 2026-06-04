@@ -67,6 +67,7 @@ export interface RampSnapshot {
   shuffleSeed?: number;
   rampShuffleOffsets?: Record<number, number>;
   stylePresets?: typeof DEFAULT_STYLE_PRESETS;
+  engineVersion?: number; // absent -> 1 (legacy render); new palettes -> 2 (Task 8)
   [key: string]: unknown; // forward-compat
 }
 
