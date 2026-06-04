@@ -39,6 +39,8 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - 4-8 shade ramps with pixel-art slot labels (outline, shadow, base, highlight, bright)
 - Three contrast styles per ramp: Punchy, Balanced, Muted
 - Perceptual OKLCH engine: lightness-uniform shading, predictable contrast
+- Even shade distribution: light and dark base colors get a balanced spread of
+  shadows and highlights instead of bunching toward one end of the ramp
 - Hue shift built in: shadows lean cool, highlights lean warm; strength is adjustable
 
 **Per-ramp controls**
