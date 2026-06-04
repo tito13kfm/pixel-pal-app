@@ -37,6 +37,7 @@ import { quantizeToHardware } from './lib/hardware-quantize';
 import { extractDominantColors } from './lib/image-extract';
 import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
+import { buildRamp } from './lib/ramp-pipeline';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
@@ -540,9 +541,41 @@ export default function PixelPalGenerator() {
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', resolveHueShiftForRamp(i), i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', resolveHueShiftForRamp(i), i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', resolveHueShiftForRamp(i), i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+  // Live ramps now flow through the SAME shared buildRamp pipeline that
+  // buildRampsForSnapshot uses (src/lib/ramp-pipeline.ts), so the live↔snapshot
+  // mirror is structural — the generate→pin→snap pipeline lives in exactly one
+  // place (no more #30-style duplication). We synthesize a snapshot-shaped object
+  // from live state and feed it to buildRamp per base/style.
+  //
+  // Field-mapping rule (feed buildRamp exactly what the old inline memo fed the
+  // engine): pass hueShiftStrengthPerRamp (buildRamp resolves it per ramp, like
+  // resolveHueShiftForRamp). DELIBERATELY OMIT hiddenShades — the live memo does
+  // NOT hide here; hiding happens at the display boundary via the component-scope
+  // filterHidden, so buildRamp's internal hidden-filter must stay inert and these
+  // ramps must remain full-length. DELIBERATELY OMIT curvePerRamp — legacy string
+  // presets are migrated into lightnessCurvePerRamp on load; the live memo never
+  // re-migrated, so passing it would double-apply. hardwareLock is the id string
+  // (buildRamp re-finds the palette, exactly as activeHardware does).
+  const liveRampSnapshot = useMemo(() => ({
+    baseColors,
+    rampSize,
+    overrides,
+    rampSizeOverrides,
+    rampSatOverrides,
+    hardwareLock,
+    hueShiftStrength,
+    hueShiftStrengthPerRamp,
+    lightnessCurvePerRamp,
+    satCurvePerRamp,
+    gamutPerRamp,
+    shuffleSeed,
+    rampShuffleOffsets,
+    stylePresets,
+  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+
+  const rampsPunchy = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'punchy', i)), [liveRampSnapshot]);
+  const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
+  const rampsMuted = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'muted', i)), [liveRampSnapshot]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.

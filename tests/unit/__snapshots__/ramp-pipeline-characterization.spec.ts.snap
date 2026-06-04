@@ -32,19 +32,19 @@ exports[`full-pipeline characterization (frozen — guards the buildRamp extract
 exports[`full-pipeline characterization (frozen — guards the buildRamp extraction) > Case B — kitchen sink + per-ramp hue override (EXPECTED to change at the mirror fix) 1`] = `
 [
   [
-    "#002a05",
-    "#004f18",
+    "#002913",
+    "#004e28",
     "#abcdef",
-    "#00a34e",
+    "#00a257",
     "#37cd76",
-    "#b0ffcb",
+    "#b2ffc7",
   ],
   [
-    "#000518",
+    "#000514",
     "#1a2f6b",
-    "#3a49b0",
-    "#8088e1",
-    "#e6e7ff",
+    "#4446af",
+    "#8f83dd",
+    "#ede5ff",
   ],
   [
     "#120006",
