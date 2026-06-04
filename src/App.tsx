@@ -5757,7 +5757,7 @@ export default function PixelPalGenerator() {
                   </>
                 ), compact, (
                   <>
-                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Between each pair of consecutive ramp shades, the 2-color dither blend — the optical "in-between" shade you get for free when dithering at sprite scale.</p>}
+                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Between each pair of consecutive ramp shades, an ordered-dither ramp from one shade to the next — how the two mix when dithered at sprite scale. 2×2 is coarse (4 levels); 4×4 Bayer is smooth (16 levels).</p>}
                   <div className="flex justify-center overflow-x-auto">
                     <DitherBlend
                       rows={mosaicRamps.map((r) => r.hexes)}
