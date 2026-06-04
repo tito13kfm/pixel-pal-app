@@ -1,0 +1,5 @@
+# Vitest snapshot files: pin to LF so the CRLF Windows dev box and the LF
+# Linux CI produce byte-identical __snapshots__ (an inline-snapshot or .snap
+# write on Windows otherwise stores CRLF and diffs against CI). git already
+# stores these as LF today; this makes that guarantee explicit.
+*.snap text eol=lf

@@ -5,7 +5,7 @@ import { DEFAULT_STYLE_PRESETS } from '../lib/style-presets';
 /**
  * usePaletteState — thin document state-bag (App.tsx Tier B, Wave 2).
  *
- * Owns the 25 "document core" fields: the 19 `SNAPSHOT_FIELDS` that participate
+ * Owns the 26 "document core" fields: the 20 `SNAPSHOT_FIELDS` that participate
  * in undo/redo snapshots, plus the 6-field editor/compare cluster that
  * `applyUndoSnapshot` resets. It is deliberately *thin*: it holds state and
  * exposes three snapshot helpers. The generation pipeline, harmonize, load,
@@ -13,14 +13,14 @@ import { DEFAULT_STYLE_PRESETS } from '../lib/style-presets';
  * and read these fields via the destructured return.
  *
  * The history machinery (`useHistory`) consumes the three helpers:
- *   - buildSnapshot()          → read the 19 fields into a snapshot object
- *   - applySnapshotFields(snap)→ write the 19 setters from a snapshot
+ *   - buildSnapshot()          → read the 20 fields into a snapshot object
+ *   - applySnapshotFields(snap)→ write the 20 setters from a snapshot
  *   - resetTransientEditors()  → clear the 4 impure editor/compare states
  * Keeping those here makes usePaletteState the single owner of these setters;
  * useHistory wraps them with the `isReplayingHistoryRef` flag.
  */
 export function usePaletteState() {
-  // ----- 19 snapshot fields -----
+  // ----- 20 snapshot fields -----
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [aiColorNames, setAiColorNames] = useState([]);
   const [aiReasoning, setAiReasoning] = useState('');
@@ -58,6 +58,13 @@ export function usePaletteState() {
   const [lightnessCurvePerRamp, setLightnessCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [stylePresets, setStylePresets] = useState(DEFAULT_STYLE_PRESETS);
+  // engineVersion: which slot-allocation engine generates this palette's ramps
+  // (1 = legacy, 2 = even re-centered distribution, #35). Defaults to 2 so new
+  // sessions get the improved engine; load() sets it to 1 for absent/legacy
+  // saves so old palettes render byte-identical. Part of palette identity →
+  // persisted and snapshotted. No in-place upgrade UI yet; changes only at
+  // session init, new-palette reset (→2), and load (→ saved value, absent→1).
+  const [engineVersion, setEngineVersion] = useState(2);
 
   // ----- editor / compare cluster (6) -----
   // Base color editor: at most one ramp's editor open at a time. editorHsv holds
@@ -75,7 +82,7 @@ export function usePaletteState() {
 
   // ----- snapshot helpers (consumed by useHistory) -----
 
-  // Read the 19 snapshot fields into a JSON-serializable object. Sets are
+  // Read the 20 snapshot fields into a JSON-serializable object. Sets are
   // serialized as sorted arrays so JSON.stringify equality is deterministic.
   const buildSnapshot = () => ({
     baseColors,
@@ -97,9 +104,10 @@ export function usePaletteState() {
     lightnessCurvePerRamp,
     satCurvePerRamp,
     stylePresets,
+    engineVersion,
   });
 
-  // Write the 19 snapshot fields from a snapshot. Does NOT set the
+  // Write the 20 snapshot fields from a snapshot. Does NOT set the
   // isReplayingHistory flag (that's useHistory's job) and does NOT reset the
   // transient editors (see resetTransientEditors) — both are layered by
   // useHistory's applyUndoSnapshot wrapper.
@@ -123,6 +131,7 @@ export function usePaletteState() {
     setLightnessCurvePerRamp(snap.lightnessCurvePerRamp ?? {});
     setSatCurvePerRamp(snap.satCurvePerRamp ?? {});
     setStylePresets(snap.stylePresets ?? DEFAULT_STYLE_PRESETS);
+    setEngineVersion(snap.engineVersion ?? 1);
   };
 
   // Clear in-flight UI editor states that could reference stale indices after
@@ -135,7 +144,7 @@ export function usePaletteState() {
   };
 
   return {
-    // 19 snapshot fields + setters
+    // 20 snapshot fields + setters
     baseColors, setBaseColors,
     aiColorNames, setAiColorNames,
     aiReasoning, setAiReasoning,
@@ -155,6 +164,7 @@ export function usePaletteState() {
     lightnessCurvePerRamp, setLightnessCurvePerRamp,
     satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
+    engineVersion, setEngineVersion,
     // editor / compare cluster + setters
     editingIndex, setEditingIndex,
     editorHsv, setEditorHsv,

@@ -1,0 +1,81 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`full-pipeline characterization (frozen — guards the buildRamp extraction) > Case A — kitchen sink, no hardware, no per-ramp hue (must not change) 1`] = `
+[
+  [
+    "#002a05",
+    "#004f18",
+    "#abcdef",
+    "#00a34e",
+    "#37cd76",
+    "#b0ffcb",
+  ],
+  [
+    "#000518",
+    "#1a2f6b",
+    "#3a49b0",
+    "#8088e1",
+    "#e6e7ff",
+  ],
+  [
+    "#120006",
+    "#551a2f",
+    "#854050",
+    "#a65962",
+    "#be7374",
+    "#e69c95",
+    "#ffe2dc",
+  ],
+]
+`;
+
+exports[`full-pipeline characterization (frozen — guards the buildRamp extraction) > Case B — kitchen sink + per-ramp hue override (EXPECTED to change at the mirror fix) 1`] = `
+[
+  [
+    "#002913",
+    "#004e28",
+    "#abcdef",
+    "#00a257",
+    "#37cd76",
+    "#b2ffc7",
+  ],
+  [
+    "#000514",
+    "#1a2f6b",
+    "#4446af",
+    "#8f83dd",
+    "#ede5ff",
+  ],
+  [
+    "#120006",
+    "#551a2f",
+    "#854050",
+    "#a65962",
+    "#be7374",
+    "#e69c95",
+    "#ffe2dc",
+  ],
+]
+`;
+
+exports[`full-pipeline characterization (frozen — guards the buildRamp extraction) > Case C — kitchen sink + gameboy hardware snap (must not change) 1`] = `
+[
+  [
+    "#346856",
+    "#e0f8d0",
+    "#88c070",
+    "#e0f8d0",
+  ],
+  [
+    "#081820",
+    "#346856",
+    "#e0f8d0",
+  ],
+  [
+    "#081820",
+    "#346856",
+    "#88c070",
+    "#e0f8d0",
+  ],
+]
+`;

@@ -37,6 +37,7 @@ import { quantizeToHardware } from './lib/hardware-quantize';
 import { extractDominantColors } from './lib/image-extract';
 import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
+import { buildRamp } from './lib/ramp-pipeline';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
@@ -157,6 +158,7 @@ export default function PixelPalGenerator() {
     lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
     lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
+    engineVersion, setEngineVersion,
     editingIndex, setEditingIndex, editorHsv, setEditorHsv,
     pinEditor, setPinEditor, compareMode, setCompareMode,
     compareAnchor, setCompareAnchor, compareResult, setCompareResult,
@@ -489,29 +491,6 @@ export default function PixelPalGenerator() {
     return HARDWARE_PALETTES.find(hw => hw.id === hardwareLock) || null;
   }, [hardwareLock]);
 
-  // applyHardwareLock: snap every shade to the nearest hardware color, then
-  // dedupe consecutive duplicates (after the inner lightness sort in
-  // generateRamp, duplicates land adjacent). Returns the snapped+deduped
-  // ramp. When the hardware palette is small (Game Boy = 4 colors), an
-  // 8-shade input ramp will collapse to <=4 unique entries. This is correct:
-  // the platform CAN'T display more than 4 unique colors, so showing them
-  // would be a lie.
-  const applyHardwareLock = (ramp, hardware) => {
-    if (!hardware || !hardware.colors || hardware.colors.length === 0) return ramp;
-    const snapped = ramp.map(hex => quantizeToHardware(hex, hardware));
-    // Dedupe consecutive duplicates while preserving lightness order. We
-    // don't fully dedupe set-style because that could reorder things; the
-    // input is already sorted by lightness (sortByLightness in generateRamp),
-    // so consecutive dedupe preserves that order.
-    const deduped = [];
-    for (const hex of snapped) {
-      if (deduped.length === 0 || deduped[deduped.length - 1] !== hex) {
-        deduped.push(hex);
-      }
-    }
-    return deduped;
-  };
-
   // Adapter over generateRampNew that returns hex[] (the rest of the pipeline
   // works in flat hex arrays). Resolves the style name + editable stylePresets
   // to the engine's { reach, chromaFalloff } scalars, threads per-ramp curve +
@@ -540,9 +519,42 @@ export default function PixelPalGenerator() {
     return shades.map(s => s.hex);
   };
 
-  const rampsPunchy = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'punchy', resolveHueShiftForRamp(i), i), i, overrides, 'punchy'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
-  const rampsBalanced = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'balanced', resolveHueShiftForRamp(i), i), i, overrides, 'balanced'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
-  const rampsMuted = useMemo(() => baseColors.map((c, i) => applyHardwareLock(applyOverrides(generateRamp(resolveBaseForRamp(c, i), resolveSizeForRamp(i), 'muted', resolveHueShiftForRamp(i), i), i, overrides, 'muted'), activeHardware)), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, activeHardware, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+  // Live ramps now flow through the SAME shared buildRamp pipeline that
+  // buildRampsForSnapshot uses (src/lib/ramp-pipeline.ts), so the live↔snapshot
+  // mirror is structural — the generate→pin→snap pipeline lives in exactly one
+  // place (no more #30-style duplication). We synthesize a snapshot-shaped object
+  // from live state and feed it to buildRamp per base/style.
+  //
+  // Field-mapping rule (feed buildRamp exactly what the old inline memo fed the
+  // engine): pass hueShiftStrengthPerRamp (buildRamp resolves it per ramp, like
+  // resolveHueShiftForRamp). DELIBERATELY OMIT hiddenShades — the live memo does
+  // NOT hide here; hiding happens at the display boundary via the component-scope
+  // filterHidden, so buildRamp's internal hidden-filter must stay inert and these
+  // ramps must remain full-length. DELIBERATELY OMIT curvePerRamp — legacy string
+  // presets are migrated into lightnessCurvePerRamp on load; the live memo never
+  // re-migrated, so passing it would double-apply. hardwareLock is the id string
+  // (buildRamp re-finds the palette, exactly as activeHardware does).
+  const liveRampSnapshot = useMemo(() => ({
+    baseColors,
+    rampSize,
+    overrides,
+    rampSizeOverrides,
+    rampSatOverrides,
+    hardwareLock,
+    hueShiftStrength,
+    hueShiftStrengthPerRamp,
+    lightnessCurvePerRamp,
+    satCurvePerRamp,
+    gamutPerRamp,
+    shuffleSeed,
+    rampShuffleOffsets,
+    stylePresets,
+    engineVersion, // selects v1/v2 slot allocation in buildRamp → generateRamp (#35)
+  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets, engineVersion]);
+
+  const rampsPunchy = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'punchy', i)), [liveRampSnapshot]);
+  const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
+  const rampsMuted = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'muted', i)), [liveRampSnapshot]);
   const ramps = rampsPunchy; // legacy alias for places that just need a representative ramp
 
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.
@@ -1760,6 +1772,13 @@ export default function PixelPalGenerator() {
     setSbsLeftError(''); setSbsRightError('');
     setSbsLeftLoading(false); setSbsRightLoading(false);
     setHueShiftStrength(1.0);
+    // Brand-new palette content (new color / AI / image / GPL / classic — all 8
+    // call sites discard baseColors wholesale) uses the v2 engine, even when the
+    // prior doc was a loaded v1 palette. This is NOT an in-place upgrade of a
+    // loaded palette (none of these reset paths fire during editing); it's the
+    // "new palettes default to v2" guarantee holding after a v1 load. (#35,
+    // user-approved.)
+    setEngineVersion(2);
     // Image remap: clear the cached output and error. The uploaded image
     // itself stays (the user uploaded it intentionally and likely wants to
     // remap against the new palette). See IMAGE_REMAP_PLAN.md reset paths.
@@ -2290,6 +2309,8 @@ export default function PixelPalGenerator() {
       satCurvePerRamp,
       gamutPerRamp,
       stylePresets,
+      engineVersion, // mirror the main-grid liveRampSnapshot so viz/export/compare
+                     // of the working palette use the same v1/v2 engine (#35)
     };
   };
   // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
@@ -2310,6 +2331,8 @@ export default function PixelPalGenerator() {
       hiddenShades: {},
       hardwareLock: null,
       hueShiftStrength,
+      engineVersion: 2, // classics preview/compare with the current engine, matching
+                        // what loadClassicPalette produces (resetPaletteState → v2)
     };
   };
   const getSnapshotForSlot = (slot, cachedPayload) => {
@@ -2552,6 +2575,7 @@ export default function PixelPalGenerator() {
       gamutPerRamp,
       advancedOpen,
       stylePresets,
+      engineVersion, // 1 | 2 ramp engine (#35); absent in pre-v2 saves → restores as 1
     };
     setSavedBusy(true);
     try {
@@ -2614,6 +2638,10 @@ export default function PixelPalGenerator() {
       } else {
         setHueShiftStrength(1.0);
       }
+      // engineVersion: only the explicit value 2 selects the v2 engine; absent
+      // (pre-v2 saves) or anything else restores v1 so old palettes keep their
+      // exact look until an explicit upgrade (upgrade UI deferred, #35).
+      setEngineVersion(parsed.engineVersion === 2 ? 2 : 1);
       if (['punchy', 'balanced', 'muted'].includes(parsed.gplStyle)) setGplStyle(parsed.gplStyle);
       if (['punchy', 'balanced', 'muted'].includes(parsed.vizStyle)) setVizStyle(parsed.vizStyle);
       // Only restore the sprite key if it exists in the library after the merge above.
@@ -2932,12 +2960,13 @@ export default function PixelPalGenerator() {
   // to the given hardware, clicking again unlocks. If locked to a different
   // hardware, switches the lock target. Setting the lock is NON-destructive:
   // baseColors and overrides are preserved as-is. The lock is applied at
-  // render time via applyHardwareLock in the ramp useMemos. This means
-  // unlocking restores the full free-generation ramps without data loss.
+  // render time via the hardware-snap step in buildRamp (ramp-pipeline.ts).
+  // This means unlocking restores the full free-generation ramps without
+  // data loss.
   //
   // Pin overrides ARE retained while locked but get snapped on output via
-  // the order of operations in the useMemos (applyOverrides runs first,
-  // then applyHardwareLock snaps everything including the pinned hex).
+  // the order of operations in buildRamp (overrides run first, then the
+  // hardware snap covers everything including the pinned hex).
   // This was a deliberate choice: clearing pins on lock would force the
   // user to re-pin every time they toggled. Instead, pinned hexes get
   // visually snapped while locked and reappear as the user's chosen hex
@@ -2976,7 +3005,7 @@ export default function PixelPalGenerator() {
   // Per-style independence: a pin in (i, j, 'punchy') doesn't affect
   // (i, j, 'balanced'). Each style is baked independently.
   //
-  // Dedup note: applyHardwareLock dedupes consecutive duplicates for
+  // Dedup note: buildRamp's hardware snap dedupes consecutive duplicates for
   // DISPLAY, but bake pins by the pre-dedup shade index (every slot of
   // the full ramp). After unlocking, an 8-shade ramp on Game Boy will
   // show 8 slots with consecutive duplicates rather than the 4-color
