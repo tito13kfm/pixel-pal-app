@@ -171,7 +171,7 @@ export default function PixelPalGenerator() {
   // Display settings (theme, cvdMode, crtEnabled) + their load/persist effects
   // live in useDisplaySettings. See src/hooks/useDisplaySettings.ts.
   const { theme, setTheme, cvdMode, setCvdMode, crtEnabled, setCrtEnabled } = useDisplaySettings();
-  const { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern } = useVizSettings();
+  const { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern, ditherZoom, setDitherZoom } = useVizSettings();
   // Export settings (gpl/format/ramp styles + copy/export feedback state) +
   // their load/persist effects live in useExportSettings. See
   // src/hooks/useExportSettings.ts.
@@ -5761,6 +5761,11 @@ export default function PixelPalGenerator() {
                     <select value={ditherPattern} onChange={(e) => setDitherPattern(e.target.value)} title="Ordered-dither pattern for the blend preview. Bayer 2×2/4×4/8×8 give progressively smoother ramps (4/16/64 levels); clustered dot, scanline and cross-hatch are hand-placeable sprite textures." className="px-2 py-1 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-[11px] font-bold uppercase tracking-wider">
                       {DITHER_PATTERNS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
+                    <div className="flex items-center gap-px" title="Magnify the dither preview (display only — stays pixel-crisp, does not affect the PNG export)">
+                      {[1, 2, 4].map((z) => (
+                        <button key={z} onClick={() => setDitherZoom(z)} className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${ditherZoom === z ? 'bg-cyan-400 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>{z}×</button>
+                      ))}
+                    </div>
                     <button onClick={() => exportDitherPng(snap)} title="Download the Dither-Blend preview as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>
                   </>
                 ), compact, (
@@ -5772,6 +5777,7 @@ export default function PixelPalGenerator() {
                       pattern={ditherPattern}
                       compact={compact}
                       borderColor={t.vizDataBorder}
+                      zoom={compact ? 1 : ditherZoom}
                     />
                   </div>
                   </>
