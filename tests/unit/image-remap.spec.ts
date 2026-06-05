@@ -22,6 +22,10 @@ describe('estimateRemapCost', () => {
   it('models floyd-steinberg as pixels*palette', () => {
     expect(estimateRemapCost(10, 10, 5, 'floyd-steinberg')).toBe(500);
   });
+  it('atkinson and stucki share the floyd-steinberg cost class', () => {
+    expect(estimateRemapCost(10, 10, 5, 'atkinson')).toBe(500);
+    expect(estimateRemapCost(10, 10, 5, 'stucki')).toBe(500);
+  });
   it('is zero when the palette is empty', () => {
     expect(estimateRemapCost(10, 10, 0, 'none')).toBe(0);
   });
@@ -50,6 +54,20 @@ describe('remapImageToPalette', () => {
     const nd = remapImageToPalette({ width: 3, height: 1, data: src }, palette, { dither: 'none' });
     expect(Array.from(fs.data)).toEqual([255,255,255,255, 0,0,0,255, 255,255,255,255]);
     expect(Array.from(nd.data)).toEqual([255,255,255,255, 255,255,255,255, 255,255,255,255]);
+  });
+  it.each(['atkinson', 'stucki'] as const)('%s dithers a flat mid-gray run into a palette-only mix (diverges from no-dither)', (mode) => {
+    // 6x1 row of mid-gray. No-dither maps every pixel to white (128 is one unit
+    // closer to 255 than to 0), so any black pixel proves error diffusion ran.
+    const src = new Uint8ClampedArray(Array.from({ length: 6 }, () => [128, 128, 128, 255]).flat());
+    const palette = ['#ffffff', '#000000'];
+    const dithered = remapImageToPalette({ width: 6, height: 1, data: src }, palette, { dither: mode });
+    const nd = remapImageToPalette({ width: 6, height: 1, data: src }, palette, { dither: 'none' });
+    // every output pixel is one of the two palette colors
+    for (let i = 0; i < dithered.data.length; i += 4) {
+      expect(['255,255,255', '0,0,0']).toContain([dithered.data[i], dithered.data[i + 1], dithered.data[i + 2]].join(','));
+    }
+    // diffusion introduced at least one black pixel; no-dither is all white
+    expect(Array.from(dithered.data)).not.toEqual(Array.from(nd.data));
   });
   it('alpha=0 pixel is zeroed and does not absorb diffused error', () => {
     const src = new Uint8ClampedArray([255,0,0,255, 255,0,0,0, 0,0,255,255]);

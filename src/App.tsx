@@ -5719,7 +5719,7 @@ export default function PixelPalGenerator() {
                           <canvas
                             ref={canvasRef}
                             style={{ imageRendering: 'pixelated', width: `${slotRemap.width * remapDownloadScale}px`, maxWidth: '100%', height: 'auto', display: 'block' }}
-                            title={`Uploaded image remapped to this slot's palette (${slotRemap.width}x${slotRemap.height}, ${remapDither === 'floyd-steinberg' ? 'Floyd-Steinberg' : 'no dither'})`}
+                            title={`Uploaded image remapped to this slot's palette (${slotRemap.width}x${slotRemap.height}, ${remapDither === 'none' ? 'no dither' : `${remapDither} dither`})`}
                           />
                         )}
                         {!slotRemap && !slotRemapLoading && (
@@ -5994,6 +5994,8 @@ export default function PixelPalGenerator() {
                           <span className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">Dither:</span>
                           <button onClick={() => setRemapDither('none')} title="No dithering: every source pixel maps to its single nearest palette color" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'none' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>None</button>
                           <button onClick={() => setRemapDither('floyd-steinberg')} title="Floyd-Steinberg error diffusion: better gradient handling at the cost of a busier image" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'floyd-steinberg' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>Floyd-Steinberg</button>
+                          <button onClick={() => setRemapDither('atkinson')} title="Atkinson error diffusion: diffuses only 6/8 of the error, giving cleaner flat areas and less smearing than Floyd-Steinberg (classic Mac dither)" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'atkinson' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>Atkinson</button>
+                          <button onClick={() => setRemapDither('stucki')} title="Stucki error diffusion: a wider, smoother kernel than Floyd-Steinberg for finer gradients (slower)" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'stucki' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>Stucki</button>
                         </div>
                         {!isTwoColumn && remapOutput && remapImageNaturalSize && (() => {
                           const scaleOpts = computeRemapScaleOptions(remapImageNaturalSize.w, remapImageNaturalSize.h, 8192);
