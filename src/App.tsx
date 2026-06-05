@@ -2306,6 +2306,9 @@ export default function PixelPalGenerator() {
       hiddenShades,
       hardwareLock,
       hueShiftStrength,
+      hueShiftStrengthPerRamp, // per-ramp hue-shift overrides — mirror the main
+                               // grid; without this viz/export/compare fall back
+                               // to the global hueShiftStrength only (#37)
       lightnessCurvePerRamp,
       satCurvePerRamp,
       gamutPerRamp,
