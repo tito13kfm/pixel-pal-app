@@ -18,6 +18,13 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Added
+- Color Ramps and Harmony Colors cards are now drag-reorderable by their grip
+  handle, joining the existing movable cards (Playground/Visualize/Saved/
+  History/Export). Saved layouts from before this change migrate by appending
+  the two new cards to the end of the existing order rather than resetting the
+  whole arrangement (#44).
+
 ## [0.18.0] - 2026-06-05
 
 ### Added
