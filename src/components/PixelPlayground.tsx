@@ -104,6 +104,9 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
   const isDrawing = useRef(false);
   const strokeStart = useRef<(number | null)[] | null>(null);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  // Last freehand cell, for interpolating the path between pointer-move samples
+  // (fast drags skip cells otherwise — #39). null between strokes.
+  const lastCell = useRef<{ x: number; y: number } | null>(null);
   const draftRef = useRef<{ x: number; y: number }[]>([]);
   const [draft, setDraftState] = useState<{ x: number; y: number }[]>([]);
 
@@ -163,7 +166,17 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
     const { x, y } = getCanvasPixel(e);
     const isErase = tool === 'eraser' || e.buttons === 2;
     const value = isErase ? null : encodeColor(activeColor.r, activeColor.s);
-    setPixels(prev => applyStamp(prev, x, y, getStamp(brushShape, brushSize), value, CANVAS_W, CANVAS_H));
+    const stamp = getStamp(brushShape, brushSize);
+    // Interpolate from the previous sample so fast drags don't leave gaps (#39).
+    // First sample of a stroke (lastCell null) stamps just the current cell.
+    const from = lastCell.current;
+    const cells = from ? linePixels(from.x, from.y, x, y) : [{ x, y }];
+    lastCell.current = { x, y };
+    setPixels(prev => {
+      let next = prev;
+      for (const c of cells) next = applyStamp(next, c.x, c.y, stamp, value, CANVAS_W, CANVAS_H);
+      return next;
+    });
   }, [tool, activeColor, brushShape, brushSize, getCanvasPixel]);
 
   const pushUndo = useCallback((snapshot: (number | null)[]) => {
@@ -173,7 +186,7 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
     });
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const { x, y } = getCanvasPixel(e);
     const isRightClick = e.button === 2;
@@ -181,6 +194,10 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
     if (isRightClick || tool === 'pencil' || tool === 'eraser') {
       isDrawing.current = true;
       strokeStart.current = pixels.slice();
+      lastCell.current = null; // fresh stroke: don't interpolate from a prior one
+      // Capture the pointer so moves keep firing even if the cursor leaves the
+      // canvas during a fast drag (the stroke no longer drops on leave — #39).
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
       applyStroke(e);
     } else if (tool === 'fill') {
       pushUndo(pixels.slice());
@@ -193,6 +210,9 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
       }
     } else {
       dragStart.current = { x, y };
+      // Capture so the shape preview keeps tracking and commits on pointer-up
+      // even when released outside the canvas.
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
       const pts = tool === 'line' ? linePixels(x, y, x, y)
         : tool === 'rect' ? rectPixels(x, y, x, y)
         : ellipsePixels(x, y, x, y);
@@ -200,7 +220,7 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
     }
   }, [tool, pixels, activeColor, ramps, getCanvasPixel, applyStroke, pushUndo, setDraft]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (isDrawing.current) {
       applyStroke(e);
     } else if (dragStart.current) {
@@ -232,6 +252,7 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
       dragStart.current = null;
     } else if (isDrawing.current) {
       isDrawing.current = false;
+      lastCell.current = null; // end the interpolation chain
       if (strokeStart.current) {
         pushUndo(strokeStart.current);
         strokeStart.current = null;
@@ -331,10 +352,10 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
         height={CANVAS_H * SCALE}
         style={{ imageRendering: 'pixelated', cursor: tool === 'eyedropper' ? 'crosshair' : 'crosshair', display: 'block', flexShrink: 0 }}
         className="border border-black/30 rounded"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={endStroke}
-        onMouseLeave={endStroke}
+        onPointerDown={handleMouseDown}
+        onPointerMove={handleMouseMove}
+        onPointerUp={endStroke}
+        onPointerCancel={endStroke}
         onContextMenu={e => e.preventDefault()}
       />
 
