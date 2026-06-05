@@ -6,6 +6,7 @@
   "author": "Tim Kurash",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || exit 0",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:web": "cross-env VITE_BUILD_TARGET=web tsc --noEmit && cross-env VITE_BUILD_TARGET=web vite build",

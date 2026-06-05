@@ -1,0 +1,20 @@
+#!/bin/sh
+# Guard: refuse direct commits on the release branch.
+# Tracked in-repo and activated via `git config core.hooksPath .githooks`
+# (wired through the npm "prepare" script, so `npm install` self-installs it).
+# Installed 2026-06-04 after repeated accidental commits to master.
+# To intentionally commit on master (rare — releases), set ALLOW_MASTER_COMMIT=1.
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+case "$branch" in
+  master|main)
+    if [ "$ALLOW_MASTER_COMMIT" = "1" ]; then
+      echo "pre-commit: ALLOW_MASTER_COMMIT=1 set — permitting commit on $branch."
+      exit 0
+    fi
+    echo "pre-commit: refusing to commit on '$branch' (release branch)." >&2
+    echo "  Create a feature branch first:  git checkout -b feat/your-change" >&2
+    echo "  Intentional release commit?     ALLOW_MASTER_COMMIT=1 git commit ..." >&2
+    exit 1
+    ;;
+esac
+exit 0
