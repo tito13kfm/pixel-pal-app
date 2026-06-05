@@ -8,9 +8,10 @@ interface DitherBlendProps {
   pattern: DitherPattern;
   compact: boolean;
   borderColor?: string;
+  zoom?: number;
 }
 
-export function DitherBlend({ rows, pattern, compact, borderColor }: DitherBlendProps) {
+export function DitherBlend({ rows, pattern, compact, borderColor, zoom = 1 }: DitherBlendProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rowH = compact ? 26 : 38;
   const solidW = compact ? 30 : 44;
@@ -33,10 +34,22 @@ export function DitherBlend({ rows, pattern, compact, borderColor }: DitherBlend
   }, [rowsKey, pattern, rowH, solidW, blendW, width, height]);
 
   if (rows.length === 0) return null;
+  // zoom scales the DISPLAY size only (canvas intrinsic res is unchanged), so
+  // image-rendering: pixelated keeps magnified pixels crisp. At 1× we stay
+  // responsive (maxWidth 100%); when zoomed we set an explicit CSS width and
+  // let the parent's overflow-x-auto scroll.
+  const zoomed = zoom > 1;
   return (
     <canvas
       ref={canvasRef}
-      style={{ imageRendering: 'pixelated', maxWidth: '100%', height: 'auto', display: 'block', border: `1px solid ${borderColor ?? '#444'}` }}
+      style={{
+        imageRendering: 'pixelated',
+        width: zoomed ? `${width * zoom}px` : undefined,
+        maxWidth: zoomed ? 'none' : '100%',
+        height: 'auto',
+        display: 'block',
+        border: `1px solid ${borderColor ?? '#444'}`,
+      }}
     />
   );
 }

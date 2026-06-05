@@ -22,6 +22,9 @@ import { useState, useEffect, useRef } from 'react';
  *     viz-interaction.ts: 'bayer2'|'bayer4'|'bayer8'|'clustered'|'lines'|
  *     'crosshatch'). Ephemeral.
  *
+ *   - ditherZoom: dither-blend preview display magnification (1 | 2 | 4).
+ *     Scales the on-screen canvas size only (not the export). Ephemeral.
+ *
  * `window.storage` is the artifact's async key-value shim (installed in
  * App.tsx). It's typed globally as an optional `Window.storage` member in
  * src/vite-env.d.ts, so call sites use `window.storage` directly behind the
@@ -32,6 +35,7 @@ export function useVizSettings() {
   const [matrixColorSet, setMatrixColorSet] = useState('unique'); // 'unique' | 'bases'
   const [matrixView, setMatrixView] = useState('pair');           // 'pair' | 'heatmap'
   const [ditherPattern, setDitherPattern] = useState('bayer2');   // DITHER_PATTERNS id
+  const [ditherZoom, setDitherZoom] = useState(1);                // 1 | 2 | 4 (display magnify)
 
   // vizStyle: persisted at ui:vizStyle. Valid values punchy/balanced/muted.
   useEffect(() => {
@@ -65,5 +69,5 @@ export function useVizSettings() {
     })();
   }, [vizStyle]);
 
-  return { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern };
+  return { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern, ditherZoom, setDitherZoom };
 }
