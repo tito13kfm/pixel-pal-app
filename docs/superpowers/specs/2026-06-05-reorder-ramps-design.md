@@ -31,7 +31,15 @@ that index-keyed state atomically.
 A reorder applies one index permutation to **all** base-index-keyed state in
 lockstep. Get one wrong and pins / curves / locks attach to the wrong ramp.
 
-### Inventory of index-keyed state (verified against current code)
+### Inventory of index-keyed state (verified complete 2026-06-05)
+
+Certified by an exhaustive `src/` sweep (`useState` shapes in both owner files +
+`PerRamp` / `new Set` / `baseIndex` / per-ramp indexing across all hooks and lib).
+`useImageRemap` / `useSideBySide` hold no index-keyed ramp state. `gamutPerRamp`
+(App.tsx) is the **only** keyed structure outside `usePaletteState`. `curvePerRamp`
+(`palette.ts`) is a legacy serialized-only field migrated on load — not live state,
+not part of reorder.
+
 
 Owned by `src/hooks/usePaletteState.ts`:
 
@@ -71,8 +79,31 @@ move of a ramp from `from` to `to` over length `n`:
   map keys, Set members, and the `harmonyAnchor` scalar:
   `newAnchor = next[oldAnchor]`).
 
-`order` is produced by splicing `from` out and inserting at `to`; `next` is its
-inverse. Both are built once.
+**Coordinate convention (pinned — splice-out-then-insert reindexes, so `to` is
+ambiguous unless fixed).** The drop target from the drag layer is
+`(targetIndex, pos)` where `pos ∈ {before, after}` (same shape as the section
+handlers' `dragOver`). Build `order` deterministically:
+
+```
+const dropIndex = pos === 'before' ? targetIndex : targetIndex + 1;
+const insertAt  = dropIndex > from ? dropIndex - 1 : dropIndex; // adjust for the removal
+const order = [...Array(n).keys()];   // [0,1,…,n-1]
+order.splice(from, 1);                // remove dragged old-index
+order.splice(insertAt, 0, from);      // reinsert at adjusted position
+// next = inverse: next[order[k]] = k
+```
+
+`insertAt` is in **post-removal** coordinates; the `dropIndex > from ? -1` term is
+the off-by-one fix for dragging downward vs upward. `next` is the inverse of
+`order`. Both built once. The characterization test MUST exercise **both
+directions** — `0→last`, `last→0`, an adjacent swap, and same-index no-op — because
+a unidirectional off-by-one passes a one-way "first↔last" check.
+
+**Array length guard (#3).** `aiColorNames` defaults to `[]` and is only full-length
+after AI naming runs. `newArr[k] = oldArr[order[k]]` would turn a short/empty array
+into `undefined` holes (serialize as `null`). Rule: reorder an array **only if its
+length === baseColors.length**; otherwise leave it untouched. `baseColors` is always
+length `n`; `aiColorNames` is reordered only when already aligned.
 
 ### `reorderRamps(from, to)` in `usePaletteState`
 
@@ -107,16 +138,20 @@ A reorder is an undoable edit through the existing history snapshot, but it must
 diffs `prev`/`next`, and a reorder leaves `baseColors.length` unchanged, so the
 existing branch would mislabel it "Edit base color". Instead, **tag the snapshot
 explicitly** with label `"Reorder ramps"` via the existing `tagNextLabel` mechanism
-(the same path other intent-tagged ops use). No `inferLabel` change is required;
-optionally add a defensive `inferLabel` fallback case only if the tag path proves
-insufficient. Persistence is automatic — `baseColors` + all keyed maps already
+(the same path other intent-tagged ops use — `tagNextLabel` is confirmed present and
+the standard mechanism, 20+ call sites incl. the structural `tagNextLabel('Duplicate
+ramp')` at App.tsx:1501). No `inferLabel` change is required. Persistence is automatic — `baseColors` + all keyed maps already
 serialize with the palette.
 
 ## Propagation
 
-Free. Ramp grid, Mosaic, Adjacency, Dither, and all export formats read
-`baseColors` order and the base-index-keyed maps. Reordering the source data updates
-every downstream consumer with no per-consumer edit.
+Free, and **verified pure**. Ramp grid, Mosaic, Adjacency, Dither, and all export
+formats read `baseColors` order and the base-index-keyed maps. `buildRamp`
+(`ramp-pipeline.ts`) takes `baseIndex` only to look up those maps; its only per-ramp
+variation is `effectiveSeed = shuffleSeed + rampShuffleOffsets[i]` (line 85) — and
+`rampShuffleOffsets` is a permuted map, so the offset travels with its ramp. There
+is no bare absolute-index term, so a correct permutation preserves every ramp's
+appearance at its new position.
 
 ## Testing
 
