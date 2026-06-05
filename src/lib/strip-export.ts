@@ -67,9 +67,30 @@ function blockEdges(width: number, n: number, i: number): { x: number; w: number
   return { x: x0, w: x1 - x0 };
 }
 
-// One row of equal-width blocks across the full width.
+// Lightness axis (#51): map each color to its HSL lightness (0..100). Both the
+// on-screen Lightness Distribution and drawLightnessStripPng below consume THIS
+// one function, so the screen view and the exported PNG place every swatch by
+// the same L on the same 0→100 axis — gaps in tonal coverage show as blank space
+// in both. Keeping a single L source is the mirror guarantee: there is no
+// second `hexToHsl().l` read that could drift from this one. Input order is
+// preserved (callers pass sortedByL, so the lightest marker draws last = on top
+// where markers overlap).
+export interface LightnessMarker { hex: string; l: number; }
+export function lightnessMarkers(hexes: string[]): LightnessMarker[] {
+  return hexes.map((hex) => ({ hex, l: hexToHsl(hex).l }));
+}
+
+// Interior reference gridlines on the 0→100 L axis (0 and 100 are the borders).
+export const LIGHTNESS_GRIDLINES = [25, 50, 75];
+const LIGHTNESS_TRACK_BG = '#15151f';   // neutral dark track so gaps read as empty
+const LIGHTNESS_MARKER_W = 10;          // px marker width in the PNG
+
+// Markers placed by lightness on a 0→100 axis (NOT equal-width blocks): position
+// encodes L, so missing tonal ranges appear as blank track. Mirrors the on-screen
+// view (App.tsx Lightness subsection) — same lightnessMarkers source, same axis,
+// same gridlines.
 // Precondition: `sortedHexes` is non-empty (callers guard first); an empty
-// array yields a blank strip rather than an error.
+// array yields a blank track rather than an error.
 export function drawLightnessStripPng(
   sortedHexes: string[],
   opts: { width?: number; height?: number } = {},
@@ -82,10 +103,23 @@ export function drawLightnessStripPng(
   const ctx = canvas.getContext('2d');
   if (!ctx) return Promise.reject(new Error('Canvas 2D context unavailable'));
   ctx.imageSmoothingEnabled = false;
-  const n = sortedHexes.length;
-  for (let i = 0; i < n; i++) {
-    const { x, w } = blockEdges(width, n, i);
-    ctx.fillStyle = sortedHexes[i];
+  // Track background.
+  ctx.fillStyle = LIGHTNESS_TRACK_BG;
+  ctx.fillRect(0, 0, width, height);
+  // Reference gridlines at 25/50/75%.
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  for (const p of LIGHTNESS_GRIDLINES) {
+    ctx.fillRect(Math.round((p / 100) * width), 0, 1, height);
+  }
+  // One marker per color, centered at x = L%. Truthful position (no clamping):
+  // edge markers clip naturally at the canvas bounds.
+  const w = LIGHTNESS_MARKER_W;
+  for (const { hex, l } of lightnessMarkers(sortedHexes)) {
+    const cx = (l / 100) * width;
+    const x = Math.round(cx - w / 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(x - 1, 0, w + 2, height);   // thin dark outline for contrast
+    ctx.fillStyle = hex;
     ctx.fillRect(x, 0, w, height);
   }
   return canvasToPngBlob(canvas);
