@@ -4350,7 +4350,9 @@ export default function PixelPalGenerator() {
   });
   // Accent color per section (viz mirrors the live vizStyle accent).
   const sectionAccent = (key) =>
-    key === 'playground' ? '#00ff88'
+    key === 'ramps' ? '#00ffff'
+    : key === 'harmony' ? '#ff00ff'
+    : key === 'playground' ? '#00ff88'
     : key === 'viz' ? (vizStyle === 'balanced' ? '#00ffff' : vizStyle === 'muted' ? '#a855f7' : '#ff00ff')
     : key === 'saved' ? '#ffff00'
     : key === 'history' ? '#a855f7'
@@ -4865,11 +4867,29 @@ export default function PixelPalGenerator() {
           </div>
         </div>
 
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="ramp-area" style={{ background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: accentGlow('#00ffff', 0.4) }}>
+        {sectionOrder.join() !== DEFAULT_SECTION_ORDER.join() && (
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={resetSectionOrder}
+              title="Restore the sections below to their default order"
+              className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}
+            >
+              <RotateCcw size={14} />
+              Reset Layout
+            </button>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+
+        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="ramp-area" {...makeSectionDragHandlers('ramps')} style={{ order: sectionOrder.indexOf('ramps'), background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.4), dropLine('ramps')].filter(Boolean).join(', ') }}>
           <button onClick={() => setRampsOpen(o => !o)} title={rampsOpen ? 'Collapse Color Ramps' : 'Expand Color Ramps'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
 
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Sun size={22} />Color Ramps</h2>
-            <span style={{ color: sectionHeadColor('#00ffff') }}>{rampsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+            <div className="flex items-center gap-2">
+              {sectionGrip('ramps')}
+              <span style={{ color: sectionHeadColor('#00ffff') }}>{rampsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+            </div>
           </button>
           {rampsOpen && (
           <div className="px-6 pb-6">
@@ -5322,10 +5342,13 @@ export default function PixelPalGenerator() {
           )}
         </div>
 
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" style={{ background: t.cardBgPink, borderColor: themedAccentBorder('#ff00ff'), boxShadow: accentGlow('#ff00ff', 0.4) }}>
+        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('harmony')} style={{ order: sectionOrder.indexOf('harmony'), background: t.cardBgPink, borderColor: themedAccentBorder('#ff00ff'), boxShadow: [accentGlow('#ff00ff', 0.4), dropLine('harmony')].filter(Boolean).join(', ') }}>
           <button onClick={() => setHarmonyOpen(o => !o)} data-tour-id="harmony-header" title={harmonyOpen ? 'Collapse Harmony Colors' : 'Expand Harmony Colors'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
             <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ff00ff'), textShadow: accentTextGlow('#ff00ff') }}><Sparkles size={22} />Harmony Colors</h2>
-            <span style={{ color: sectionHeadColor('#ff00ff') }}>{harmonyOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+            <div className="flex items-center gap-2">
+              {sectionGrip('harmony')}
+              <span style={{ color: sectionHeadColor('#ff00ff') }}>{harmonyOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
+            </div>
           </button>
           {harmonyOpen && <div className="px-6 pb-6">
           <p className="text-xs text-pink-100/80 mb-4 italic">▸ Click any swatch to add a ramp, or "Add All" / "Add Both" for sets ◂ Hover a category name for tips ◂</p>
@@ -5516,21 +5539,6 @@ export default function PixelPalGenerator() {
           })()}
           </div>}
         </div>
-
-        {sectionOrder.join() !== DEFAULT_SECTION_ORDER.join() && (
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={resetSectionOrder}
-              title="Restore the sections below to their default order"
-              className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}
-            >
-              <RotateCcw size={14} />
-              Reset Layout
-            </button>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
 
         {/* ---------- Pixel Playground (collapsible) ---------- */}
         <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('playground')} style={{ order: sectionOrder.indexOf('playground'), background: t.cardBgGreen, borderColor: themedAccentBorder('#00ff88'), boxShadow: [accentGlow('#00ff88', 0.3), dropLine('playground')].filter(Boolean).join(', ') }}>
