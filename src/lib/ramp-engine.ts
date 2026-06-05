@@ -16,7 +16,6 @@ export interface GenerateRampOpts {
   pins?: Record<number, string>;
   hidden?: number[];
   hardwareLock?: string | null;
-  engineVersion?: number; // 1 = legacy (default), 2 = re-centered allocation (Task 4)
 }
 
 export interface Shade {

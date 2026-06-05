@@ -8,7 +8,7 @@ const SIZES = [2, 4, 5, 6, 7, 8, 16, 64];   // covers the app's 4-8 operating ra
 
 const ramp = (hex: string, N: number) => {
   const { reach, chromaFalloff } = styleToScalars('punchy', DEFAULT_STYLE_PRESETS);
-  return generateRamp(hex, { reach, chromaFalloff, size: N, hueShiftStrength: 1.0, engineVersion: 2 });
+  return generateRamp(hex, { reach, chromaFalloff, size: N, hueShiftStrength: 1.0 });
 };
 const baseIdx = (hex: string, N: number) =>
   ramp(hex, N).findIndex(s => s.hex.toLowerCase() === hex.toLowerCase());

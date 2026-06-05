@@ -13,16 +13,9 @@ import { buildRampsForSnapshot } from '../../src/lib/snapshot-ramps';
 const snap = { baseColors: ['#37cd76', '#1a2f6b'], rampSize: 7, hardwareLock: null };
 
 describe('buildRamp ↔ buildRampsForSnapshot mirror', () => {
-  it('snapshot path equals per-base buildRamp (v1)', () => {
+  it('snapshot path equals per-base buildRamp', () => {
     const viaSnapshot = buildRampsForSnapshot(snap, 'punchy');
     const viaBuild = snap.baseColors.map((_, i) => buildRamp(snap, 'punchy', i));
-    expect(viaBuild).toEqual(viaSnapshot);
-  });
-
-  it('snapshot path equals per-base buildRamp (v2)', () => {
-    const s2 = { ...snap, engineVersion: 2 };
-    const viaSnapshot = buildRampsForSnapshot(s2, 'punchy');
-    const viaBuild = s2.baseColors.map((_, i) => buildRamp(s2, 'punchy', i));
     expect(viaBuild).toEqual(viaSnapshot);
   });
 
