@@ -18,12 +18,26 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-06-05
+
 ### Added
 - Color Ramps and Harmony Colors cards are now drag-reorderable by their grip
   handle, joining the existing movable cards (Playground/Visualize/Saved/
   History/Export). Saved layouts from before this change migrate by appending
   the two new cards to the end of the existing order rather than resetting the
   whole arrangement (#44).
+- Individual ramps can be dragged to reorder within the Color Ramps card. The
+  new order propagates everywhere ramps are used in order — ramp grid, Mosaic,
+  Adjacency, Dither, and all exports (gpl/pal/ase/png-strip/txt). Every per-ramp
+  setting moves with its ramp: pins, shade count, saturation, hue shift, hidden
+  shades, shuffle offset, lightness/saturation curves, lock, collapse, harmony
+  anchor, and gamut. Undoable as "Reorder ramps" (#52).
+
+### Changed
+- Drag handles are more legible across all themes: the ramp grip moved to the
+  card's right edge, and every reorder handle (ramp and whole-card) was restyled
+  from a faint low-opacity icon to high-contrast dots, fixing near-invisibility
+  on the dark and 18% grey themes.
 
 ## [0.18.0] - 2026-06-05
 
@@ -426,7 +440,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.15.0...v0.16.0

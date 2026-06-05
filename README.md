@@ -50,6 +50,7 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - Pin individual shades to a fixed hex across all three styles
 - Right-click a shade to hide it across all three styles
 - Lock ramp from global operations
+- Drag a ramp by its grip to reorder it; the new order propagates everywhere ramps are used in order — the ramp grid, Mosaic, Adjacency, Dither, and every export. All per-ramp settings (pins, sizes, locks, curves, gamut, and more) move with the ramp
 - **Advanced disclosure** (closed by default): interactive lightness curve editor and saturation curve editor (drag anchors, click to add, preset chips for one-click shapes), plus gamut strategy (auto / clip / chroma-preserve)
 
 **Global tools**
@@ -79,6 +80,7 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - Up to 100 saved palettes in local storage
 - 50-entry session history with undo, redo, and direct jump to any point
 - Three themes: Dark, Neutral, Light (persists across sessions)
+- Customizable layout: drag the main section cards (Color Ramps, Harmony, Playground, Visualize, Saved, History, Export) by their grips to reorder them; the arrangement persists, and a Reset Layout button restores defaults
 - Auto-updates: desktop checks for new releases and prompts you to install; web reflects the latest deploy on refresh
 - Export: a format dropdown covers GIMP `.gpl` (Aseprite/GIMP/Krita/Piskel), JASC `.pal` (GrafX2/Paint Shop Pro), Adobe Swatch Exchange `.ase`, a PNG palette strip (drag onto any editor's canvas and eyedrop), and plain `.txt` — each in the Punchy/Balanced/Muted style you select. Desktop adds "Reveal in folder" after a save. Separate one-click PNG export of the Mosaic, Lightness Distribution, Adjacency Matrix, and Dither-Blend views remains (from the view itself or the export panel).
   - **Note:** Adobe `.ase` targets Photoshop / Illustrator / Krita, **not** Aseprite. Despite the shared extension, Aseprite's `.ase`/`.aseprite` are sprite files; Aseprite imports palettes as `.gpl`, `.pal`, or PNG — pick one of those for Aseprite.
