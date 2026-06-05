@@ -26,6 +26,7 @@ import { computeVizData, drawLightnessStripPng, drawMosaicPng, drawAdjacencyMatr
 import { buildGpl, buildJascPal, buildAse } from './lib/palette-export';
 import { AdjacencyMatrix } from './components/AdjacencyMatrix';
 import { DitherBlend } from './components/DitherBlend';
+import { CrossRampDither } from './components/CrossRampDither';
 import { DITHER_PATTERNS } from './lib/viz-interaction';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
@@ -171,7 +172,7 @@ export default function PixelPalGenerator() {
   // Display settings (theme, cvdMode, crtEnabled) + their load/persist effects
   // live in useDisplaySettings. See src/hooks/useDisplaySettings.ts.
   const { theme, setTheme, cvdMode, setCvdMode, crtEnabled, setCrtEnabled } = useDisplaySettings();
-  const { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern, ditherZoom, setDitherZoom } = useVizSettings();
+  const { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern, ditherZoom, setDitherZoom, ditherCrossRamp, setDitherCrossRamp } = useVizSettings();
   // Export settings (gpl/format/ramp styles + copy/export feedback state) +
   // their load/persist effects live in useExportSettings. See
   // src/hooks/useExportSettings.ts.
@@ -5758,27 +5759,38 @@ export default function PixelPalGenerator() {
                 ))}
                 {vizSub('dither', compact ? 'Dither Blend' : 'Dither-Blend Preview', (
                   <>
+                    <button onClick={() => setDitherCrossRamp(v => !v)} title={ditherCrossRamp ? 'Switch to the per-ramp blend (consecutive shades within each ramp)' : 'Switch to the cross-ramp grid (every ramp base dithered against every other)'} className={`px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${t.controlBtnDefault} ${t.controlBtnHover}`}>{ditherCrossRamp ? 'Cross-ramp' : 'Per-ramp'}</button>
                     <select value={ditherPattern} onChange={(e) => setDitherPattern(e.target.value)} title="Ordered-dither pattern for the blend preview. Bayer 2×2/4×4/8×8 give progressively smoother ramps (4/16/64 levels); clustered dot, scanline and cross-hatch are hand-placeable sprite textures." className="px-2 py-1 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-[11px] font-bold uppercase tracking-wider">
                       {DITHER_PATTERNS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
-                    <div className="flex items-center gap-px" title="Magnify the dither preview (display only — stays pixel-crisp, does not affect the PNG export)">
+                    {!ditherCrossRamp && <div className="flex items-center gap-px" title="Magnify the dither preview (display only — stays pixel-crisp, does not affect the PNG export)">
                       {[1, 2, 4].map((z) => (
                         <button key={z} onClick={() => setDitherZoom(z)} className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${ditherZoom === z ? 'bg-cyan-400 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>{z}×</button>
                       ))}
-                    </div>
-                    <button onClick={() => exportDitherPng(snap)} title="Download the Dither-Blend preview as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>
+                    </div>}
+                    {!ditherCrossRamp && <button onClick={() => exportDitherPng(snap)} title="Download the Dither-Blend preview as a PNG (current style)" className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider bg-cyan-400 text-purple-900 border-cyan-100 hover:bg-cyan-300 flex items-center gap-1.5"><Download size={13} />PNG</button>}
                   </>
                 ), compact, (
                   <>
-                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Between each pair of consecutive ramp shades, an ordered-dither ramp from one shade to the next — how the two mix when dithered at sprite scale. Pick a pattern: Bayer 2×2/4×4/8×8 grow smoother (4/16/64 levels); clustered dot, scanline and cross-hatch are hand-placeable textures.</p>}
+                  {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">{ditherCrossRamp ? 'Every ramp base dithered against every other — preview the perceived in-between hue of two ramps (e.g. red × blue reads as purple) without spending a slot. Diagonal is the solid base.' : 'Between each pair of consecutive ramp shades, an ordered-dither ramp from one shade to the next — how the two mix when dithered at sprite scale. Pick a pattern: Bayer 2×2/4×4/8×8 grow smoother (4/16/64 levels); clustered dot, scanline and cross-hatch are hand-placeable textures.'}</p>}
                   <div className="flex justify-center overflow-x-auto">
-                    <DitherBlend
-                      rows={mosaicRamps.map((r) => r.hexes)}
-                      pattern={ditherPattern}
-                      compact={compact}
-                      borderColor={t.vizDataBorder}
-                      zoom={compact ? 1 : ditherZoom}
-                    />
+                    {ditherCrossRamp ? (
+                      <CrossRampDither
+                        bases={Array.isArray(snap.baseColors) ? snap.baseColors : []}
+                        names={namesSource}
+                        pattern={ditherPattern}
+                        compact={compact}
+                        borderColor={t.vizDataBorder}
+                      />
+                    ) : (
+                      <DitherBlend
+                        rows={mosaicRamps.map((r) => r.hexes)}
+                        pattern={ditherPattern}
+                        compact={compact}
+                        borderColor={t.vizDataBorder}
+                        zoom={compact ? 1 : ditherZoom}
+                      />
+                    )}
                   </div>
                   </>
                 ))}

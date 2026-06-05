@@ -288,6 +288,67 @@ export function drawPaletteStripPng(rows: string[][], cellSize = 32): Promise<Bl
   return canvasToPngBlob(canvas);
 }
 
+// --- Cross-ramp dither grid (#46) ------------------------------------------
+
+// N×N grid where cell [i][j] is a 50/50 ordered-dither blend of base color i
+// against base color j — previews the perceived in-between hue of two ramps
+// (e.g. red×blue reads as purple) without spending a palette slot. The diagonal
+// is the solid base. Optional header strip shows the solid base swatches (same
+// layout as drawAdjacencyMatrix). Honors the active dither pattern by taking the
+// MIDPOINT slice of that pattern's threshold matrix (ditherMatrix): a block
+// takes color B when its matrix value is in the upper half, A otherwise — the
+// same 50% split the blend preview shows at its center.
+export function drawCrossRampDither(
+  ctx: CanvasRenderingContext2D,
+  bases: string[],
+  opts: { cell: number; pattern: DitherPattern; header?: number; sub?: number },
+): void {
+  const n = bases.length;
+  const cell = opts.cell;
+  const header = opts.header ?? 0;
+  const sub = opts.sub ?? Math.max(2, Math.round(cell / 6));
+  const matrix = ditherMatrix(opts.pattern);
+  const mN = matrix.length;
+  const half = (mN * mN) / 2; // midpoint threshold → 50/50 blend
+  ctx.imageSmoothingEnabled = false;
+
+  if (header > 0) {
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, header, header);
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = bases[i];
+      ctx.fillRect(header + i * cell, 0, cell, header); // top strip
+      ctx.fillRect(0, header + i * cell, header, cell); // left strip
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const x = header + j * cell;
+      const y = header + i * cell;
+      if (i === j) {
+        ctx.fillStyle = bases[i]; // solid base on the diagonal
+        ctx.fillRect(x, y, cell, cell);
+        continue;
+      }
+      // Tile sub-blocks across the cell; each block takes color A (bases[i]) or
+      // B (bases[j]) per the matrix-midpoint 50/50 rule. Integer edges so blocks
+      // tile [0,cell) exactly with no gap/overflow.
+      const steps = Math.max(1, Math.round(cell / sub));
+      for (let by = 0; by < steps; by++) {
+        const y0 = Math.round((by * cell) / steps);
+        const y1 = Math.round(((by + 1) * cell) / steps);
+        for (let bx = 0; bx < steps; bx++) {
+          const x0 = Math.round((bx * cell) / steps);
+          const x1 = Math.round(((bx + 1) * cell) / steps);
+          ctx.fillStyle = matrix[by % mN][bx % mN] >= half ? bases[j] : bases[i];
+          ctx.fillRect(x + x0, y + y0, x1 - x0, y1 - y0);
+        }
+      }
+    }
+  }
+}
+
 // --- Dither-blend preview --------------------------------------------------
 
 const DITHER_ROW_H = 40;    // px row height
