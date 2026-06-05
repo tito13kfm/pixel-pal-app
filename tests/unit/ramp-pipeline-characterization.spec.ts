@@ -1,21 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { buildRampsForSnapshot } from '../../src/lib/snapshot-ramps';
 
-// FULL-PIPELINE characterization — the real guard for the Task 2 extraction.
-// The engine-level v1 characterization pins generateRamp; it does NOT exercise
-// buildRampsForSnapshot's resolve/pin/hardware-snap/hidden-filter chain, nor the
-// exact field set the live App.tsx memo feeds the engine. A botched live-snapshot
-// field mapping would slip past everything else (mirror test goes tautological
-// once buildRampsForSnapshot delegates to buildRamp; build/grep only prove it
-// compiles). This freezes the whole chain across pins + hidden + hardware lock +
-// per-ramp lightness/sat curve + sat override + size override + shuffle.
-//
-// Case A / C have NO per-ramp hue → must stay byte-identical through Tasks 2-3.
-// Case B adds hueShiftStrengthPerRamp → today the snapshot path IGNORES it
-// (global hueShiftStrength only), so B currently equals its global-hue render.
-// The approved mirror fix (Task 2 Step 6) makes buildRamp honor per-ramp hue, so
-// B's snapshot is EXPECTED to change then (and ONLY B) — the diff is the proof
-// that the extraction touched nothing but the intended per-ramp-hue divergence.
+// FULL-PIPELINE characterization — the guard for buildRampsForSnapshot's
+// resolve/pin/hardware-snap/hidden-filter chain plus the exact field set the
+// live App.tsx memo feeds the engine. Freezes the whole chain across pins +
+// hidden + hardware lock + per-ramp lightness/sat curve + sat override + size
+// override + shuffle. Post-#70 there is ONE engine (v2); this snapshot is the
+// recorded v2 output. A diff here means the pipeline field-mapping drifted —
+// STOP and investigate (engine math is separately pinned by ramp-engine-v2).
 
 const kitchenSink = {
   baseColors: ['#37cd76', '#1a2f6b', '#cc3344'],
