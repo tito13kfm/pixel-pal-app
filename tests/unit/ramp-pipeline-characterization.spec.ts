@@ -30,6 +30,14 @@ const kitchenSink = {
   satCurvePerRamp: { 1: [{ t: 0, v: 1 }, { t: 0.5, v: 1.6 }, { t: 1, v: 1 }] },
   shuffleSeed: 42,
   rampShuffleOffsets: { 2: 5 },
+  // Pin presets to the recorded look so this extraction-drift guard does NOT
+  // ride DEFAULT_STYLE_PRESETS — a default-preset change (#40) must not silently
+  // shift these "must not change" snapshots.
+  stylePresets: {
+    punchy:   { reach: 1.0,   chromaFalloff: 0.1 },
+    balanced: { reach: 0.575, chromaFalloff: 0.475 },
+    muted:    { reach: 0.15,  chromaFalloff: 0.85 },
+  },
 };
 
 describe('full-pipeline characterization (frozen — guards the buildRamp extraction)', () => {

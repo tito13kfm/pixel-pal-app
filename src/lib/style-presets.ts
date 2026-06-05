@@ -7,7 +7,7 @@ export type StylePresets = Record<string, StyleScalars>;
 
 // Defaults reproduce the approved Punchy/Balanced/Muted look.
 export const DEFAULT_STYLE_PRESETS: StylePresets = {
-  punchy:   { reach: 1.0,   chromaFalloff: 0.1 },
+  punchy:   { reach: 0.9,   chromaFalloff: 0.15 },
   balanced: { reach: 0.575, chromaFalloff: 0.475 },
   muted:    { reach: 0.15,  chromaFalloff: 0.85 },
 };
