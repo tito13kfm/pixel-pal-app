@@ -18,6 +18,36 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-06-05
+
+### Added
+- Dither-Blend Preview gains more ordered-dither patterns via a dropdown: 8×8
+  Bayer plus clustered-dot, scanline, and cross-hatch textures, alongside the
+  existing 2×2/4×4 Bayer (#47).
+- Cross-ramp dither grid: a Per-ramp ↔ Cross-ramp toggle shows an N×N grid that
+  dithers every ramp's base color against every other, previewing the perceived
+  in-between hue of two ramps (e.g. red × blue reads as purple) (#46).
+- 1×/2×/4× zoom control for the Dither-Blend preview — magnifies on screen while
+  staying pixel-crisp; does not affect the exported PNG (#49).
+
+### Changed
+- Lightness Distribution now positions each swatch on a 0→100 lightness axis
+  instead of equal-width cells, so gaps in tonal coverage are visible. The
+  exported PNG matches the on-screen view (#51).
+- Default **Punchy** preset retuned (reach 1.0→0.9, chroma falloff 0.1→0.15) for
+  a slightly tamer look at the extremes. Affects new palettes only — existing
+  saved palettes keep their stored preset values (#40).
+- The Image Preview subsection in Visualize & Compare is now individually
+  collapsible too, completing the per-subsection collapse work (#45).
+
+### Fixed
+- Visualize/export/compare of the working palette now honor per-ramp hue-shift
+  overrides instead of falling back to the global value — matching the main
+  color grid (#37).
+- Freehand pencil/eraser strokes no longer leave gaps on fast drags: the path
+  between pointer samples is interpolated, and pointer capture keeps the stroke
+  alive when the cursor briefly leaves the canvas (#39).
+
 ## [0.17.0] - 2026-06-04
 
 ### Added
@@ -389,7 +419,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.14.0...v0.15.0

@@ -64,10 +64,10 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 
 **Views**
 - Mosaic preview — export to PNG
-- Lightness distribution strip — export to PNG
+- Lightness distribution strip: colors placed on a 0→100 lightness axis so gaps in tonal coverage are visible — export to PNG
 - Chromatic polar plot
 - Adjacency matrix: every color paired with every other, with an optional ΔE_OK heatmap that surfaces clashes and near-duplicate colors — export to PNG
-- Dither-blend preview: 2×2 checkerboard or 4×4 Bayer mix of consecutive ramp shades — the optical "in-between" shade you get when dithering at sprite scale — export to PNG
+- Dither-blend preview: ordered-dither mix of ramp shades — the optical "in-between" shade you get when dithering at sprite scale. Pick a pattern (2×2 / 4×4 / 8×8 Bayer, clustered-dot, scanline, cross-hatch), zoom 1×/2×/4×, or switch to a cross-ramp grid that dithers every ramp's base against every other — export to PNG
 - Sprite previews on 4 built-in 32x32 sprites; import custom sprites from Piskel
 - Side-by-side palette comparison
 
