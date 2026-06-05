@@ -4696,7 +4696,7 @@ export default function PixelPalGenerator() {
 
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-center mb-4 flex-wrap">
             {mode === 'color' && (
-              <div className="flex gap-2 items-center flex-wrap">
+              <div className="flex gap-2 items-center flex-wrap relative">
                 <input type="color" value={colorInput} onChange={(e) => setColorInput(e.target.value)} title="Pick a base color from the OS color picker" className="w-14 h-14 rounded border-2 border-cyan-400 cursor-pointer" style={{ boxShadow: '0 0 10px #00ffff' }} />
                 <input type="text" value={colorInput} onChange={(e) => { const v = e.target.value; if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColorInput(v); }} data-tour-id="hex-input" title="Type a hex color (e.g. #ff6b35)" className="px-3 py-2 rounded bg-black/60 text-cyan-200 font-mono border-2 border-cyan-400 w-32 focus:outline-none" />
                 <button onClick={randomizeColor} title="Roll a random hex into the input. Does not change the palette. Click Add base to append it, or New palette to replace the palette with it." className="px-3 py-2 rounded font-bold bg-pink-500 text-white border-2 border-pink-300 hover:bg-pink-400 hover:scale-105 transition-all" style={{ boxShadow: '0 0 12px #ff00ff' }}><Dice5 size={18} /></button>
@@ -4704,7 +4704,7 @@ export default function PixelPalGenerator() {
                   <Plus size={18} />Add base
                 </button>
                 {addBaseFeedback && (
-                  <span className="text-xs font-bold px-2 py-1 rounded bg-cyan-500 text-purple-900 border-2 border-cyan-200 uppercase tracking-wider">{addBaseFeedback}</span>
+                  <span className="absolute -left-1 top-full mt-2 z-20 whitespace-nowrap text-xs font-bold px-2 py-1 rounded bg-cyan-500 text-purple-900 border-2 border-cyan-200 uppercase tracking-wider">{addBaseFeedback}</span>
                 )}
               </div>
             )}
