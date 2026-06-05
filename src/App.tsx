@@ -4378,8 +4378,8 @@ export default function PixelPalGenerator() {
       onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', sectionKey); setDraggingKey(sectionKey); }}
       onDragEnd={() => { setDraggingKey(null); setDragOver(null); }}
       onClick={e => e.stopPropagation()}
-      style={{ cursor: 'grab' }}
-      className="opacity-40 hover:opacity-80 transition-opacity"
+      style={{ cursor: 'grab', color: '#fff', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.95)) drop-shadow(0 0 1px rgba(0,0,0,0.8))' }}
+      className="hover:scale-125 transition-transform"
       title="Drag to reorder this section"
     >
       <GripVertical size={16} />
@@ -4427,8 +4427,8 @@ export default function PixelPalGenerator() {
       onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('application/x-ramp-index', String(index)); setRampDragging(index); }}
       onDragEnd={() => { setRampDragging(null); setRampDragOver(null); }}
       onClick={e => e.stopPropagation()}
-      style={{ cursor: 'grab' }}
-      className="opacity-40 hover:opacity-80 transition-opacity"
+      style={{ cursor: 'grab', color: '#fff', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.95)) drop-shadow(0 0 1px rgba(0,0,0,0.8))' }}
+      className="hover:scale-125 transition-transform"
       title="Drag to reorder this ramp"
     >
       <GripVertical size={16} />
@@ -5082,7 +5082,7 @@ export default function PixelPalGenerator() {
             const cardGlow = isLocked ? 'rgba(255, 220, 0, 0.5)' : baseGlow;
             return (
               <div key={i} {...makeRampDragHandlers(i)} className="mb-4 last:mb-0 relative rounded-lg p-4" style={{ border: `2px solid ${cardBorder}`, boxShadow: [`0 0 14px ${cardGlow}`, rampDropLine(i)].filter(Boolean).join(', ') }}>
-                <div className="absolute -top-2 left-2 z-10">{rampGrip(i)}</div>
+                <div className="absolute top-1/2 right-0 -translate-y-1/2 z-10">{rampGrip(i)}</div>
                 {/* Top-right action buttons: edit (toggles editor), shuffle
                     this ramp's jitter, lock (freezes this ramp against
                     global regenerate), restore hidden shades (only when
