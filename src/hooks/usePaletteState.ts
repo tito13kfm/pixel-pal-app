@@ -59,13 +59,6 @@ export function usePaletteState() {
   const [lightnessCurvePerRamp, setLightnessCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [satCurvePerRamp, setSatCurvePerRamp] = useState<Record<string, CurvePoints>>({});
   const [stylePresets, setStylePresets] = useState(DEFAULT_STYLE_PRESETS);
-  // engineVersion: which slot-allocation engine generates this palette's ramps
-  // (1 = legacy, 2 = even re-centered distribution, #35). Defaults to 2 so new
-  // sessions get the improved engine; load() sets it to 1 for absent/legacy
-  // saves so old palettes render byte-identical. Part of palette identity →
-  // persisted and snapshotted. No in-place upgrade UI yet; changes only at
-  // session init, new-palette reset (→2), and load (→ saved value, absent→1).
-  const [engineVersion, setEngineVersion] = useState(2);
 
   // ----- editor / compare cluster (6) -----
   // Base color editor: at most one ramp's editor open at a time. editorHsv holds
@@ -83,7 +76,7 @@ export function usePaletteState() {
 
   // ----- snapshot helpers (consumed by useHistory) -----
 
-  // Read the 20 snapshot fields into a JSON-serializable object. Sets are
+  // Read the 19 snapshot fields into a JSON-serializable object. Sets are
   // serialized as sorted arrays so JSON.stringify equality is deterministic.
   const buildSnapshot = () => ({
     baseColors,
@@ -105,10 +98,9 @@ export function usePaletteState() {
     lightnessCurvePerRamp,
     satCurvePerRamp,
     stylePresets,
-    engineVersion,
   });
 
-  // Write the 20 snapshot fields from a snapshot. Does NOT set the
+  // Write the 19 snapshot fields from a snapshot. Does NOT set the
   // isReplayingHistory flag (that's useHistory's job) and does NOT reset the
   // transient editors (see resetTransientEditors) — both are layered by
   // useHistory's applyUndoSnapshot wrapper.
@@ -132,7 +124,6 @@ export function usePaletteState() {
     setLightnessCurvePerRamp(snap.lightnessCurvePerRamp ?? {});
     setSatCurvePerRamp(snap.satCurvePerRamp ?? {});
     setStylePresets(snap.stylePresets ?? DEFAULT_STYLE_PRESETS);
-    setEngineVersion(snap.engineVersion ?? 1);
   };
 
   // Clear in-flight UI editor states that could reference stale indices after
@@ -198,7 +189,6 @@ export function usePaletteState() {
     lightnessCurvePerRamp, setLightnessCurvePerRamp,
     satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
-    engineVersion, setEngineVersion,
     // editor / compare cluster + setters
     editingIndex, setEditingIndex,
     editorHsv, setEditorHsv,
