@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CurvePoints } from '../lib/curve';
 import { DEFAULT_STYLE_PRESETS } from '../lib/style-presets';
+import { computePermutation, permuteRampState } from '../lib/permute-indexed-state';
 
 /**
  * usePaletteState — thin document state-bag (App.tsx Tier B, Wave 2).
@@ -143,6 +144,39 @@ export function usePaletteState() {
     setCompareResult(null);
   };
 
+  // Move the ramp at `from` to the drop target (target, pos), permuting every
+  // index-keyed structure atomically. Clears transient editors (a reorder is a
+  // deliberate structural action). Returns the inverse permutation `next` so the
+  // caller can apply the SAME remap to state it owns (App.tsx's gamutPerRamp).
+  const reorderRamps = (from: number, target: number, pos: 'before' | 'after'): number[] => {
+    const n = baseColors.length;
+    const perm = computePermutation(n, from, target, pos);
+    const np = permuteRampState({
+      baseColors, aiColorNames,
+      overrides, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
+      hiddenShades, rampShuffleOffsets, lightnessCurvePerRamp, satCurvePerRamp,
+      lockedRamps: [...lockedRamps], collapsedRamps: [...collapsedRamps],
+      harmonyAnchor,
+    }, perm);
+    setBaseColors(np.baseColors);
+    setAiColorNames(np.aiColorNames);
+    setOverrides(np.overrides);
+    setRampSizeOverrides(np.rampSizeOverrides);
+    setRampSatOverrides(np.rampSatOverrides);
+    setHueShiftStrengthPerRamp(np.hueShiftStrengthPerRamp);
+    setHiddenShades(np.hiddenShades);
+    setRampShuffleOffsets(np.rampShuffleOffsets);
+    setLightnessCurvePerRamp(np.lightnessCurvePerRamp);
+    setSatCurvePerRamp(np.satCurvePerRamp);
+    setLockedRamps(new Set(np.lockedRamps));
+    setCollapsedRamps(new Set(np.collapsedRamps));
+    setHarmonyAnchor(np.harmonyAnchor);
+    setEditingIndex(null);
+    setPinEditor(null);
+    setCompareAnchor(null);
+    return perm.next;
+  };
+
   return {
     // 20 snapshot fields + setters
     baseColors, setBaseColors,
@@ -176,5 +210,6 @@ export function usePaletteState() {
     buildSnapshot,
     applySnapshotFields,
     resetTransientEditors,
+    reorderRamps,
   };
 }

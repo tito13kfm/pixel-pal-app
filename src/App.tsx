@@ -40,6 +40,7 @@ import { extractDominantColors } from './lib/image-extract';
 import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
+import { permuteStringKeyMap } from './lib/permute-indexed-state';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
@@ -165,6 +166,7 @@ export default function PixelPalGenerator() {
     pinEditor, setPinEditor, compareMode, setCompareMode,
     compareAnchor, setCompareAnchor, compareResult, setCompareResult,
     buildSnapshot, applySnapshotFields, resetTransientEditors,
+    reorderRamps,
   } = palette;
   const [mode, setMode] = useState('color');
   const [colorInput, setColorInput] = useState('#ff00ff');
@@ -234,6 +236,10 @@ export default function PixelPalGenerator() {
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,
   } = usePanelLayout();
+  // Ramp reorder drag state — deliberately SEPARATE from the section-level
+  // dragOver/draggingKey so card-drag (#44) and ramp-drag never collide.
+  const [rampDragOver, setRampDragOver] = useState<{ index: number; pos: 'before' | 'after' } | null>(null);
+  const [rampDragging, setRampDragging] = useState<number | null>(null);
   const { updateInfo, setUpdateInfo, updateReady, setUpdateReady, updateDownloading, setUpdateDownloading } = useUpdater();
   const tourSnapshot = useRef(null);
   // Brief inline feedback shown next to the "Add to Palette" button on the
@@ -4338,7 +4344,7 @@ export default function PixelPalGenerator() {
       const from = e.dataTransfer.getData('text/plain');
       const pos = dropPos(e);
       setDragOver(null);
-      if (!from || from === sectionKey) return;
+      if (!from || from === sectionKey || !DEFAULT_SECTION_ORDER.includes(from)) return;
       setSectionOrder(prev => {
         const next = prev.filter(k => k !== from);
         let idx = next.indexOf(sectionKey);
@@ -4372,9 +4378,58 @@ export default function PixelPalGenerator() {
       onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', sectionKey); setDraggingKey(sectionKey); }}
       onDragEnd={() => { setDraggingKey(null); setDragOver(null); }}
       onClick={e => e.stopPropagation()}
-      style={{ cursor: 'grab' }}
-      className="opacity-40 hover:opacity-80 transition-opacity"
+      style={{ cursor: 'grab', color: '#fff', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.95)) drop-shadow(0 0 1px rgba(0,0,0,0.8))' }}
+      className="hover:scale-125 transition-transform"
       title="Drag to reorder this section"
+    >
+      <GripVertical size={16} />
+    </span>
+  );
+
+  // Ramp-card reorder. Mirrors makeSectionDragHandlers but on numeric indices,
+  // and stops propagation so the enclosing ramps-section drag handlers never
+  // also fire (a ramp drop must not be read as a section reorder).
+  const makeRampDragHandlers = (index) => ({
+    onDragOver: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = dropPos(e);
+      setRampDragOver(prev => (prev && prev.index === index && prev.pos === pos) ? prev : { index, pos });
+    },
+    onDragLeave: (e) => {
+      e.stopPropagation();
+      if (!e.currentTarget.contains(e.relatedTarget)) setRampDragOver(prev => (prev && prev.index === index) ? null : prev);
+    },
+    onDrop: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const raw = e.dataTransfer.getData('application/x-ramp-index');
+      const pos = dropPos(e);
+      setRampDragOver(null);
+      if (raw === '') return;
+      const from = Number(raw);
+      if (Number.isNaN(from) || from === index) return;
+      const next = reorderRamps(from, index, pos);
+      setGamutPerRamp(prev => permuteStringKeyMap(prev, next));
+      tagNextLabel('Reorder ramps');
+    },
+  });
+  const rampDropLine = (index) => {
+    if (!rampDragOver || rampDragOver.index !== index || rampDragging === null) return null;
+    const c = '#00ffff';
+    return rampDragOver.pos === 'before'
+      ? `inset 0 6px 0 -2px ${c}, 0 0 14px ${c}`
+      : `inset 0 -6px 0 -2px ${c}, 0 0 14px ${c}`;
+  };
+  const rampGrip = (index) => (
+    <span
+      draggable
+      onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('application/x-ramp-index', String(index)); setRampDragging(index); }}
+      onDragEnd={() => { setRampDragging(null); setRampDragOver(null); }}
+      onClick={e => e.stopPropagation()}
+      style={{ cursor: 'grab', color: '#fff', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.95)) drop-shadow(0 0 1px rgba(0,0,0,0.8))' }}
+      className="hover:scale-125 transition-transform"
+      title="Drag to reorder this ramp"
     >
       <GripVertical size={16} />
     </span>
@@ -5026,7 +5081,8 @@ export default function PixelPalGenerator() {
             const cardBorder = isLocked ? 'rgba(255, 220, 0, 0.85)' : baseBorder;
             const cardGlow = isLocked ? 'rgba(255, 220, 0, 0.5)' : baseGlow;
             return (
-              <div key={i} className="mb-4 last:mb-0 relative rounded-lg p-4" style={{ border: `2px solid ${cardBorder}`, boxShadow: `0 0 14px ${cardGlow}` }}>
+              <div key={i} {...makeRampDragHandlers(i)} className="mb-4 last:mb-0 relative rounded-lg p-4" style={{ border: `2px solid ${cardBorder}`, boxShadow: [`0 0 14px ${cardGlow}`, rampDropLine(i)].filter(Boolean).join(', ') }}>
+                <div className="absolute top-1/2 right-0 -translate-y-1/2 z-10">{rampGrip(i)}</div>
                 {/* Top-right action buttons: edit (toggles editor), shuffle
                     this ramp's jitter, lock (freezes this ramp against
                     global regenerate), restore hidden shades (only when
