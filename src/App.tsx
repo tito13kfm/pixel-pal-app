@@ -30,6 +30,7 @@ import { CrossRampDither } from './components/CrossRampDither';
 import { DITHER_PATTERNS } from './lib/viz-interaction';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
+import { V2EngineNotice, isPreV2Palette } from './components/V2EngineNotice';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
@@ -161,7 +162,6 @@ export default function PixelPalGenerator() {
     lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
     lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
-    engineVersion, setEngineVersion,
     editingIndex, setEditingIndex, editorHsv, setEditorHsv,
     pinEditor, setPinEditor, compareMode, setCompareMode,
     compareAnchor, setCompareAnchor, compareResult, setCompareResult,
@@ -169,6 +169,10 @@ export default function PixelPalGenerator() {
     reorderRamps,
   } = palette;
   const [mode, setMode] = useState('color');
+  // v2NoticePending: set true when a pre-v2 saved palette is loaded this session,
+  // so the one-time V2EngineNotice banner can surface (it self-suppresses once the
+  // user dismisses it — localStorage). See src/components/V2EngineNotice.tsx (#70).
+  const [v2NoticePending, setV2NoticePending] = useState(false);
   const [colorInput, setColorInput] = useState('#ff00ff');
   const imageRef = useRef(null);
   // Display settings (theme, cvdMode, crtEnabled) + their load/persist effects
@@ -558,8 +562,7 @@ export default function PixelPalGenerator() {
     shuffleSeed,
     rampShuffleOffsets,
     stylePresets,
-    engineVersion, // selects v1/v2 slot allocation in buildRamp → generateRamp (#35)
-  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets, engineVersion]);
+  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
 
   const rampsPunchy = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'punchy', i)), [liveRampSnapshot]);
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
@@ -1781,13 +1784,6 @@ export default function PixelPalGenerator() {
     setSbsLeftError(''); setSbsRightError('');
     setSbsLeftLoading(false); setSbsRightLoading(false);
     setHueShiftStrength(1.0);
-    // Brand-new palette content (new color / AI / image / GPL / classic — all 8
-    // call sites discard baseColors wholesale) uses the v2 engine, even when the
-    // prior doc was a loaded v1 palette. This is NOT an in-place upgrade of a
-    // loaded palette (none of these reset paths fire during editing); it's the
-    // "new palettes default to v2" guarantee holding after a v1 load. (#35,
-    // user-approved.)
-    setEngineVersion(2);
     // Image remap: clear the cached output and error. The uploaded image
     // itself stays (the user uploaded it intentionally and likely wants to
     // remap against the new palette). See IMAGE_REMAP_PLAN.md reset paths.
@@ -2321,8 +2317,6 @@ export default function PixelPalGenerator() {
       satCurvePerRamp,
       gamutPerRamp,
       stylePresets,
-      engineVersion, // mirror the main-grid liveRampSnapshot so viz/export/compare
-                     // of the working palette use the same v1/v2 engine (#35)
     };
   };
   // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
@@ -2343,8 +2337,6 @@ export default function PixelPalGenerator() {
       hiddenShades: {},
       hardwareLock: null,
       hueShiftStrength,
-      engineVersion: 2, // classics preview/compare with the current engine, matching
-                        // what loadClassicPalette produces (resetPaletteState → v2)
     };
   };
   const getSnapshotForSlot = (slot, cachedPayload) => {
@@ -2587,7 +2579,7 @@ export default function PixelPalGenerator() {
       gamutPerRamp,
       advancedOpen,
       stylePresets,
-      engineVersion, // 1 | 2 ramp engine (#35); absent in pre-v2 saves → restores as 1
+      engineVersion: 2, // frozen constant: marks this as a v2 save so load() won't fire the migration notice (#70)
     };
     setSavedBusy(true);
     try {
@@ -2650,10 +2642,11 @@ export default function PixelPalGenerator() {
       } else {
         setHueShiftStrength(1.0);
       }
-      // engineVersion: only the explicit value 2 selects the v2 engine; absent
-      // (pre-v2 saves) or anything else restores v1 so old palettes keep their
-      // exact look until an explicit upgrade (upgrade UI deferred, #35).
-      setEngineVersion(parsed.engineVersion === 2 ? 2 : 1);
+      // engineVersion: v1 is gone — every palette renders on v2. A pre-v2 save
+      // (engineVersion absent or !== 2) is auto-migrated on render; flag the
+      // one-time notice. Migration persists lazily on the user's next save
+      // (the save payload always writes engineVersion: 2). (#70)
+      if (isPreV2Palette(parsed)) setV2NoticePending(true);
       if (['punchy', 'balanced', 'muted'].includes(parsed.gplStyle)) setGplStyle(parsed.gplStyle);
       if (['punchy', 'balanced', 'muted'].includes(parsed.vizStyle)) setVizStyle(parsed.vizStyle);
       // Only restore the sprite key if it exists in the library after the merge above.
@@ -4518,6 +4511,7 @@ export default function PixelPalGenerator() {
       )}
 
       <div className="max-w-5xl mx-auto relative z-10">
+        <V2EngineNotice show={v2NoticePending} />
         <div className="text-center mb-6 relative">
           <div className="absolute top-0 left-0 z-20">
             <button
