@@ -18,6 +18,18 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Changed
+- Saved palettes now always render with the v2 perceptual shading engine. A
+  palette saved under the original (v1) engine is auto-migrated on load — it may
+  look slightly different — and a one-time, dismissible notice explains the
+  change. **Breaking:** pre-v2 saves no longer render byte-identically (#70).
+
+### Removed
+- The legacy v1 ramp engine and all v1/v2 `engineVersion` branching across the
+  engine, pipeline, render snapshots, palette state, and undo/redo history. New
+  saves still record `engineVersion: 2` at the persistence boundary so the
+  migration notice fires only for genuinely pre-v2 palettes (#70).
+
 ## [0.19.0] - 2026-06-05
 
 ### Added

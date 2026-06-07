@@ -16,7 +16,6 @@ export interface GenerateRampOpts {
   pins?: Record<number, string>;
   hidden?: number[];
   hardwareLock?: string | null;
-  engineVersion?: number; // 1 = legacy (default), 2 = re-centered allocation (Task 4)
 }
 
 export interface Shade {
@@ -58,19 +57,12 @@ const V2_BIAS_C = 1.5;     // centering strength numerator
 const V2_BIAS_MAX = 0.6;   // max centering weight at tiny N
 const V2_MIN_SIDE = 2;     // preferred guaranteed shades per side when N allows
 
-// Where the base color sits in the N-slot ramp. v1 places it by absolute
-// perceptual lightness (lopsided for light/dark bases — issue #35); v2 biases
-// the split toward center (fading with N) with a guaranteed short side.
 function computeBaseIndex(
-  baseL: number, darkBottom: number, lightTop: number, N: number, engineVersion: number,
+  baseL: number, darkBottom: number, lightTop: number, N: number,
 ): number {
   if (N <= 1) return 0;
   const span = lightTop - darkBottom;
   const proportionalDark = span > 1e-6 ? (baseL - darkBottom) / span : 0.5;
-  if (engineVersion < 2) {
-    // v1 — byte-identical to the original inline block.
-    return clamp(Math.round(proportionalDark * (N - 1)), 1, N - 2);
-  }
   // v2 — bias toward center, fading with N; guarantee a usable short side.
   const w = clamp(V2_BIAS_C / (N - 1), 0, V2_BIAS_MAX);
   const biasedDark = lerp(proportionalDark, 0.5, w);
@@ -100,7 +92,7 @@ export function generateRamp(baseHex: string, opts: GenerateRampOpts): Shade[] {
   const darkBottom = clamp(Math.min(darkCap,  base.L - STEP_DELTA), L_FLOOR, base.L);
   const lightTop   = clamp(Math.max(lightCap, base.L + STEP_DELTA), base.L, L_CEIL);
 
-  const baseIndex = computeBaseIndex(base.L, darkBottom, lightTop, N, opts.engineVersion ?? 1);
+  const baseIndex = computeBaseIndex(base.L, darkBottom, lightTop, N);
 
   const maxArm = Math.max(baseIndex, N - 1 - baseIndex) || 1;
   const shades: Shade[] = [];

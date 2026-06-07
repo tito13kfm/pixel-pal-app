@@ -4,12 +4,6 @@ export const SNAPSHOT_FIELDS = [
   'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
   'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
   'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',
-  // engineVersion participates in undo/redo so a load→edit→undo round-trip
-  // preserves the palette's engine. It changes only alongside a wholesale
-  // baseColors replace (load, or resetPaletteState on new-palette actions,
-  // which carry their own tagNextLabel) — never in isolation — so inferLabel
-  // needs no dedicated case for it.
-  'engineVersion',
 ] as const;
 
 // Verbatim from App.tsx inferLabel — do not "improve". Characterized by spec.
