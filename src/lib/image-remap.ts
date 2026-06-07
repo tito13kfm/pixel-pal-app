@@ -6,7 +6,7 @@ export interface RemapImage {
   data: Uint8ClampedArray;
 }
 export interface RemapOptions {
-  dither?: 'none' | 'floyd-steinberg';
+  dither?: 'none' | 'floyd-steinberg' | 'atkinson' | 'stucki';
 }
 
 // ---------- Image remap preview ----------
@@ -19,7 +19,7 @@ export interface RemapOptions {
 // inputs directly. The function does not call any DOM API.
 //
 // Options:
-//   dither       'none' (default) | 'floyd-steinberg'
+//   dither       'none' (default) | 'floyd-steinberg' | 'atkinson' | 'stucki'
 //   maxDimension positive int (default 512). If the source is larger than
 //                this on either axis, the caller is expected to downsample
 //                first (via a canvas with imageSmoothingEnabled=false); this
@@ -97,9 +97,22 @@ export const remapImageToPalette = (
     return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
   };
 
-  if (dither === 'floyd-steinberg') {
-    // Per-channel accumulated error. Float32 to avoid integer overflow at
-    // strong gradients. Stride 3 (RGB only; alpha is not diffused).
+  if (dither !== 'none') {
+    // Error-diffusion dithering. Per-channel accumulated error; Float32 to
+    // avoid integer overflow at strong gradients. Stride 3 (RGB only; alpha is
+    // not diffused). The kernel — list of [dx, dy, pre-divided weight] — selects
+    // the algorithm. Atkinson intentionally diffuses only 6/8 of the error
+    // (weights sum to 0.75), which keeps flat regions cleaner.
+    const DIFFUSION_KERNELS: Record<string, [number, number, number][]> = {
+      'floyd-steinberg': [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]],
+      atkinson: [[1, 0, 1 / 8], [2, 0, 1 / 8], [-1, 1, 1 / 8], [0, 1, 1 / 8], [1, 1, 1 / 8], [0, 2, 1 / 8]],
+      stucki: [
+        [1, 0, 8 / 42], [2, 0, 4 / 42],
+        [-2, 1, 2 / 42], [-1, 1, 4 / 42], [0, 1, 8 / 42], [1, 1, 4 / 42], [2, 1, 2 / 42],
+        [-2, 2, 1 / 42], [-1, 2, 2 / 42], [0, 2, 4 / 42], [1, 2, 2 / 42], [2, 2, 1 / 42],
+      ],
+    };
+    const kernel = DIFFUSION_KERNELS[dither] || DIFFUSION_KERNELS['floyd-steinberg'];
     const err = new Float32Array(w * h * 3);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -145,10 +158,7 @@ export const remapImageToPalette = (
           err[nei + 1] += qg * weight;
           err[nei + 2] += qb * weight;
         };
-        diffuse(x + 1, y,     7 / 16);
-        diffuse(x - 1, y + 1, 3 / 16);
-        diffuse(x,     y + 1, 5 / 16);
-        diffuse(x + 1, y + 1, 1 / 16);
+        for (const [dx, dy, weight] of kernel) diffuse(x + dx, y + dy, weight);
       }
     }
     return { width: w, height: h, data: out };
@@ -248,7 +258,9 @@ export const estimateRemapCost = (
 ): number => {
   const pixels = Math.max(0, w * h);
   if (paletteSize <= 0) return 0;
-  if (dither === 'floyd-steinberg') {
+  if (dither !== 'none') {
+    // All error-diffusion kernels (FS / Atkinson / Stucki) are O(pixels x palette)
+    // and cannot use the dedup cache — same cost class.
     return pixels * paletteSize;
   }
   // no-dither
