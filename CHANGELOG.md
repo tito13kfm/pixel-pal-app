@@ -18,6 +18,12 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-06-07
+
+### Added
+- Atkinson and Stucki error-diffusion dither kernels for image remapping, joining
+  the existing Floyd–Steinberg option (#48).
+
 ### Changed
 - Saved palettes now always render with the v2 perceptual shading engine. A
   palette saved under the original (v1) engine is auto-migrated on load — it may
@@ -29,6 +35,10 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   engine, pipeline, render snapshots, palette state, and undo/redo history. New
   saves still record `engineVersion: 2` at the persistence boundary so the
   migration notice fires only for genuinely pre-v2 palettes (#70).
+
+### Fixed
+- The "Add base" confirmation feedback no longer shifts the button row when it
+  appears (#68).
 
 ## [0.19.0] - 2026-06-05
 
@@ -452,7 +462,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.16.0...v0.17.0

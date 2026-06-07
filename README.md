@@ -59,7 +59,7 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - Hardware Lock: snap all shades to the nearest legal color (perceptual ΔE_OK distance) for NES, Game Boy DMG, CGA 16, EGA 64, or C64
 
 **Image tools**
-- Remap any uploaded image to your active palette, with optional Floyd-Steinberg dithering
+- Remap any uploaded image to your active palette, with optional error-diffusion dithering (Floyd–Steinberg, Atkinson, or Stucki)
 - Side-by-side view of original vs. palette-remapped image; the preview scales with the selected export scale so you can judge the remapped pixels before downloading
 - Export the remapped image at multiple scale options
 
