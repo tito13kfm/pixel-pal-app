@@ -24,11 +24,14 @@ release
 *.sln
 *.sw?
 
-# Claude Code — machine-local settings and the skills junction. Never commit:
+# Claude Code — ignore machine-local settings and the skills junction by default.
 # settings.local.json is per-machine; skills/ is a junction to the private
 # claude-config repo (committing it would embed another repo's files).
 # (CLAUDE.md itself is intentionally tracked and public — it carries no secrets.)
-.claude/
+# Exception: settings.json is tracked so shared hooks (e.g. Serena enforcement)
+# sync across machines/clones. Nothing in it is secret.
+.claude/*
+!.claude/settings.json
 
 # Tests, docs, scripts — not needed to build
 tests/*
