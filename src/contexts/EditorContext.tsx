@@ -6,7 +6,9 @@ import { createContext, useContext, type ReactNode } from 'react';
 export interface EditorValue {
   editingIndex: number | null;
   editorHsv: { h: number; s: number; v: number } | null;
-  pinEditor: boolean;
+  // Which shade's HSV editor is open: { baseIndex, shadeIndex, style } | null
+  // (matches usePaletteState's pinEditor; not a boolean flag).
+  pinEditor: { baseIndex: number; shadeIndex: number; style: string } | null;
 }
 
 const EditorContext = createContext<EditorValue | null>(null);

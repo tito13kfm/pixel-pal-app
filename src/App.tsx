@@ -42,6 +42,7 @@ import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
 import { permuteStringKeyMap } from './lib/permute-indexed-state';
+import { ThemeProvider, LayoutProvider, PaletteProvider, EditorProvider } from './contexts';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
@@ -4428,7 +4429,22 @@ export default function PixelPalGenerator() {
     </span>
   );
 
+  const themeValue = useMemo(() => ({
+    t, themedAccent, themedAccentBorder, accentGlow, accentTextGlow, sectionHeadColor,
+  }), [t]);
+  const layoutValue = useMemo(() => ({
+    sectionOrder, makeSectionDragHandlers, dropLine, sectionGrip, historyOpen, setHistoryOpen,
+  }), [sectionOrder, dragOver, draggingKey, historyOpen]);
+  const paletteValue = useMemo(() => ({
+    historyEntries, historyIndex, jumpToHistoryIndex, canUndo, canRedo, formatHistoryAge,
+  }), [historyEntries, historyIndex, canUndo, canRedo]);
+  const editorValue = useMemo(() => ({ editingIndex, editorHsv, pinEditor }), [editingIndex, editorHsv, pinEditor]);
+
   return (
+    <ThemeProvider value={themeValue}>
+    <LayoutProvider value={layoutValue}>
+    <PaletteProvider value={paletteValue}>
+    <EditorProvider value={editorValue}>
     <div className="min-h-screen p-6 relative overflow-hidden" style={{
       background: t.pageBg,
       boxShadow: t.vignette,
@@ -6683,5 +6699,9 @@ export default function PixelPalGenerator() {
         onExit={exitTour}
       />
     </div>
+    </EditorProvider>
+    </PaletteProvider>
+    </LayoutProvider>
+    </ThemeProvider>
   );
 }
