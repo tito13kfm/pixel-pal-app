@@ -6129,15 +6129,14 @@ export default function PixelPalGenerator() {
         })()}
 
         {/* ---------- Saved Palettes (collapsible) ---------- */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('saved')} style={{ order: sectionOrder.indexOf('saved'), background: t.cardBgYellow, borderColor: themedAccentBorder('#ffff00'), boxShadow: [accentGlow('#ffff00', 0.25), dropLine('saved')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setSavedOpen(o => !o)} title={savedOpen ? "Collapse the Saved Palettes section" : "Expand the Saved Palettes section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ffff00'), textShadow: accentTextGlow('#ffff00') }}><FolderOpen size={22} />Saved Palettes <span className="text-xs normal-case tracking-normal" style={{ color: theme === 'dark' ? 'rgba(254, 240, 138, 0.7)' : theme === 'neutral' ? '#2a1a00' : '#713f12' }}>({savedPalettes.length})</span></h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('saved')}
-              <span className="text-cyan-200">{savedOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {savedOpen && (
+        <SectionCard
+          sectionKey="saved" accent="#ffff00" bg={t.cardBgYellow} glow={0.25}
+          open={savedOpen} onToggle={() => setSavedOpen(o => !o)}
+          headerTitle={savedOpen ? "Collapse the Saved Palettes section" : "Expand the Saved Palettes section"}
+          chevronColor="#a5f3fc"
+          icon={<FolderOpen size={22} />} title="Saved Palettes "
+          headerAside={<span className="text-xs normal-case tracking-normal" style={{ color: theme === 'dark' ? 'rgba(254, 240, 138, 0.7)' : theme === 'neutral' ? '#2a1a00' : '#713f12' }}>({savedPalettes.length})</span>}
+        >
             <div className="p-6 pt-2 flex flex-col gap-4">
               <p className="text-[11px] text-yellow-100/70 italic">▸ Palettes save locally to your browser. They persist across sessions but stay on this device.</p>
 
@@ -6306,8 +6305,7 @@ export default function PixelPalGenerator() {
                 );
               })()}
             </div>
-          )}
-        </div>
+        </SectionCard>
 
         {/* History panel. Lists every undoable action, newest first, with
             the current state highlighted. Click any entry to jump back
