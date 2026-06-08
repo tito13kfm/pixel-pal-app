@@ -4948,16 +4948,13 @@ export default function PixelPalGenerator() {
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
 
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="ramp-area" {...makeSectionDragHandlers('ramps')} style={{ order: sectionOrder.indexOf('ramps'), background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.4), dropLine('ramps')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setRampsOpen(o => !o)} title={rampsOpen ? 'Collapse Color Ramps' : 'Expand Color Ramps'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Sun size={22} />Color Ramps</h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('ramps')}
-              <span style={{ color: sectionHeadColor('#00ffff') }}>{rampsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {rampsOpen && (
+        <SectionCard
+          sectionKey="ramps" accent="#00ffff" bg={t.cardBgCyan} glow={0.4}
+          dataTourId="ramp-area"
+          open={rampsOpen} onToggle={() => setRampsOpen(o => !o)}
+          headerTitle={rampsOpen ? 'Collapse Color Ramps' : 'Expand Color Ramps'}
+          icon={<Sun size={22} />} title="Color Ramps"
+        >
           <div className="px-6 pb-6">
           <div className="flex items-center gap-2 flex-wrap justify-end mb-4">
               {/* Per-ramp export style toggle. Governs the per-ramp Copy
@@ -5406,8 +5403,7 @@ export default function PixelPalGenerator() {
             );
           })}
           </div>
-          )}
-        </div>
+        </SectionCard>
 
         <SectionCard
           sectionKey="harmony" accent="#ff00ff" bg={t.cardBgPink} glow={0.4}
