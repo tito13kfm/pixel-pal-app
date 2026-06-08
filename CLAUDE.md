@@ -37,6 +37,26 @@ glob matches nothing that's expected, not an error:
 
 ---
 
+## Code Exploration
+
+This repo is indexed by **Serena** (LSP semantic tools, TypeScript). Prefer Serena over
+reading whole files — `App.tsx` is ~6,700 lines and string-match edits there are fragile:
+- `get_symbols_overview` / `find_symbol` — locate a component/function by name or path.
+- `find_referencing_symbols` — exact "who uses this" before a change.
+- `replace_symbol_body` / `insert_after_symbol` — surgical edits addressed by symbol, not
+  by quoting a unique string out of a huge file.
+
+Fall back to `Read` with `offset`+`limit` for non-symbol context, Grep for literal matches.
+Note: `App.tsx` + `color.ts` carry `// @ts-nocheck`, so Serena's symbol nav still works but
+the LSP won't surface type errors there — grep remains the real gate for dangling refs.
+
+**Serena setup** (per machine): `uv tool install -p 3.13 serena-agent` → `serena init` →
+`claude mcp add --scope user serena -- serena start-mcp-server --context claude-code --project-from-cwd`.
+Index once after clone: `serena project create . --language typescript --index`. `.serena/` is
+gitignored (memories kept local-only).
+
+---
+
 ## Versioning & Releases
 
 **SemVer, enforced from 0.13.0 on.** Pre-1.0 (standard): features → MINOR;
