@@ -24,17 +24,24 @@ release
 *.sln
 *.sw?
 
-# Claude Code — machine-local settings and the skills junction. Never commit:
+# Claude Code — ignore machine-local settings and the skills junction by default.
 # settings.local.json is per-machine; skills/ is a junction to the private
 # claude-config repo (committing it would embed another repo's files).
 # (CLAUDE.md itself is intentionally tracked and public — it carries no secrets.)
-.claude/
+# Exception: settings.json is tracked so shared hooks (e.g. Serena enforcement)
+# sync across machines/clones. Nothing in it is secret.
+.claude/*
+!.claude/settings.json
 
 # Tests, docs, scripts — not needed to build
 tests/*
 # Exceptions: tracked tests
 !tests/unit/
 !tests/unit/**/*.spec.ts
+!tests/unit/**/*.spec.tsx
+# Exception: vitest setup files (registered via setupFiles in vitest.config.ts)
+!tests/setup/
+!tests/setup/**/*.ts
 # Exception: the WCAG contrast lint is tracked so CI can run it
 # (the existing `tests/test_*.js` runner picks it up automatically).
 !tests/test_contrast.js

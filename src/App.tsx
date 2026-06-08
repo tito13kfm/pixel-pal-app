@@ -31,6 +31,8 @@ import { DITHER_PATTERNS } from './lib/viz-interaction';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
 import { V2EngineNotice, isPreV2Palette } from './components/V2EngineNotice';
+import { SectionCard } from './components/SectionCard';
+import { HistoryPanel } from './components/panels/HistoryPanel';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
@@ -42,6 +44,7 @@ import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from
 import { buildRampsForSnapshot, seededHueDelta } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
 import { permuteStringKeyMap } from './lib/permute-indexed-state';
+import { ThemeProvider, LayoutProvider, PaletteProvider, EditorProvider } from './contexts';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
@@ -4428,7 +4431,22 @@ export default function PixelPalGenerator() {
     </span>
   );
 
+  const themeValue = useMemo(() => ({
+    t, themedAccent, themedAccentBorder, accentGlow, accentTextGlow, sectionHeadColor,
+  }), [t]);
+  const layoutValue = useMemo(() => ({
+    sectionOrder, makeSectionDragHandlers, dropLine, sectionGrip, historyOpen, setHistoryOpen,
+  }), [sectionOrder, dragOver, draggingKey, historyOpen]);
+  const paletteValue = useMemo(() => ({
+    historyEntries, historyIndex, jumpToHistoryIndex, canUndo, canRedo, formatHistoryAge,
+  }), [historyEntries, historyIndex, canUndo, canRedo]);
+  const editorValue = useMemo(() => ({ editingIndex, editorHsv, pinEditor }), [editingIndex, editorHsv, pinEditor]);
+
   return (
+    <ThemeProvider value={themeValue}>
+    <LayoutProvider value={layoutValue}>
+    <PaletteProvider value={paletteValue}>
+    <EditorProvider value={editorValue}>
     <div className="min-h-screen p-6 relative overflow-hidden" style={{
       background: t.pageBg,
       boxShadow: t.vignette,
@@ -4931,16 +4949,13 @@ export default function PixelPalGenerator() {
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
 
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="ramp-area" {...makeSectionDragHandlers('ramps')} style={{ order: sectionOrder.indexOf('ramps'), background: t.cardBgCyan, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.4), dropLine('ramps')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setRampsOpen(o => !o)} title={rampsOpen ? 'Collapse Color Ramps' : 'Expand Color Ramps'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Sun size={22} />Color Ramps</h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('ramps')}
-              <span style={{ color: sectionHeadColor('#00ffff') }}>{rampsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {rampsOpen && (
+        <SectionCard
+          sectionKey="ramps" accent="#00ffff" bg={t.cardBgCyan} glow={0.4}
+          dataTourId="ramp-area"
+          open={rampsOpen} onToggle={() => setRampsOpen(o => !o)}
+          headerTitle={rampsOpen ? 'Collapse Color Ramps' : 'Expand Color Ramps'}
+          icon={<Sun size={22} />} title="Color Ramps"
+        >
           <div className="px-6 pb-6">
           <div className="flex items-center gap-2 flex-wrap justify-end mb-4">
               {/* Per-ramp export style toggle. Governs the per-ramp Copy
@@ -5389,18 +5404,16 @@ export default function PixelPalGenerator() {
             );
           })}
           </div>
-          )}
-        </div>
+        </SectionCard>
 
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('harmony')} style={{ order: sectionOrder.indexOf('harmony'), background: t.cardBgPink, borderColor: themedAccentBorder('#ff00ff'), boxShadow: [accentGlow('#ff00ff', 0.4), dropLine('harmony')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setHarmonyOpen(o => !o)} data-tour-id="harmony-header" title={harmonyOpen ? 'Collapse Harmony Colors' : 'Expand Harmony Colors'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ff00ff'), textShadow: accentTextGlow('#ff00ff') }}><Sparkles size={22} />Harmony Colors</h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('harmony')}
-              <span style={{ color: sectionHeadColor('#ff00ff') }}>{harmonyOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {harmonyOpen && <div className="px-6 pb-6">
+        <SectionCard
+          sectionKey="harmony" accent="#ff00ff" bg={t.cardBgPink} glow={0.4}
+          open={harmonyOpen} onToggle={() => setHarmonyOpen(o => !o)}
+          headerTitle={harmonyOpen ? 'Collapse Harmony Colors' : 'Expand Harmony Colors'}
+          headerTourId="harmony-header"
+          icon={<Sparkles size={22} />} title="Harmony Colors"
+        >
+          <div className="px-6 pb-6">
           <p className="text-xs text-pink-100/80 mb-4 italic">▸ Click any swatch to add a ramp, or "Add All" / "Add Both" for sets ◂ Hover a category name for tips ◂</p>
           {/* Anchor selector: pick which ramp the harmony palette is derived
               from. Only shown when there's more than one ramp; with a single
@@ -5587,22 +5600,17 @@ export default function PixelPalGenerator() {
               </div>
             );
           })()}
-          </div>}
-        </div>
+          </div>
+        </SectionCard>
 
         {/* ---------- Pixel Playground (collapsible) ---------- */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('playground')} style={{ order: sectionOrder.indexOf('playground'), background: t.cardBgGreen, borderColor: themedAccentBorder('#00ff88'), boxShadow: [accentGlow('#00ff88', 0.3), dropLine('playground')].filter(Boolean).join(', ') }}>
-          <button
-            onClick={() => setPgOpen(o => !o)}
-            title={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
-            className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
-          >
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ff88'), textShadow: accentTextGlow('#00ff88') }}><Gamepad2 size={22} />Pixel Playground</h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('playground')}
-              <span className="text-cyan-200">{pgOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
+        <SectionCard
+          sectionKey="playground" accent="#00ff88" bg={t.cardBgGreen} glow={0.3}
+          open={pgOpen} onToggle={() => setPgOpen(o => !o)}
+          headerTitle={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
+          chevronColor="#a5f3fc" keepMounted
+          icon={<Gamepad2 size={22} />} title="Pixel Playground"
+        >
           <div className="p-6 pt-2" style={{ display: pgOpen ? '' : 'none' }}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sectionHeadColor('#00ff88') }}>Palette style</span>
@@ -5623,7 +5631,7 @@ export default function PixelPalGenerator() {
                 theme={{ dark: theme !== 'light', text: t.text }}
               />
             </div>
-        </div>
+        </SectionCard>
 
         {/* ---------- Visualize & Compare (collapsible) ---------- */}
         {(() => {
@@ -5899,15 +5907,13 @@ export default function PixelPalGenerator() {
             </>
           );
           return (
-            <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('viz')} style={{ order: sectionOrder.indexOf('viz'), background: t.cardBgViz, borderColor: themedAccentBorder(styleAccent), boxShadow: [accentGlow(styleAccent, 0.4), dropLine('viz')].filter(Boolean).join(', ') }}>
-              <button onClick={() => setSbsOpen(o => !o)} title={sbsOpen ? "Collapse the Visualize & Compare section" : "Expand the Visualize & Compare section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-                <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor(styleAccent), textShadow: accentTextGlow(styleAccent) }}><BarChart3 size={22} />Visualize & Compare</h2>
-                <div className="flex items-center gap-2">
-                  {sectionGrip('viz')}
-                  <span className="text-cyan-200">{sbsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-                </div>
-              </button>
-              {sbsOpen && (
+            <SectionCard
+              sectionKey="viz" accent={styleAccent} bg={t.cardBgViz} glow={0.4}
+              open={sbsOpen} onToggle={() => setSbsOpen(o => !o)}
+              headerTitle={sbsOpen ? "Collapse the Visualize & Compare section" : "Expand the Visualize & Compare section"}
+              chevronColor="#a5f3fc"
+              icon={<BarChart3 size={22} />} title="Visualize & Compare"
+            >
                 <div className="p-6 pt-2 flex flex-col gap-6">
                   <div className="flex gap-2 items-center flex-wrap justify-center bg-black/30 rounded border-2 border-cyan-500/40 px-3 py-2">
                     <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style:</span>
@@ -6106,21 +6112,19 @@ export default function PixelPalGenerator() {
                   )}
                   <p className="text-[10px] text-cyan-100/40 italic text-center">Style applies to all views. Hidden shades are filtered out.</p>
                 </div>
-              )}
-            </div>
+            </SectionCard>
           );
         })()}
 
         {/* ---------- Saved Palettes (collapsible) ---------- */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('saved')} style={{ order: sectionOrder.indexOf('saved'), background: t.cardBgYellow, borderColor: themedAccentBorder('#ffff00'), boxShadow: [accentGlow('#ffff00', 0.25), dropLine('saved')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setSavedOpen(o => !o)} title={savedOpen ? "Collapse the Saved Palettes section" : "Expand the Saved Palettes section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ffff00'), textShadow: accentTextGlow('#ffff00') }}><FolderOpen size={22} />Saved Palettes <span className="text-xs normal-case tracking-normal" style={{ color: theme === 'dark' ? 'rgba(254, 240, 138, 0.7)' : theme === 'neutral' ? '#2a1a00' : '#713f12' }}>({savedPalettes.length})</span></h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('saved')}
-              <span className="text-cyan-200">{savedOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {savedOpen && (
+        <SectionCard
+          sectionKey="saved" accent="#ffff00" bg={t.cardBgYellow} glow={0.25}
+          open={savedOpen} onToggle={() => setSavedOpen(o => !o)}
+          headerTitle={savedOpen ? "Collapse the Saved Palettes section" : "Expand the Saved Palettes section"}
+          chevronColor="#a5f3fc"
+          icon={<FolderOpen size={22} />} title="Saved Palettes "
+          headerAside={<span className="text-xs normal-case tracking-normal" style={{ color: theme === 'dark' ? 'rgba(254, 240, 138, 0.7)' : theme === 'neutral' ? '#2a1a00' : '#713f12' }}>({savedPalettes.length})</span>}
+        >
             <div className="p-6 pt-2 flex flex-col gap-4">
               <p className="text-[11px] text-yellow-100/70 italic">▸ Palettes save locally to your browser. They persist across sessions but stay on this device.</p>
 
@@ -6289,8 +6293,7 @@ export default function PixelPalGenerator() {
                 );
               })()}
             </div>
-          )}
-        </div>
+        </SectionCard>
 
         {/* History panel. Lists every undoable action, newest first, with
             the current state highlighted. Click any entry to jump back
@@ -6300,81 +6303,29 @@ export default function PixelPalGenerator() {
             through the same list regardless of whether the panel is open.
             Collapsed by default per user preference (matches Photoshop's
             History panel which sits in a sidebar drawer). */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('history')} style={{ order: sectionOrder.indexOf('history'), background: t.cardBgViz, borderColor: themedAccentBorder('#a855f7'), boxShadow: [accentGlow('#a855f7', 0.25), dropLine('history')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setHistoryOpen(o => !o)} title={historyOpen ? "Collapse the History panel" : "Expand the History panel (undo/redo)"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#a855f7'), textShadow: accentTextGlow('#a855f7') }}>
-              <History size={22} />History
-              <span className="text-xs font-normal opacity-70 normal-case tracking-normal">
-                ({historyIndex + 1} of {historyEntries.length})
-              </span>
-            </h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('history')}
-              <span className="text-purple-200">{historyOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {historyOpen && (
-            <div className="p-4 pt-0">
-              <p className="text-[11px] text-purple-100/70 italic mb-3">
-                ▸ Click any entry to jump there. Cmd/Ctrl+Z and Cmd/Ctrl+Y also work. Session-only: closing the tab clears history.
-              </p>
-              <div className="max-h-80 overflow-y-auto rounded border-2 border-purple-500/30 bg-black/20">
-                {/* List rendered NEWEST FIRST (reverse-order traversal).
-                    This matches Photoshop, which puts the most recent
-                    action at the top. The current state's entry is
-                    visually highlighted; entries above it in the list
-                    (i.e. newer than the current cursor) are the "redo"
-                    stack and are grayed out. Entries below the current
-                    cursor are the "undo" stack and read at full strength. */}
-                {historyEntries.slice().reverse().map((entry, revIdx) => {
-                  const idx = historyEntries.length - 1 - revIdx;
-                  const isCurrent = idx === historyIndex;
-                  const isFuture = idx > historyIndex;  // redo-stack entry
-                  return (
-                    <button
-                      key={`${idx}-${entry.timestamp}`}
-                      onClick={() => jumpToHistoryIndex(idx)}
-                      disabled={isCurrent}
-                      className={`w-full text-left px-3 py-2 flex items-center justify-between gap-3 border-b border-purple-500/20 last:border-b-0 transition-colors ${
-                        isCurrent
-                          ? 'bg-purple-500/30 cursor-default'
-                          : isFuture
-                          ? 'opacity-50 hover:bg-purple-500/10'
-                          : 'hover:bg-purple-500/10'
-                      }`}
-                      title={isCurrent ? 'Current state' : (isFuture ? 'Redo to this state' : 'Undo to this state')}
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${isCurrent ? 'bg-yellow-300' : isFuture ? 'bg-purple-400/40' : 'bg-cyan-400/60'}`} />
-                        <span className={`text-xs font-bold uppercase tracking-wider truncate ${isCurrent ? 'text-yellow-100' : 'text-purple-100'}`}>
-                          {entry.label}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-purple-200/60 italic flex-shrink-0">
-                        {formatHistoryAge(entry.timestamp)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex items-center justify-between mt-3 text-[10px] text-purple-100/60 italic">
-                <span>{canUndo ? 'Cmd/Ctrl+Z to undo' : 'Nothing to undo'}</span>
-                <span>{canRedo ? 'Cmd/Ctrl+Y to redo' : 'Nothing to redo'}</span>
-              </div>
-            </div>
-          )}
-        </div>
+        <SectionCard
+          sectionKey="history" accent="#a855f7" bg={t.cardBgViz} glow={0.25}
+          open={historyOpen} onToggle={() => setHistoryOpen(o => !o)}
+          headerTitle={historyOpen ? "Collapse the History panel" : "Expand the History panel (undo/redo)"}
+          chevronColor="#e9d5ff"
+          icon={<History size={22} />} title="History"
+          headerAside={
+            <span className="text-xs font-normal opacity-70 normal-case tracking-normal">
+              ({historyIndex + 1} of {historyEntries.length})
+            </span>
+          }
+        >
+            <HistoryPanel />
+        </SectionCard>
 
         {/* Export & Tools — collapsible card matching section card pattern */}
-        <div className="rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="export-panel" {...makeSectionDragHandlers('export')} style={{ order: sectionOrder.indexOf('export'), background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.3), dropLine('export')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setExportOpen(o => !o)} data-tour-id="export-header" title={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Download size={22} />Export &amp; Tools</h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('export')}
-              <span style={{ color: sectionHeadColor('#00ffff') }}>{exportOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {exportOpen && (
+        <SectionCard
+          sectionKey="export" accent="#00ffff" bg={t.cardBgViz} glow={0.3}
+          marginClass="mb-3" dataTourId="export-panel" headerTourId="export-header"
+          open={exportOpen} onToggle={() => setExportOpen(o => !o)}
+          headerTitle={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'}
+          icon={<Download size={22} />} title="Export & Tools"
+        >
             <div className="px-6 pb-6 space-y-4">
               {/* Download / Copy / WCAG / Hardware Lock */}
               <div className="flex flex-col gap-2">
@@ -6471,8 +6422,7 @@ export default function PixelPalGenerator() {
                 <input ref={gplFileInputRef} type="file" accept=".gpl,text/plain" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGplFile(f); e.target.value = ''; }} className="hidden" />
               </div>
             </div>
-          )}
-        </div>
+        </SectionCard>
         </div>{/* end sortable sections */}
 
         <div className="rounded-lg overflow-hidden" style={{ background: t.tipPanelBg, border: `2px solid ${t.tipPanelBorder}` }}>
@@ -6683,5 +6633,9 @@ export default function PixelPalGenerator() {
         onExit={exitTour}
       />
     </div>
+    </EditorProvider>
+    </PaletteProvider>
+    </LayoutProvider>
+    </ThemeProvider>
   );
 }

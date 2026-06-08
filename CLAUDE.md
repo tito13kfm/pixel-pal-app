@@ -76,6 +76,28 @@ memory for the exact file list + tag/push procedure.
 
 ---
 
+## Code Navigation & Edits: use Serena
+
+This repo has Serena (`.serena/project.yml`, TypeScript LSP) activated. **For any
+`src/**` code file, use Serena tools, not the built-in Read/Edit:**
+
+- **Navigate/read:** `get_symbols_overview` → `find_symbol` (`include_body`). No
+  Read-for-discovery on code files.
+- **Edit:** `replace_content` (regex, for a few lines inside a big symbol) /
+  `replace_symbol_body` / `insert_before_symbol` / `insert_after_symbol`. **A
+  `PreToolUse` hook hard-blocks the built-in Edit tool on `src/**/*.ts(x)`** — it
+  is enforced, not advisory.
+- **Cross-refs:** `find_referencing_symbols` first; keep `grep` as a *backup*
+  completeness check (some refs in untyped files aren't type-linked).
+
+`@ts-nocheck` does **not** blind Serena — the LSP still parses symbol structure
+(it only suppresses *type diagnostics*). So Serena navigates `App.tsx`/`color.ts`
+fine. But `get_diagnostics_for_file` is muted by `@ts-nocheck`, so the
+**`sed`-strip-nocheck + `tsc` type-gate + grep stays the correctness gate** — Serena
+replaces navigation/edits, not verification.
+
+---
+
 ## Architecture
 
 **Build target:** Vite → `dist/`. `base: './'` for Tauri (file://) or
