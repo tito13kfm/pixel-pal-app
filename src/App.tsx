@@ -5409,15 +5409,14 @@ export default function PixelPalGenerator() {
           )}
         </div>
 
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('harmony')} style={{ order: sectionOrder.indexOf('harmony'), background: t.cardBgPink, borderColor: themedAccentBorder('#ff00ff'), boxShadow: [accentGlow('#ff00ff', 0.4), dropLine('harmony')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setHarmonyOpen(o => !o)} data-tour-id="harmony-header" title={harmonyOpen ? 'Collapse Harmony Colors' : 'Expand Harmony Colors'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ff00ff'), textShadow: accentTextGlow('#ff00ff') }}><Sparkles size={22} />Harmony Colors</h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('harmony')}
-              <span style={{ color: sectionHeadColor('#ff00ff') }}>{harmonyOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {harmonyOpen && <div className="px-6 pb-6">
+        <SectionCard
+          sectionKey="harmony" accent="#ff00ff" bg={t.cardBgPink} glow={0.4}
+          open={harmonyOpen} onToggle={() => setHarmonyOpen(o => !o)}
+          headerTitle={harmonyOpen ? 'Collapse Harmony Colors' : 'Expand Harmony Colors'}
+          headerTourId="harmony-header"
+          icon={<Sparkles size={22} />} title="Harmony Colors"
+        >
+          <div className="px-6 pb-6">
           <p className="text-xs text-pink-100/80 mb-4 italic">▸ Click any swatch to add a ramp, or "Add All" / "Add Both" for sets ◂ Hover a category name for tips ◂</p>
           {/* Anchor selector: pick which ramp the harmony palette is derived
               from. Only shown when there's more than one ramp; with a single
@@ -5604,8 +5603,8 @@ export default function PixelPalGenerator() {
               </div>
             );
           })()}
-          </div>}
-        </div>
+          </div>
+        </SectionCard>
 
         {/* ---------- Pixel Playground (collapsible) ---------- */}
         <SectionCard
