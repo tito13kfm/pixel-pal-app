@@ -5608,18 +5608,13 @@ export default function PixelPalGenerator() {
         </div>
 
         {/* ---------- Pixel Playground (collapsible) ---------- */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('playground')} style={{ order: sectionOrder.indexOf('playground'), background: t.cardBgGreen, borderColor: themedAccentBorder('#00ff88'), boxShadow: [accentGlow('#00ff88', 0.3), dropLine('playground')].filter(Boolean).join(', ') }}>
-          <button
-            onClick={() => setPgOpen(o => !o)}
-            title={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
-            className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
-          >
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ff88'), textShadow: accentTextGlow('#00ff88') }}><Gamepad2 size={22} />Pixel Playground</h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('playground')}
-              <span className="text-cyan-200">{pgOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
+        <SectionCard
+          sectionKey="playground" accent="#00ff88" bg={t.cardBgGreen} glow={0.3}
+          open={pgOpen} onToggle={() => setPgOpen(o => !o)}
+          headerTitle={pgOpen ? 'Collapse Pixel Playground' : 'Expand Pixel Playground'}
+          chevronColor="#a5f3fc" keepMounted
+          icon={<Gamepad2 size={22} />} title="Pixel Playground"
+        >
           <div className="p-6 pt-2" style={{ display: pgOpen ? '' : 'none' }}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sectionHeadColor('#00ff88') }}>Palette style</span>
@@ -5640,7 +5635,7 @@ export default function PixelPalGenerator() {
                 theme={{ dark: theme !== 'light', text: t.text }}
               />
             </div>
-        </div>
+        </SectionCard>
 
         {/* ---------- Visualize & Compare (collapsible) ---------- */}
         {(() => {
