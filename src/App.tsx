@@ -6380,15 +6380,13 @@ export default function PixelPalGenerator() {
         </SectionCard>
 
         {/* Export & Tools — collapsible card matching section card pattern */}
-        <div className="rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="export-panel" {...makeSectionDragHandlers('export')} style={{ order: sectionOrder.indexOf('export'), background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.3), dropLine('export')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setExportOpen(o => !o)} data-tour-id="export-header" title={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#00ffff'), textShadow: accentTextGlow('#00ffff') }}><Download size={22} />Export &amp; Tools</h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('export')}
-              <span style={{ color: sectionHeadColor('#00ffff') }}>{exportOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {exportOpen && (
+        <SectionCard
+          sectionKey="export" accent="#00ffff" bg={t.cardBgViz} glow={0.3}
+          marginClass="mb-3" dataTourId="export-panel" headerTourId="export-header"
+          open={exportOpen} onToggle={() => setExportOpen(o => !o)}
+          headerTitle={exportOpen ? 'Collapse Export & Tools' : 'Expand Export & Tools'}
+          icon={<Download size={22} />} title="Export & Tools"
+        >
             <div className="px-6 pb-6 space-y-4">
               {/* Download / Copy / WCAG / Hardware Lock */}
               <div className="flex flex-col gap-2">
@@ -6485,8 +6483,7 @@ export default function PixelPalGenerator() {
                 <input ref={gplFileInputRef} type="file" accept=".gpl,text/plain" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGplFile(f); e.target.value = ''; }} className="hidden" />
               </div>
             </div>
-          )}
-        </div>
+        </SectionCard>
         </div>{/* end sortable sections */}
 
         <div className="rounded-lg overflow-hidden" style={{ background: t.tipPanelBg, border: `2px solid ${t.tipPanelBorder}` }}>
