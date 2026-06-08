@@ -48,3 +48,17 @@ test('hides children when closed and fires onToggle on header click', () => {
   fireEvent.click(screen.getByRole('button', { name: /History/ }));
   expect(onToggle).toHaveBeenCalledTimes(1);
 });
+
+test('threads headerTitle tooltip and headerTourId onto the header button', () => {
+  wrap(
+    <SectionCard
+      sectionKey="export" accent="#00ffff" bg="#111" glow={0.3} open onToggle={() => {}}
+      title="Export" icon={<i />} headerTitle="Collapse Export & Tools" headerTourId="export-header"
+    >
+      <p>body</p>
+    </SectionCard>,
+  );
+  const header = screen.getByRole('button', { name: /Export/ });
+  expect(header).toHaveAttribute('title', 'Collapse Export & Tools');
+  expect(header).toHaveAttribute('data-tour-id', 'export-header');
+});
