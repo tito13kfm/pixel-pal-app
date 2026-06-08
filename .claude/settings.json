@@ -10,6 +10,16 @@
             "command": "$d=[Console]::In.ReadToEnd()|ConvertFrom-Json;$p=[string]$d.tool_input.file_path;$p=$p.Replace('\\','/');if($p -match '(^|/)src/.*\\.tsx?$'){@{hookSpecificOutput=@{hookEventName='PreToolUse';permissionDecision='deny';permissionDecisionReason='Built-in Edit is blocked on src/ .ts/.tsx files (Serena enforcement). Use Serena replace_content / replace_symbol_body / insert_before_symbol / insert_after_symbol instead.'}}|ConvertTo-Json -Compress -Depth 5}"
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$d=[Console]::In.ReadToEnd()|ConvertFrom-Json;$p=[string]$d.tool_input.file_path;$p=$p.Replace('\\','/');if($p -match '(^|/)src/.*\\.tsx?$'){@{hookSpecificOutput=@{hookEventName='PreToolUse';permissionDecision='deny';permissionDecisionReason='Built-in Read is blocked on src/ .ts/.tsx files (Serena enforcement). Use Serena get_symbols_overview then find_symbol (include_body) for discovery; Grep and Glob are allowed for locating. Read is only appropriate for a few lines after you already have a symbol overview.'}}|ConvertTo-Json -Compress -Depth 5}"
+          }
+        ]
       }
     ]
   }
