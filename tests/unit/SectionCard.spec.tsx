@@ -62,3 +62,13 @@ test('threads headerTitle tooltip and headerTourId onto the header button', () =
   expect(header).toHaveAttribute('title', 'Collapse Export & Tools');
   expect(header).toHaveAttribute('data-tour-id', 'export-header');
 });
+
+test('keepMounted keeps children in the DOM when closed', () => {
+  wrap(
+    <SectionCard sectionKey="playground" accent="#00ff88" bg="#111" glow={0.3} open={false} onToggle={() => {}} title="Playground" icon={<i />} keepMounted>
+      <p>canvas body</p>
+    </SectionCard>,
+  );
+  // closed, but keepMounted → still rendered (caller hides via CSS)
+  expect(screen.getByText('canvas body')).toBeInTheDocument();
+});

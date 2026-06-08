@@ -16,6 +16,7 @@ export interface SectionCardProps {
   headerTourId?: string;     // data-tour-id on the header <button> (harmony/export)
   headerTitle?: string;      // native tooltip on the header <button> (collapse/expand hint)
   chevronColor?: string;     // chevron color; defaults to sectionHeadColor(accent)
+  keepMounted?: boolean;     // keep children mounted when closed (caller hides via CSS, e.g. playground's display:none); default false unmounts
   marginClass?: string;      // default mb-6; export uses mb-3
   children: ReactNode;
 }
@@ -23,7 +24,7 @@ export interface SectionCardProps {
 export function SectionCard({
   sectionKey, accent, bg, glow, open, onToggle,
   title, icon, headerAside, dataTourId, headerTourId, headerTitle, chevronColor,
-  marginClass = 'mb-6', children,
+  keepMounted = false, marginClass = 'mb-6', children,
 }: SectionCardProps) {
   const { makeSectionDragHandlers, dropLine, sectionGrip, sectionOrder } = useLayout();
   const { t, themedAccentBorder, accentGlow, sectionHeadColor, accentTextGlow } = useTheme();
@@ -56,7 +57,7 @@ export function SectionCard({
           <span style={{ color: chevronColor ?? sectionHeadColor(accent) }}>{open ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
         </div>
       </button>
-      {open && children}
+      {keepMounted ? children : (open && children)}
     </div>
   );
 }
