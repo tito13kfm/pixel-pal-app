@@ -5916,15 +5916,13 @@ export default function PixelPalGenerator() {
             </>
           );
           return (
-            <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('viz')} style={{ order: sectionOrder.indexOf('viz'), background: t.cardBgViz, borderColor: themedAccentBorder(styleAccent), boxShadow: [accentGlow(styleAccent, 0.4), dropLine('viz')].filter(Boolean).join(', ') }}>
-              <button onClick={() => setSbsOpen(o => !o)} title={sbsOpen ? "Collapse the Visualize & Compare section" : "Expand the Visualize & Compare section"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-                <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor(styleAccent), textShadow: accentTextGlow(styleAccent) }}><BarChart3 size={22} />Visualize & Compare</h2>
-                <div className="flex items-center gap-2">
-                  {sectionGrip('viz')}
-                  <span className="text-cyan-200">{sbsOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-                </div>
-              </button>
-              {sbsOpen && (
+            <SectionCard
+              sectionKey="viz" accent={styleAccent} bg={t.cardBgViz} glow={0.4}
+              open={sbsOpen} onToggle={() => setSbsOpen(o => !o)}
+              headerTitle={sbsOpen ? "Collapse the Visualize & Compare section" : "Expand the Visualize & Compare section"}
+              chevronColor="#a5f3fc"
+              icon={<BarChart3 size={22} />} title="Visualize & Compare"
+            >
                 <div className="p-6 pt-2 flex flex-col gap-6">
                   <div className="flex gap-2 items-center flex-wrap justify-center bg-black/30 rounded border-2 border-cyan-500/40 px-3 py-2">
                     <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style:</span>
@@ -6123,8 +6121,7 @@ export default function PixelPalGenerator() {
                   )}
                   <p className="text-[10px] text-cyan-100/40 italic text-center">Style applies to all views. Hidden shades are filtered out.</p>
                 </div>
-              )}
-            </div>
+            </SectionCard>
           );
         })()}
 
