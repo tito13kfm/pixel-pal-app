@@ -31,6 +31,7 @@ import { DITHER_PATTERNS } from './lib/viz-interaction';
 import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
 import { V2EngineNotice, isPreV2Palette } from './components/V2EngineNotice';
+import { SectionCard } from './components/SectionCard';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
@@ -6316,20 +6317,18 @@ export default function PixelPalGenerator() {
             through the same list regardless of whether the panel is open.
             Collapsed by default per user preference (matches Photoshop's
             History panel which sits in a sidebar drawer). */}
-        <div className="rounded-lg mb-6 border-2 backdrop-blur-sm overflow-hidden" {...makeSectionDragHandlers('history')} style={{ order: sectionOrder.indexOf('history'), background: t.cardBgViz, borderColor: themedAccentBorder('#a855f7'), boxShadow: [accentGlow('#a855f7', 0.25), dropLine('history')].filter(Boolean).join(', ') }}>
-          <button onClick={() => setHistoryOpen(o => !o)} title={historyOpen ? "Collapse the History panel" : "Expand the History panel (undo/redo)"} className={`w-full p-4 flex items-center justify-between transition-colors ${t.glowStrong > 0.5 ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#a855f7'), textShadow: accentTextGlow('#a855f7') }}>
-              <History size={22} />History
-              <span className="text-xs font-normal opacity-70 normal-case tracking-normal">
-                ({historyIndex + 1} of {historyEntries.length})
-              </span>
-            </h2>
-            <div className="flex items-center gap-2">
-              {sectionGrip('history')}
-              <span className="text-purple-200">{historyOpen ? <ChevronUp size={22} /> : <ChevronDown size={22} />}</span>
-            </div>
-          </button>
-          {historyOpen && (
+        <SectionCard
+          sectionKey="history" accent="#a855f7" bg={t.cardBgViz} glow={0.25}
+          open={historyOpen} onToggle={() => setHistoryOpen(o => !o)}
+          headerTitle={historyOpen ? "Collapse the History panel" : "Expand the History panel (undo/redo)"}
+          chevronColor="#e9d5ff"
+          icon={<History size={22} />} title="History"
+          headerAside={
+            <span className="text-xs font-normal opacity-70 normal-case tracking-normal">
+              ({historyIndex + 1} of {historyEntries.length})
+            </span>
+          }
+        >
             <div className="p-4 pt-0">
               <p className="text-[11px] text-purple-100/70 italic mb-3">
                 ▸ Click any entry to jump there. Cmd/Ctrl+Z and Cmd/Ctrl+Y also work. Session-only: closing the tab clears history.
@@ -6378,8 +6377,7 @@ export default function PixelPalGenerator() {
                 <span>{canRedo ? 'Cmd/Ctrl+Y to redo' : 'Nothing to redo'}</span>
               </div>
             </div>
-          )}
-        </div>
+        </SectionCard>
 
         {/* Export & Tools — collapsible card matching section card pattern */}
         <div className="rounded-lg mb-3 border-2 backdrop-blur-sm overflow-hidden" data-tour-id="export-panel" {...makeSectionDragHandlers('export')} style={{ order: sectionOrder.indexOf('export'), background: t.cardBgViz, borderColor: themedAccentBorder('#00ffff'), boxShadow: [accentGlow('#00ffff', 0.3), dropLine('export')].filter(Boolean).join(', ') }}>
