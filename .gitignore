@@ -35,6 +35,10 @@ tests/*
 # Exceptions: tracked tests
 !tests/unit/
 !tests/unit/**/*.spec.ts
+!tests/unit/**/*.spec.tsx
+# Exception: vitest setup files (registered via setupFiles in vitest.config.ts)
+!tests/setup/
+!tests/setup/**/*.ts
 # Exception: the WCAG contrast lint is tracked so CI can run it
 # (the existing `tests/test_*.js` runner picks it up automatically).
 !tests/test_contrast.js
