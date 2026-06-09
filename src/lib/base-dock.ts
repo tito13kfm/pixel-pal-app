@@ -16,7 +16,7 @@ export interface HSpan { left: number; right: number; }
 
 // Default: 12px to the right of the card column, near the top (aligned with the
 // top card). Card-relative, so it lands consistently at any window size.
-export const DEFAULT_DOCK_POS: CardAnchor = { hEdge: 'right', dx: 16, vEdge: 'top', dy: 144 };
+export const DEFAULT_DOCK_POS: CardAnchor = { hEdge: 'right', dx: 16, vEdge: 'top', dy: 143 };
 
 export function clampToViewport(p: Point, vp: Viewport, size: Size): Point {
   const maxX = Math.max(0, vp.w - size.w);
