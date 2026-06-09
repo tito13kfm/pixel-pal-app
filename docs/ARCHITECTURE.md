@@ -37,6 +37,9 @@ src/
                         reads ThemeContext; imports CLASSIC_PALETTES from lib/constants
       PlaygroundPanel.tsx props-only (7 props: pgOpen, vizStyle, setVizStyle,
                         rampsBalanced/Muted/Punchy, isDark); reads ThemeContext
+      VizComparePanel.tsx SectionCard included as root (IIFE pattern); canvas
+                        refs + 3 draw effects co-located; reads ThemeContext;
+                        ~57 props (SBS slots, remap state, export callbacks)
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
                         useExportSettings, useTour, useSpriteImport, useAIAssist,
                         useImageExtract, useImageRemap, useSideBySide,
