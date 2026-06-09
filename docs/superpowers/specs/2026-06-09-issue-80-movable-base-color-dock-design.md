@@ -126,18 +126,17 @@ the shipped default for new users.
   first. (Otherwise you hardcode a default, reload, see your own persisted position, and
   wrongly conclude the default didn't take.)
 
-## Compare mode (OPEN DECISION — needs user sign-off)
+## Compare mode (SETTLED 2026-06-09)
 
 The app has a side-by-side **compare** view, and `removeRamp` already mutates
 `compareAnchor`/`compareResult`. An always-on dock that deletes live `baseColors` has no
 defined behavior while compare is active. Precedent: the reorder-ramps spec (2026-06-05)
 scoped its feature "Main view only. Compare mode is unaffected."
 
-**Recommended default: hide the dock while compare mode is active.** Compare is a focused
-review view; deleting a base mid-comparison would shift what is being compared and is a
-likely source of confusion. Re-show the dock on exit. (Alternative: keep it live in
-compare — only if the user wants delete reachable from every view.) **This choice is
-settled with the user before the plan is written.**
+**Decision: hide the dock while compare mode is active; re-show on exit.** Compare is a
+focused review view, and deleting a base mid-comparison would shift what is being
+compared. The dock checks the existing compare-active flag and renders nothing while it
+is set.
 
 ## States summary
 
@@ -165,39 +164,37 @@ settled with the user before the plan is written.**
 
 ## Testing
 
-### Harness sequencing vs #74 (OPEN DECISION — needs user sign-off)
+### Harness sequencing vs #74 (SETTLED 2026-06-09 — path b)
 
-Component and hook tests both need `@testing-library/react` (`renderHook` lives there
-too). This dock is **not** a Tier-C panel, so #74 ("land the harness with the first
-Tier-C panel") may not be done when this ships. Three ways to sequence, given the user
-wants this ASAP:
+**Decision: ship with pure-logic vitest tests only; no `@testing-library/react` now.**
+The clamp / anchor-resolution / persistence-shape logic is **extracted out of
+`useBaseDock` as pure functions** and unit-tested with plain vitest. The rendered
+component (`BaseColorDock`) and any `renderHook` tests are **deferred to #74**, which
+will add the harness. To keep `useBaseDock` testable without the harness, the hook must
+be a thin wrapper: all branchable logic lives in exported pure helpers.
 
-- **(a) Pull the harness in now** — add `@testing-library/react` as the first step of
-  this feature (effectively lands #74's core). Best coverage; adds a little setup time.
-- **(b) Ship with pure-logic unit tests only** — extract the clamp / anchor-resolution /
-  persistence-shape logic out of `useBaseDock` as pure functions and test those with
-  plain vitest (no harness). Defer the component + hook-render tests until #74 lands.
-  Fastest path; the rendered component goes untested for now.
-- **(c) Manual-verify only for now** — ship behind the live dev build, file the component
-  tests as a follow-up on #74.
+### Planned tests (now)
+- **`baseDock` pure helpers** (plain vitest): viewport clamp (position in/out of bounds →
+  clamped); anchor→pixel resolution for a fresh user across viewport sizes and all four
+  anchors; persistence shape (serialize/parse round-trip of `{x,y}` and `collapsed`).
 
-Recommendation: **(a)** if a few extra steps are acceptable (the harness is wanted
-anyway), else **(b)**.
-
-### Planned tests
-- **`useBaseDock`** (unit): persistence round-trip (`ui:baseDockPos` / `ui:baseDockCollapsed`);
-  viewport clamping on resize; anchor→pixel resolution for a fresh user. Pure-logic parts
-  run under plain vitest (path b); `renderHook` parts need the harness (path a).
-- **`BaseColorDock`** (component, needs the `@testing-library/react` harness):
-  renders N swatches for N base colors; `×` hidden at exactly 1 base; `×` click calls
-  `onDelete(i)`; swatch-body click calls `onJump(i)`; collapse toggle flips state.
+### Deferred to #74 (component/hook render, needs the harness)
+- **`BaseColorDock`**: renders N swatches for N base colors; `×` hidden at exactly 1
+  base; `×` click calls `onDelete(i)`; swatch-body click calls `onJump(i)`; collapse
+  toggle flips state.
 - **e2e (optional, Playwright):** add a base, then delete it via the dock, assert the
   ramp count drops.
 
+> Design implication: factor `useBaseDock` so the testable logic is pure and
+> harness-free. This is the main thing path (b) asks of the implementation.
+
 ## Files
 
-- New: `src/components/BaseColorDock.tsx`, `src/hooks/useBaseDock.ts`.
-- New test(s): `src/components/BaseColorDock.test.tsx` (+ `useBaseDock` unit test).
+- New: `src/components/BaseColorDock.tsx`, `src/hooks/useBaseDock.ts`, and a pure-helper
+  module (e.g. `src/lib/base-dock.ts`) holding clamp / anchor-resolution / persistence
+  shape so they are testable without the harness.
+- New test (now): `tests/unit/base-dock.spec.ts` (or alongside per repo convention) for
+  the pure helpers. Component/hook-render tests deferred to #74.
 - Edit: `src/App.tsx` — render the dock at root; add `scrollToRamp` + `highlightedRamp`
   state; add `data-ramp-index` to ramp cards; `DEFAULT_DOCK_POS` constant.
 - Possible: `docs/ARCHITECTURE.md` — note the dock in the relevant subsystem section
