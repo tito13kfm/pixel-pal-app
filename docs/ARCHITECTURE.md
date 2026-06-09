@@ -40,6 +40,10 @@ src/
       VizComparePanel.tsx SectionCard included as root (IIFE pattern); canvas
                         refs + 3 draw effects co-located; reads ThemeContext;
                         ~57 props (SBS slots, remap state, export callbacks)
+      HarmonyPanel.tsx  props-only (14 props: baseColors, aiColorNames, safeAnchor,
+                        lockedRamps, harmonizeMode, harmonizeBaseline, harmony,
+                        handlers); HarmonySwatch + PairCard as internal components;
+                        reads ThemeContext for vizDataBorder only
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
                         useExportSettings, useTour, useSpriteImport, useAIAssist,
                         useImageExtract, useImageRemap, useSideBySide,
