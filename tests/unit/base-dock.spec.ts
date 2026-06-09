@@ -57,6 +57,10 @@ describe('parsePoint', () => {
     expect(parsePoint('not json')).toBeNull();
     expect(parsePoint('{"x":"a"}')).toBeNull();
   });
+  it('rejects non-finite coords (corrupted store)', () => {
+    expect(parsePoint('{"x":1e999,"y":0}')).toBeNull();
+    expect(parsePoint('{"x":null,"y":5}')).toBeNull();
+  });
 });
 
 describe('DEFAULT_DOCK_POS', () => {

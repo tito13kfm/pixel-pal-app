@@ -45,7 +45,9 @@ export function parsePoint(raw: string | null): Point | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw);
-    if (v && typeof v.x === 'number' && typeof v.y === 'number') return { x: v.x, y: v.y };
+    // Number.isFinite rejects NaN/Infinity from a corrupted stored value, which
+    // would otherwise place the dock off-screen on first paint (before clamp).
+    if (v && Number.isFinite(v.x) && Number.isFinite(v.y)) return { x: v.x, y: v.y };
   } catch { /* ignore malformed */ }
   return null;
 }
