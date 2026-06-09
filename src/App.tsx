@@ -1492,11 +1492,16 @@ export default function PixelPalGenerator() {
   // Base-color dock (#80): smooth-scroll to a ramp and flash a highlight when
   // the user clicks a swatch body in the dock.
   const [highlightedRamp, setHighlightedRamp] = useState(null);
+  const highlightTimerRef = useRef(null);
   const scrollToRamp = (index) => {
     const el = document.querySelector(`[data-ramp-index="${index}"]`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
     setHighlightedRamp(index);
-    window.setTimeout(() => setHighlightedRamp(prev => (prev === index ? null : prev)), 1200);
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightedRamp(prev => (prev === index ? null : prev));
+      highlightTimerRef.current = null;
+    }, 1200);
   };
 
   // duplicateRamp: append a copy of ramp `i` at the end of baseColors,
