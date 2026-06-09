@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import {
   DEFAULT_DOCK_POS,
@@ -27,39 +27,48 @@ function sizeOf(ref: React.RefObject<HTMLElement | null>) {
 
 export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === '1');
+  // `pos` is the user's INTENDED position (what they last dragged to), persisted
+  // as-is. It is never mutated by a resize, so shrinking then growing the window
+  // (or opening/closing devtools) returns the dock to where the user put it.
   const [pos, setPos] = useState<Point>(() => {
     const saved = parsePoint(localStorage.getItem(POS_KEY));
     return saved ?? resolveAnchor(DEFAULT_DOCK_POS, viewport(), FALLBACK_SIZE);
   });
+  // Track the viewport so the DISPLAYED position re-derives on resize without
+  // touching the intended `pos`.
+  const [vp, setVp] = useState(viewport);
 
   useEffect(() => { localStorage.setItem(POS_KEY, JSON.stringify(pos)); }, [pos]);
   useEffect(() => { localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0'); }, [collapsed]);
 
-  // Re-clamp into the viewport on resize so the dock can never be stranded.
   useEffect(() => {
-    const onResize = () => setPos(p => clampToViewport(p, viewport(), sizeOf(ref)));
+    const onResize = () => setVp(viewport());
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [ref]);
+  }, []);
+
+  // Clamp the intended position into the current viewport for DISPLAY only.
+  // A smaller viewport tucks the dock in; a larger one restores it, because
+  // `pos` itself is left untouched.
+  const display = clampToViewport(pos, vp, sizeOf(ref));
 
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
+  const onPointerDown = (e: React.PointerEvent) => {
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
-    drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
-  }, [pos]);
+    drag.current = { dx: e.clientX - display.x, dy: e.clientY - display.y };
+  };
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
+  const onPointerMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
-    const next = clampToViewport(
+    setPos(clampToViewport(
       { x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy },
       viewport(),
       sizeOf(ref),
-    );
-    setPos(next);
-  }, [ref]);
+    ));
+  };
 
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
+  const onPointerUp = (e: React.PointerEvent) => {
     if (!drag.current) return;
     drag.current = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
@@ -68,14 +77,14 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
       // eslint-disable-next-line no-console
       console.log('[base-dock] DEFAULT_DOCK_POS candidate:', JSON.stringify(candidate));
     }
-  }, [pos, ref]);
+  };
 
   // A touch cancel / OS gesture takeover ends a drag without firing pointerup.
   // Clear the in-flight drag so a later hover can't keep repositioning the dock.
-  const onPointerCancel = useCallback((e: React.PointerEvent) => {
+  const onPointerCancel = (e: React.PointerEvent) => {
     drag.current = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
-  }, []);
+  };
 
-  return { pos, collapsed, setCollapsed, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
+  return { pos: display, collapsed, setCollapsed, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
 }
