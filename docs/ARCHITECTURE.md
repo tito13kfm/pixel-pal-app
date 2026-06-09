@@ -28,6 +28,13 @@ src/
     TourPanel.tsx       help-center launcher modal
     BaseColorDock.tsx   floating draggable dock: delete a base / jump to its ramp
                         from anywhere; collapsible; grid reshape for big palettes
+    panels/             Tier-C per-panel components extracted from App.tsx JSX return.
+                        Each owns its own SectionCard body; App.tsx keeps the SectionCard
+                        wrapper + open/toggle state + handler wiring.
+      HistoryPanel.tsx  reads PaletteContext (usePalette()); no props
+      ExportPanel.tsx   props-only (20 props: export handlers, hw-lock, feedback)
+      SavedPalettesPanel.tsx  props-only (state from useSavedPalettes + handlers);
+                        reads ThemeContext; imports CLASSIC_PALETTES from lib/constants
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
                         useExportSettings, useTour, useSpriteImport, useAIAssist,
                         useImageExtract, useImageRemap, useSideBySide,
