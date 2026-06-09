@@ -79,6 +79,5 @@ skill-observations/
 # Root-level screenshots (not src-tauri/icons which are needed for builds)
 /*.png
 
-# Serena MCP — local only for now (memories/project config kept off the public repo).
-# To share later: junction .serena/memories to a private repo/synced folder, or un-ignore it.
+# Serena MCP local files (memories + config) kept off this public repo.
 .serena/
