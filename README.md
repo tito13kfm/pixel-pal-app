@@ -57,6 +57,7 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - Harmonize: rotate unlocked ramps to color-theory positions relative to an anchor ramp
 - Color harmony derivation: complementary, analogous, triadic, split-complementary, tetradic, square
 - Hardware Lock: snap all shades to the nearest legal color (perceptual ΔE_OK distance) for NES, Game Boy DMG, CGA 16, EGA 64, or C64
+- Base-color dock: a floating, draggable panel listing your base colors — delete any one (or jump to its ramp) from anywhere on the page; collapsible, and it reshapes into a grid for large palettes
 
 **Image tools**
 - Remap any uploaded image to your active palette, with optional error-diffusion dithering (Floyd–Steinberg, Atkinson, or Stucki)

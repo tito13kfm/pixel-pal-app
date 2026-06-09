@@ -164,37 +164,38 @@ is set.
 
 ## Testing
 
-### Harness sequencing vs #74 (SETTLED 2026-06-09 — path b)
+### Test scope (SETTLED 2026-06-09 — full tests)
 
-**Decision: ship with pure-logic vitest tests only; no `@testing-library/react` now.**
-The clamp / anchor-resolution / persistence-shape logic is **extracted out of
-`useBaseDock` as pure functions** and unit-tested with plain vitest. The rendered
-component (`BaseColorDock`) and any `renderHook` tests are **deferred to #74**, which
-will add the harness. To keep `useBaseDock` testable without the harness, the hook must
-be a thin wrapper: all branchable logic lives in exported pure helpers.
+**Correction:** the React test harness is **already in the repo** — `@testing-library/react`
++ `@testing-library/jest-dom` in `package.json`, `vitest.config.ts` runs `environment:
+'jsdom'` with `setupFiles: ['tests/setup/testing-library.ts']`, and tracked component
+tests (`tests/unit/HistoryPanel.spec.tsx`, `SectionCard.spec.tsx`) already use
+`render`/`screen`/`fireEvent`. So #74's capability already shipped with the Tier-C panels;
+there is no setup cost to writing component tests now.
 
-### Planned tests (now)
-- **`baseDock` pure helpers** (plain vitest): viewport clamp (position in/out of bounds →
-  clamped); anchor→pixel resolution for a fresh user across viewport sizes and all four
-  anchors; persistence shape (serialize/parse round-trip of `{x,y}` and `collapsed`).
+**Decision: full tests now** — pure-logic vitest tests **and** a `BaseColorDock` component
+test. Still factor the clamp / anchor / persistence logic into pure exported helpers
+(good design + cheap to test), but no longer for harness-avoidance reasons.
 
-### Deferred to #74 (component/hook render, needs the harness)
-- **`BaseColorDock`**: renders N swatches for N base colors; `×` hidden at exactly 1
-  base; `×` click calls `onDelete(i)`; swatch-body click calls `onJump(i)`; collapse
-  toggle flips state.
+### Planned tests
+- **`baseDock` pure helpers** (`tests/unit/base-dock.spec.ts`): viewport clamp (position
+  in/out of bounds → clamped); anchor→pixel resolution across viewport sizes and all four
+  anchors; nearest-corner calibration (pixel pos → `{anchor,dx,dy}`); persistence shape
+  (serialize/parse round-trip of `{x,y}` and `collapsed`).
+- **`BaseColorDock`** (`tests/unit/BaseColorDock.spec.tsx`, jsdom + testing-library):
+  renders N swatches for N base colors; `×` hidden at exactly 1 base; `×` click calls
+  `onDelete(i)`; swatch-body click calls `onJump(i)`; collapse toggle flips state.
 - **e2e (optional, Playwright):** add a base, then delete it via the dock, assert the
   ramp count drops.
-
-> Design implication: factor `useBaseDock` so the testable logic is pure and
-> harness-free. This is the main thing path (b) asks of the implementation.
 
 ## Files
 
 - New: `src/components/BaseColorDock.tsx`, `src/hooks/useBaseDock.ts`, and a pure-helper
   module (e.g. `src/lib/base-dock.ts`) holding clamp / anchor-resolution / persistence
   shape so they are testable without the harness.
-- New test (now): `tests/unit/base-dock.spec.ts` (or alongside per repo convention) for
-  the pure helpers. Component/hook-render tests deferred to #74.
+- New tests: `tests/unit/base-dock.spec.ts` (pure helpers) and
+  `tests/unit/BaseColorDock.spec.tsx` (component, jsdom + testing-library — harness
+  already present).
 - Edit: `src/App.tsx` — render the dock at root; add `scrollToRamp` + `highlightedRamp`
   state; add `data-ramp-index` to ramp cards; `DEFAULT_DOCK_POS` constant.
 - Possible: `docs/ARCHITECTURE.md` — note the dock in the relevant subsystem section
