@@ -19,13 +19,13 @@ function viewport() {
 
 // Read the live dock size from its DOM node, falling back to an estimate
 // (jsdom and the first render before layout return zeros).
-function sizeOf(ref: React.RefObject<HTMLElement>) {
+function sizeOf(ref: React.RefObject<HTMLElement | null>) {
   const r = ref.current?.getBoundingClientRect();
   if (r && r.width > 0 && r.height > 0) return { w: r.width, h: r.height };
   return FALLBACK_SIZE;
 }
 
-export function useBaseDock(ref: React.RefObject<HTMLElement>) {
+export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === '1');
   const [pos, setPos] = useState<Point>(() => {
     const saved = parsePoint(localStorage.getItem(POS_KEY));
