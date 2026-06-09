@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import type React from 'react';
 import { useBaseDock } from '../hooks/useBaseDock';
 
 interface Props {
@@ -47,6 +48,7 @@ export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
           data-testid="base-dock-grip"
           {...dragHandlers}
           title="Drag to move"
+          aria-hidden="true"
           style={{ ...handle, display: 'flex', justifyContent: 'center', gap: 3, padding: '5px 0', background: '#3a0f4d', borderBottom: `1px solid ${NEON}`, borderRadius: '9px 9px 0 0' }}
         >
           <span style={dot} /><span style={dot} /><span style={dot} />
