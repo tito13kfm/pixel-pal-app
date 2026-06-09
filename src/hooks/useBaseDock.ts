@@ -46,7 +46,8 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
   );
   const [vp, setVp] = useState(viewport);
 
-  useEffect(() => { localStorage.setItem(POS_KEY, JSON.stringify(dock)); }, [dock]);
+  // `dock` is persisted on drag release (onPointerUp), not via an effect, so a
+  // drag doesn't write to localStorage on every pointermove frame.
   useEffect(() => { localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0'); }, [collapsed]);
 
   useEffect(() => {
@@ -59,14 +60,19 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
   const display = resolveCardAnchor(dock, cardSpanOf(ref), vp, sizeOf(ref));
 
   const drag = useRef<{ dx: number; dy: number } | null>(null);
+  // True once the pointer actually moved during a drag, so the click the browser
+  // synthesizes after a drag does not trigger the collapsed pill's expand handler.
+  const didDrag = useRef(false);
 
   const onPointerDown = (e: React.PointerEvent) => {
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
     drag.current = { dx: e.clientX - display.x, dy: e.clientY - display.y };
+    didDrag.current = false;
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
+    didDrag.current = true;
     const size = sizeOf(ref);
     const v = viewport();
     const pixel = clampToViewport(
@@ -82,6 +88,7 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
     if (!drag.current) return;
     drag.current = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+    localStorage.setItem(POS_KEY, JSON.stringify(dock));
     if (import.meta.env.DEV) {
       // eslint-disable-next-line no-console
       console.log('[base-dock] DEFAULT_DOCK_POS candidate:', JSON.stringify(dock));
@@ -99,5 +106,5 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
   // dragging and reading the dock face (no devtools needed). Null in prod.
   const devCandidate = import.meta.env.DEV ? dock : null;
 
-  return { pos: display, collapsed, setCollapsed, devCandidate, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
+  return { pos: display, collapsed, setCollapsed, devCandidate, didDrag, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
 }

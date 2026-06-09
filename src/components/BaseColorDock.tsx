@@ -14,7 +14,7 @@ const PANEL = 'linear-gradient(180deg,#240a33,#16091f)';
 
 export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const { pos, collapsed, setCollapsed, devCandidate, dragHandlers } = useBaseDock(ref);
+  const { pos, collapsed, setCollapsed, devCandidate, didDrag, dragHandlers } = useBaseDock(ref);
   const cols = gridColumns(baseColors.length);
 
   const shell: React.CSSProperties = {
@@ -30,7 +30,7 @@ export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
         <button
           data-testid="base-dock-expand"
           {...dragHandlers}
-          onClick={() => setCollapsed(false)}
+          onClick={() => { if (!didDrag.current) setCollapsed(false); }}
           aria-label="Expand base color dock"
           style={{ ...handle, display: 'flex', alignItems: 'center', gap: 5, background: 'transparent', border: 0, color: '#22e0ff', fontSize: 11 }}
         >

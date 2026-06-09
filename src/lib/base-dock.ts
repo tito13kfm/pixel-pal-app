@@ -14,7 +14,7 @@ export interface Viewport { w: number; h: number; }
 // Horizontal span (viewport coords) of the card column the dock anchors to.
 export interface HSpan { left: number; right: number; }
 
-// Default: 12px to the right of the card column, near the top (aligned with the
+// Default: 16px to the right of the card column, near the top (aligned with the
 // top card). Card-relative, so it lands consistently at any window size.
 export const DEFAULT_DOCK_POS: CardAnchor = { hEdge: 'right', dx: 16, vEdge: 'top', dy: 143 };
 

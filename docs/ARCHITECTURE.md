@@ -26,10 +26,12 @@ src/
     PixelPlayground.tsx pixel drawing canvas (line/rect/ellipse/fill/eyedropper)
     TourOverlay.tsx     spotlight tour overlay (portal, SVG cutout, popover)
     TourPanel.tsx       help-center launcher modal
+    BaseColorDock.tsx   floating draggable dock: delete a base / jump to its ramp
+                        from anywhere; collapsible; grid reshape for big palettes
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
                         useExportSettings, useTour, useSpriteImport, useAIAssist,
                         useImageExtract, useImageRemap, useSideBySide,
-                        useSavedPalettes, usePanelLayout, useUpdater, …)
+                        useSavedPalettes, usePanelLayout, useUpdater, useBaseDock, …)
   lib/
     ai.ts               multi-provider OpenAI-compat client, provider filter
     color.ts            15 color math fns, // @ts-nocheck intentional
@@ -40,6 +42,8 @@ src/
     pixel-brush.ts      pure brush-stamp library (Playground)
     viz-interaction.ts  adjacency-matrix metric + dither pattern logic
     strip-export.ts     flat-color PNG renderers + computeVizData (all 4 viz exports)
+    base-dock.ts        pure dock position helpers: card-relative anchor resolve,
+                        nearest-edge calibration, grid-column count, parse
     tours.ts            tour step data + interactive guides
     tour-runtime.ts     tour geometry helpers (cutout + popover placement)
     constants.ts        WORD_POOL, sprites, CLASSIC_PALETTES, HARDWARE_PALETTES
@@ -194,7 +198,8 @@ single token source; every chrome color / className reads from `t`. **Color DATA
   the CSS block for Neutral; point Neutral text at a token instead.
 - CVD simulation: four SVG `feColorMatrix` filters (protan / deutan / tritan) wrap the
   main content. The header / theme / CVD selectors sit OUTSIDE the filter so they stay
-  legible; floating panels (WCAG Check, GPL modal, update toast) also render outside it.
+  legible; floating panels (WCAG Check, GPL modal, update toast, base-color dock) also
+  render outside it.
 
 ---
 
