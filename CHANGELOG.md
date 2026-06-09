@@ -18,6 +18,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-06-09
+
 ### Added
 - Floating base-color dock: delete a base color from anywhere on the page, or click
   a swatch to jump to its ramp. Draggable, collapsible, and anchored to the card
@@ -467,7 +469,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.17.0...v0.18.0
