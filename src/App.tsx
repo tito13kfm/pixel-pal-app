@@ -1,4 +1,4 @@
-﻿﻿// @ts-nocheck
+﻿// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
 import {
@@ -36,6 +36,7 @@ import { BaseColorDock } from './components/BaseColorDock';
 import { HistoryPanel } from './components/panels/HistoryPanel';
 import { ExportPanel } from './components/panels/ExportPanel';
 import { SavedPalettesPanel } from './components/panels/SavedPalettesPanel';
+import { PlaygroundPanel } from './components/panels/PlaygroundPanel';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
@@ -5631,26 +5632,15 @@ export default function PixelPalGenerator() {
           chevronColor="#a5f3fc" keepMounted
           icon={<Gamepad2 size={22} />} title="Pixel Playground"
         >
-          <div className="p-6 pt-2" style={{ display: pgOpen ? '' : 'none' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sectionHeadColor('#00ff88') }}>Palette style</span>
-                {(['punchy', 'balanced', 'muted'] as const).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setVizStyle(s)}
-                    title={`Paint with ${s.charAt(0).toUpperCase() + s.slice(1)} ramps (synced with Visualize & Compare)`}
-                    className={`px-3 py-1 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === s ? 'bg-emerald-300 text-emerald-950 border-emerald-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}
-                    style={vizStyle === s ? { boxShadow: '0 0 10px #00ff88' } : {}}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <PixelPlayground
-                ramps={vizStyle === 'balanced' ? rampsBalanced : vizStyle === 'muted' ? rampsMuted : rampsPunchy}
-                theme={{ dark: theme !== 'light', text: t.text }}
-              />
-            </div>
+          <PlaygroundPanel
+            pgOpen={pgOpen}
+            vizStyle={vizStyle}
+            setVizStyle={setVizStyle}
+            rampsBalanced={rampsBalanced}
+            rampsMuted={rampsMuted}
+            rampsPunchy={rampsPunchy}
+            isDark={theme !== 'light'}
+          />
         </SectionCard>
 
         {/* ---------- Visualize & Compare (collapsible) ---------- */}

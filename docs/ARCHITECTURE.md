@@ -35,6 +35,8 @@ src/
       ExportPanel.tsx   props-only (20 props: export handlers, hw-lock, feedback)
       SavedPalettesPanel.tsx  props-only (state from useSavedPalettes + handlers);
                         reads ThemeContext; imports CLASSIC_PALETTES from lib/constants
+      PlaygroundPanel.tsx props-only (7 props: pgOpen, vizStyle, setVizStyle,
+                        rampsBalanced/Muted/Punchy, isDark); reads ThemeContext
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
                         useExportSettings, useTour, useSpriteImport, useAIAssist,
                         useImageExtract, useImageRemap, useSideBySide,
