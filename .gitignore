@@ -59,6 +59,7 @@ docs/
 !docs/
 docs/*
 !docs/ARCHITECTURE.md
+!docs/review-lenses.md
 !docs/superpowers/
 docs/superpowers/*
 !docs/superpowers/specs/

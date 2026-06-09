@@ -26,6 +26,7 @@ npm run build:web      # web build for GH Pages (base: /pixel-pal-app/)
 npm run dist           # release build (Tauri) → src-tauri/target/release/
 npm test               # vitest unit suite
 npm run test:e2e       # Playwright (desktop dev server)
+npm run deadcode       # ts-prune: list unused/orphaned exports
 ```
 
 Web e2e runs separately: `npm run build:web` then
@@ -49,6 +50,16 @@ reading whole files. `App.tsx` is ~6,700 lines and string-match edits there are 
 Fall back to `Read` with `offset`+`limit` for non-symbol context, Grep for literal matches.
 Note: `App.tsx` + `color.ts` carry `// @ts-nocheck`, so Serena's symbol nav still works but
 the LSP won't surface type errors there, so grep remains the real gate for dangling refs.
+
+`npm run deadcode` (ts-prune) complements grep from the other direction: it lists exported
+symbols nobody imports. During the `App.tsx` decomposition this catches helpers extracted to
+`lib/` that `App.tsx` never adopted (it still runs an inline copy, e.g. `slugify`, `isTauri`) —
+those are a TODO ("finish the extraction"), not a delete target. It does NOT catch dangling
+refs to a removed local; that is still grep's job. Tune false positives in `.ts-prunerc.json`.
+Lines marked `(used in module)` are exported-but-used-locally, usually safe to ignore.
+
+Two review checklists for diff/PR review live in `docs/review-lenses.md` (silent-failure +
+type-design); both matter here because `@ts-nocheck` mutes the type checker.
 
 **Serena setup** (per machine): `uv tool install -p 3.13 serena-agent` → `serena init` →
 `claude mcp add --scope user serena -- serena start-mcp-server --context claude-code --project-from-cwd`.
