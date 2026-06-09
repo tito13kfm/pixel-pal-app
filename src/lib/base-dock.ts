@@ -1,14 +1,22 @@
 // Pure position + persistence helpers for the base-color dock (#80).
 // Framework-free so they are unit-testable without the React harness.
 
-export type DockAnchor = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-export interface DockDefault { anchor: DockAnchor; dx: number; dy: number; }
+export type DockHEdge = 'left' | 'right';
+export type DockVEdge = 'top' | 'bottom';
+// Dock position relative to the card column: a horizontal card edge + signed
+// pixel offset, plus a viewport vertical edge + offset. Anchoring horizontally
+// to the cards (not the viewport) keeps the dock glued to the content as the
+// window resizes, instead of drifting across the grey gutter.
+export interface CardAnchor { hEdge: DockHEdge; dx: number; vEdge: DockVEdge; dy: number; }
 export interface Point { x: number; y: number; }
 export interface Size { w: number; h: number; }
 export interface Viewport { w: number; h: number; }
+// Horizontal span (viewport coords) of the card column the dock anchors to.
+export interface HSpan { left: number; right: number; }
 
-// Placeholder default; replaced with a dev-calibrated value in Task 6.
-export const DEFAULT_DOCK_POS: DockDefault = { anchor: 'top-right', dx: 24, dy: 80 };
+// Default: 12px to the right of the card column, near the top (aligned with the
+// top card). Card-relative, so it lands consistently at any window size.
+export const DEFAULT_DOCK_POS: CardAnchor = { hEdge: 'right', dx: 12, vEdge: 'top', dy: 143 };
 
 export function clampToViewport(p: Point, vp: Viewport, size: Size): Point {
   const maxX = Math.max(0, vp.w - size.w);
@@ -19,37 +27,27 @@ export function clampToViewport(p: Point, vp: Viewport, size: Size): Point {
   };
 }
 
-export function resolveAnchor(d: DockDefault, vp: Viewport, size: Size): Point {
-  const x = d.anchor.includes('right') ? vp.w - size.w - d.dx : d.dx;
-  const y = d.anchor.includes('bottom') ? vp.h - size.h - d.dy : d.dy;
+// Resolve a card-relative anchor to a pixel position: horizontal from the chosen
+// card edge, vertical from the chosen viewport edge, clamped on-screen.
+export function resolveCardAnchor(a: CardAnchor, card: HSpan, vp: Viewport, size: Size): Point {
+  const baseX = a.hEdge === 'right' ? card.right : card.left;
+  const x = baseX + a.dx;
+  const y = a.vEdge === 'bottom' ? vp.h - size.h - a.dy : a.dy;
   return clampToViewport({ x, y }, vp, size);
 }
 
-// Given a pixel position, report the nearest corner as an anchor + offset.
-// Used by the dev-only calibration readout so a dragged position can be
-// hardcoded as DEFAULT_DOCK_POS.
-export function nearestCornerOffset(p: Point, vp: Viewport, size: Size): DockDefault {
-  const fromLeft = p.x;
-  const fromRight = vp.w - size.w - p.x;
+// Convert a pixel position to a card-relative anchor: nearest card edge
+// horizontally (signed offset), nearest viewport edge vertically. Powers the
+// dev calibration readout and is re-applied on every drag so resize tracks the
+// cards.
+export function cardAnchorFromPixel(p: Point, card: HSpan, vp: Viewport, size: Size): CardAnchor {
+  const hEdge: DockHEdge = Math.abs(p.x - card.right) <= Math.abs(p.x - card.left) ? 'right' : 'left';
+  const dx = Math.round(p.x - (hEdge === 'right' ? card.right : card.left));
   const fromTop = p.y;
   const fromBottom = vp.h - size.h - p.y;
-  const horiz = fromRight < fromLeft ? 'right' : 'left';
-  const vert = fromBottom < fromTop ? 'bottom' : 'top';
-  const anchor = `${vert}-${horiz}` as DockAnchor;
-  const dx = Math.max(0, Math.round(horiz === 'right' ? fromRight : fromLeft));
-  const dy = Math.max(0, Math.round(vert === 'bottom' ? fromBottom : fromTop));
-  return { anchor, dx, dy };
-}
-
-export function parsePoint(raw: string | null): Point | null {
-  if (!raw) return null;
-  try {
-    const v = JSON.parse(raw);
-    // Number.isFinite rejects NaN/Infinity from a corrupted stored value, which
-    // would otherwise place the dock off-screen on first paint (before clamp).
-    if (v && Number.isFinite(v.x) && Number.isFinite(v.y)) return { x: v.x, y: v.y };
-  } catch { /* ignore malformed */ }
-  return null;
+  const vEdge: DockVEdge = fromBottom < fromTop ? 'bottom' : 'top';
+  const dy = Math.max(0, Math.round(vEdge === 'bottom' ? fromBottom : fromTop));
+  return { hEdge, dx, vEdge, dy };
 }
 
 
@@ -61,15 +59,16 @@ export function gridColumns(n: number): number {
 }
 
 
-// Parse a stored dock anchor+offset, rejecting anything malformed so a bad
-// localStorage value falls back to the default instead of stranding the dock.
-export function parseDock(raw: string | null): DockDefault | null {
+// Parse a stored card anchor, rejecting anything malformed so a bad localStorage
+// value falls back to the default instead of stranding the dock.
+export function parseCardAnchor(raw: string | null): CardAnchor | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw);
-    const anchors: DockAnchor[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-    if (v && anchors.includes(v.anchor) && Number.isFinite(v.dx) && Number.isFinite(v.dy)) {
-      return { anchor: v.anchor, dx: v.dx, dy: v.dy };
+    if (v && (v.hEdge === 'left' || v.hEdge === 'right')
+          && (v.vEdge === 'top' || v.vEdge === 'bottom')
+          && Number.isFinite(v.dx) && Number.isFinite(v.dy)) {
+      return { hEdge: v.hEdge, dx: v.dx, vEdge: v.vEdge, dy: v.dy };
     }
   } catch { /* ignore malformed */ }
   return null;

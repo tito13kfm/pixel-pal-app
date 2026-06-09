@@ -84,7 +84,7 @@ export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
       </div>
       {devCandidate && (
         <div style={{ fontSize: 8, color: '#22e0ff', textAlign: 'center', padding: '3px 4px 1px', borderTop: '1px solid #3a0f4d', letterSpacing: '0.04em' }}>
-          {devCandidate.anchor} {devCandidate.dx},{devCandidate.dy}
+          {devCandidate.hEdge} {devCandidate.dx}, {devCandidate.vEdge} {devCandidate.dy}
         </div>
       )}
     </div>
