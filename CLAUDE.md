@@ -85,15 +85,18 @@ memory for the exact file list + tag/push procedure.
 ## Git Workflow
 
 The user does not operate git directly. Every commit, merge, and branch op is the
-agent's. **A merge is not "done" until its branch is deleted, in the same session:**
+agent's. **A merge is not "done" until its branch is gone, in the same session.**
+This repo has GitHub "Automatically delete head branches" enabled, so the remote
+ref is normally deleted on merge. Check what still exists, then delete only that.
+Do not blind-delete: `git push origin --delete <name>` on an already-gone ref errors.
 
 ```powershell
-git branch -d <name>                 # local
-git push origin --delete <name>      # remote (if pushed)
+git fetch --prune                                # drop stale remote-tracking refs
+# remote: delete only if it survived the auto-cleanup
+if (git ls-remote --heads origin <name>) { git push origin --delete <name> }
+# local: -d (safe, refuses if unmerged) then -D fallback
+git branch -d <name> 2>$null; if ($LASTEXITCODE) { git branch -D <name> }
 ```
-
-If GH auto-deleted the remote on merge, `git fetch --prune` then `git branch -D <name>`
-for the local. Prefer enabling the repo's "Automatically delete head branches" setting.
 
 ---
 
