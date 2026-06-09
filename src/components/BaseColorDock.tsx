@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type React from 'react';
 import { useBaseDock } from '../hooks/useBaseDock';
+import { gridColumns } from '../lib/base-dock';
 
 interface Props {
   baseColors: string[];
@@ -14,6 +15,7 @@ const PANEL = 'linear-gradient(180deg,#240a33,#16091f)';
 export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const { pos, collapsed, setCollapsed, dragHandlers } = useBaseDock(ref);
+  const cols = gridColumns(baseColors.length);
 
   const shell: React.CSSProperties = {
     position: 'fixed', left: pos.x, top: pos.y, zIndex: 30,
@@ -42,7 +44,7 @@ export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
   }
 
   return (
-    <div ref={ref} data-testid="base-dock" style={{ ...shell, width: 46, paddingBottom: 8 }}>
+    <div ref={ref} data-testid="base-dock" style={{ ...shell, minWidth: 46, paddingBottom: 8 }}>
       <div style={{ position: 'relative' }}>
         <div
           data-testid="base-dock-grip"
@@ -60,7 +62,7 @@ export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
           style={{ position: 'absolute', top: 2, right: 3, background: 'transparent', border: 0, color: '#22e0ff', fontSize: 10, cursor: 'pointer' }}
         >▢</button>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '9px 0 2px', alignItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, auto)`, gap: 9, padding: '9px 8px 2px', justifyItems: 'center' }}>
         {baseColors.map((hex, i) => (
           <div key={i} data-testid={`swatch-${i}`} title={hex.toUpperCase()} style={{ position: 'relative' }}>
             <button

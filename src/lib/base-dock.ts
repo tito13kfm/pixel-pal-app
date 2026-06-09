@@ -51,3 +51,11 @@ export function parsePoint(raw: string | null): Point | null {
   } catch { /* ignore malformed */ }
   return null;
 }
+
+
+// Column count for the expanded swatch grid. Keeps the dock a tall ~2:1
+// (height:width) rectangle as the palette grows, instead of one long column:
+// with rows = ceil(n/cols), aiming for rows ≈ 2*cols gives cols ≈ sqrt(n/2).
+export function gridColumns(n: number): number {
+  return Math.max(1, Math.round(Math.sqrt(n / 2)));
+}

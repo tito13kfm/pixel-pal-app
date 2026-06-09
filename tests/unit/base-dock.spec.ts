@@ -5,6 +5,7 @@ import {
   clampToViewport,
   nearestCornerOffset,
   parsePoint,
+  gridColumns,
 } from '../../src/lib/base-dock';
 
 const VP = { w: 1000, h: 800 };
@@ -60,6 +61,23 @@ describe('parsePoint', () => {
   it('rejects non-finite coords (corrupted store)', () => {
     expect(parsePoint('{"x":1e999,"y":0}')).toBeNull();
     expect(parsePoint('{"x":null,"y":5}')).toBeNull();
+  });
+});
+
+describe('gridColumns', () => {
+  it('keeps small palettes in one column', () => {
+    expect(gridColumns(1)).toBe(1);
+    expect(gridColumns(4)).toBe(1);
+  });
+  it('grows columns to stay a tall ~2:1 rectangle', () => {
+    expect(gridColumns(5)).toBe(2);   // 2x3
+    expect(gridColumns(8)).toBe(2);   // 2x4
+    expect(gridColumns(13)).toBe(3);  // 3x5
+    expect(gridColumns(18)).toBe(3);  // 3x6
+    expect(gridColumns(32)).toBe(4);  // 4x8
+  });
+  it('never returns less than one column', () => {
+    expect(gridColumns(0)).toBe(1);
   });
 });
 
