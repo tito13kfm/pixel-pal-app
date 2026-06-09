@@ -5,6 +5,7 @@ import {
   clampToViewport,
   nearestCornerOffset,
   parsePoint,
+  parseDock,
   gridColumns,
 } from '../../src/lib/base-dock';
 
@@ -61,6 +62,19 @@ describe('parsePoint', () => {
   it('rejects non-finite coords (corrupted store)', () => {
     expect(parsePoint('{"x":1e999,"y":0}')).toBeNull();
     expect(parsePoint('{"x":null,"y":5}')).toBeNull();
+  });
+});
+
+describe('parseDock', () => {
+  it('parses a valid stored anchor+offset', () => {
+    expect(parseDock('{"anchor":"top-right","dx":24,"dy":80}')).toEqual({ anchor: 'top-right', dx: 24, dy: 80 });
+  });
+  it('returns null for bad anchor, non-finite, or junk', () => {
+    expect(parseDock(null)).toBeNull();
+    expect(parseDock('not json')).toBeNull();
+    expect(parseDock('{"anchor":"middle","dx":1,"dy":2}')).toBeNull();
+    expect(parseDock('{"anchor":"top-left","dx":"a","dy":2}')).toBeNull();
+    expect(parseDock('{"x":1,"y":2}')).toBeNull();
   });
 });
 

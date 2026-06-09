@@ -59,3 +59,18 @@ export function parsePoint(raw: string | null): Point | null {
 export function gridColumns(n: number): number {
   return Math.max(1, Math.round(Math.sqrt(n / 2)));
 }
+
+
+// Parse a stored dock anchor+offset, rejecting anything malformed so a bad
+// localStorage value falls back to the default instead of stranding the dock.
+export function parseDock(raw: string | null): DockDefault | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw);
+    const anchors: DockAnchor[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+    if (v && anchors.includes(v.anchor) && Number.isFinite(v.dx) && Number.isFinite(v.dy)) {
+      return { anchor: v.anchor, dx: v.dx, dy: v.dy };
+    }
+  } catch { /* ignore malformed */ }
+  return null;
+}

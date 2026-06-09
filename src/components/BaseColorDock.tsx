@@ -14,7 +14,7 @@ const PANEL = 'linear-gradient(180deg,#240a33,#16091f)';
 
 export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const { pos, collapsed, setCollapsed, dragHandlers } = useBaseDock(ref);
+  const { pos, collapsed, setCollapsed, devCandidate, dragHandlers } = useBaseDock(ref);
   const cols = gridColumns(baseColors.length);
 
   const shell: React.CSSProperties = {
@@ -82,6 +82,11 @@ export function BaseColorDock({ baseColors, onDelete, onJump }: Props) {
           </div>
         ))}
       </div>
+      {devCandidate && (
+        <div style={{ fontSize: 8, color: '#22e0ff', textAlign: 'center', padding: '3px 4px 1px', borderTop: '1px solid #3a0f4d', letterSpacing: '0.04em' }}>
+          {devCandidate.anchor} {devCandidate.dx},{devCandidate.dy}
+        </div>
+      )}
     </div>
   );
 }

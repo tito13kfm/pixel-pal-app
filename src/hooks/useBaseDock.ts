@@ -5,8 +5,8 @@ import {
   resolveAnchor,
   clampToViewport,
   nearestCornerOffset,
-  parsePoint,
-  type Point,
+  parseDock,
+  type DockDefault,
 } from '../lib/base-dock';
 
 const POS_KEY = 'ui:baseDockPos';
@@ -27,18 +27,15 @@ function sizeOf(ref: React.RefObject<HTMLElement | null>) {
 
 export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === '1');
-  // `pos` is the user's INTENDED position (what they last dragged to), persisted
-  // as-is. It is never mutated by a resize, so shrinking then growing the window
-  // (or opening/closing devtools) returns the dock to where the user put it.
-  const [pos, setPos] = useState<Point>(() => {
-    const saved = parsePoint(localStorage.getItem(POS_KEY));
-    return saved ?? resolveAnchor(DEFAULT_DOCK_POS, viewport(), FALLBACK_SIZE);
-  });
-  // Track the viewport so the DISPLAYED position re-derives on resize without
-  // touching the intended `pos`.
+  // Position is stored as a corner anchor + pixel offset, NOT absolute x/y.
+  // Resolving it against the live viewport each render keeps the dock the same
+  // distance from its corner at any window size, so resizing never drifts it.
+  const [dock, setDock] = useState<DockDefault>(
+    () => parseDock(localStorage.getItem(POS_KEY)) ?? DEFAULT_DOCK_POS,
+  );
   const [vp, setVp] = useState(viewport);
 
-  useEffect(() => { localStorage.setItem(POS_KEY, JSON.stringify(pos)); }, [pos]);
+  useEffect(() => { localStorage.setItem(POS_KEY, JSON.stringify(dock)); }, [dock]);
   useEffect(() => { localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0'); }, [collapsed]);
 
   useEffect(() => {
@@ -47,10 +44,8 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Clamp the intended position into the current viewport for DISPLAY only.
-  // A smaller viewport tucks the dock in; a larger one restores it, because
-  // `pos` itself is left untouched.
-  const display = clampToViewport(pos, vp, sizeOf(ref));
+  // Pixel position for rendering, re-derived from the corner anchor each render.
+  const display = resolveAnchor(dock, vp, sizeOf(ref));
 
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
@@ -61,11 +56,15 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
-    setPos(clampToViewport(
+    const size = sizeOf(ref);
+    const v = viewport();
+    const pixel = clampToViewport(
       { x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy },
-      viewport(),
-      sizeOf(ref),
-    ));
+      v,
+      size,
+    );
+    // Re-anchor to the nearest corner so the stored position stays viewport-relative.
+    setDock(nearestCornerOffset(pixel, v, size));
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -73,9 +72,8 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
     drag.current = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
     if (import.meta.env.DEV) {
-      const candidate = nearestCornerOffset(pos, viewport(), sizeOf(ref));
       // eslint-disable-next-line no-console
-      console.log('[base-dock] DEFAULT_DOCK_POS candidate:', JSON.stringify(candidate));
+      console.log('[base-dock] DEFAULT_DOCK_POS candidate:', JSON.stringify(dock));
     }
   };
 
@@ -86,5 +84,10 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
   };
 
-  return { pos: display, collapsed, setCollapsed, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
+  // Dev-only live readout of the corner anchor + offset, so the default can be
+  // calibrated by dragging and reading the dock face (no devtools needed). The
+  // stored `dock` IS the anchor+offset. Null in prod (dead-code-eliminated).
+  const devCandidate = import.meta.env.DEV ? dock : null;
+
+  return { pos: display, collapsed, setCollapsed, devCandidate, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
 }
