@@ -70,5 +70,12 @@ export function useBaseDock(ref: React.RefObject<HTMLElement>) {
     }
   }, [pos, ref]);
 
-  return { pos, collapsed, setCollapsed, dragHandlers: { onPointerDown, onPointerMove, onPointerUp } };
+  // A touch cancel / OS gesture takeover ends a drag without firing pointerup.
+  // Clear the in-flight drag so a later hover can't keep repositioning the dock.
+  const onPointerCancel = useCallback((e: React.PointerEvent) => {
+    drag.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+  }, []);
+
+  return { pos, collapsed, setCollapsed, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
 }
