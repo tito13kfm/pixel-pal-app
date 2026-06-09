@@ -19,6 +19,7 @@
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:e2e": "playwright test",
+    "deadcode": "ts-prune",
     "version": "node scripts/sync-tauri-version.mjs && git add src-tauri/Cargo.toml src-tauri/tauri.conf.json src-tauri/Cargo.lock"
   },
   "dependencies": {
@@ -58,6 +59,7 @@
     "playwright": "^1.60.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
+    "ts-prune": "^0.10.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",

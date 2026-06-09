@@ -1,4 +1,14 @@
 {
+  "permissions": {
+    "ask": [
+      "Edit(*.config.js)",
+      "Edit(*.config.ts)",
+      "Edit(tsconfig*.json)",
+      "Write(*.config.js)",
+      "Write(*.config.ts)",
+      "Write(tsconfig*.json)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
