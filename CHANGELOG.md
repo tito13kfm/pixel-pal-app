@@ -18,6 +18,11 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Added
+- Floating base-color dock: delete a base color from anywhere on the page, or click
+  a swatch to jump to its ramp. Draggable, collapsible, and anchored to the card
+  column so it stays put on resize; reshapes into a grid for large palettes (#80).
+
 ## [0.20.0] - 2026-06-07
 
 ### Added

@@ -32,6 +32,7 @@ import { IS_WEB } from './lib/env';
 import { DesktopAppLink } from './components/DesktopAppLink';
 import { V2EngineNotice, isPreV2Palette } from './components/V2EngineNotice';
 import { SectionCard } from './components/SectionCard';
+import { BaseColorDock } from './components/BaseColorDock';
 import { HistoryPanel } from './components/panels/HistoryPanel';
 import { ExportPanel } from './components/panels/ExportPanel';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
@@ -1486,6 +1487,21 @@ export default function PixelPalGenerator() {
       }
       return next;
     });
+  };
+
+  // Base-color dock (#80): smooth-scroll to a ramp and flash a highlight when
+  // the user clicks a swatch body in the dock.
+  const [highlightedRamp, setHighlightedRamp] = useState(null);
+  const highlightTimerRef = useRef(null);
+  const scrollToRamp = (index) => {
+    const el = document.querySelector(`[data-ramp-index="${index}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setHighlightedRamp(index);
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightedRamp(prev => (prev === index ? null : prev));
+      highlightTimerRef.current = null;
+    }, 1200);
   };
 
   // duplicateRamp: append a copy of ramp `i` at the end of baseColors,
@@ -4529,6 +4545,9 @@ export default function PixelPalGenerator() {
       )}
 
       <div className="max-w-5xl mx-auto relative z-10">
+        {!compareMode && (
+          <BaseColorDock baseColors={baseColors} onDelete={removeRamp} onJump={scrollToRamp} />
+        )}
         <V2EngineNotice show={v2NoticePending} />
         <div className="text-center mb-6 relative">
           <div className="absolute top-0 left-0 z-20">
@@ -5090,7 +5109,7 @@ export default function PixelPalGenerator() {
             const cardBorder = isLocked ? 'rgba(255, 220, 0, 0.85)' : baseBorder;
             const cardGlow = isLocked ? 'rgba(255, 220, 0, 0.5)' : baseGlow;
             return (
-              <div key={i} {...makeRampDragHandlers(i)} className="mb-4 last:mb-0 relative rounded-lg p-4" style={{ border: `2px solid ${cardBorder}`, boxShadow: [`0 0 14px ${cardGlow}`, rampDropLine(i)].filter(Boolean).join(', ') }}>
+              <div key={i} {...makeRampDragHandlers(i)} data-ramp-index={i} className="mb-4 last:mb-0 relative rounded-lg p-4" style={{ border: `2px solid ${cardBorder}`, boxShadow: [`0 0 14px ${cardGlow}`, rampDropLine(i), highlightedRamp === i ? '0 0 0 3px #ff2ec4, 0 0 22px rgba(255,46,196,0.6)' : null].filter(Boolean).join(', ') }}>
                 <div className="absolute top-1/2 right-0 -translate-y-1/2 z-10">{rampGrip(i)}</div>
                 {/* Top-right action buttons: edit (toggles editor), shuffle
                     this ramp's jitter, lock (freezes this ramp against
