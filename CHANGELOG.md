@@ -18,6 +18,9 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Changed
+- Normalized `src/` line endings to LF and stripped UTF-8 BOM from two files (no behavior change).
+
 ## [0.21.0] - 2026-06-09
 
 ### Added
