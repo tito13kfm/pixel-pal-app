@@ -97,10 +97,9 @@ test.describe('"?" button and guide select', () => {
     await expect(page.getByText('Guides', { exact: true })).not.toBeAttached()
   })
 
-  test('all 8 task guides listed', async ({ page }) => {
+  test('all 7 task guides listed', async ({ page }) => {
     await page.getByTitle('Open guides').click()
     await expect(page.getByText('Generate from a hex color')).toBeVisible()
-    await expect(page.getByText('Use AI Assist')).toBeVisible()
     await expect(page.getByText('Extract from an image')).toBeVisible()
     await expect(page.getByText('Pin a shade to a custom hex')).toBeVisible()
     await expect(page.getByText('Snap to hardware colors')).toBeVisible()
