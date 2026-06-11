@@ -18,6 +18,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-06-11
+
 ### Removed
 - AI-assisted palette generation (multi-provider AI, settings panel, key storage)
   removed entirely, including the frontend, Tauri backend, and the `openai`/`keyring`/
@@ -475,7 +477,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.18.0...v0.19.0
