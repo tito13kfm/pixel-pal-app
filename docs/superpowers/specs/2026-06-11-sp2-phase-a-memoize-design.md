@@ -103,10 +103,16 @@ trunk JSX extraction, dropping `@ts-nocheck`.
 - `npm run lint:hooks`: ESLint over `src/` with only `react-hooks/*` rules active
   (legacy `tseslint` backlog suppressed via a minimal flat config or `--rule`
   overrides; time-boxed — if fiddly, a separate config file is the escape hatch).
-- **Baseline-diff, not zero:** snapshot the pre-existing warning multiset before the
-  work; gate only on *new* `exhaustive-deps` warnings introduced by the added
-  `useCallback`s. Mirrors the tsc completeness gate.
-- Wire `lint:hooks` into CI.
+- **Baseline-diff, not zero:** `exhaustive-deps` is `warn` by default and the
+  artifact carries pre-existing warnings, so a naive `--max-warnings 0` fails on day
+  one. Gate blocking via `eslint ... --max-warnings <baseline-count>` where baseline =
+  today's pre-existing count; any *new* warning my `useCallback`s introduce pushes the
+  total over baseline and fails CI. Mirrors the tsc completeness gate.
+  - Ratchet note (one-line CI comment): if a future change *removes* a warning, shrink
+    the baseline number so it can't silently mask a new one. Phase d (drop `@ts-nocheck`)
+    will clear App.tsx's backlog and let this go to `--max-warnings 0`.
+- Wire `lint:hooks` into CI as a **blocking** gate (not advisory — advisory lints get
+  ignored; guards must be mechanical, per the dash-guard precedent).
 
 ### Standard gates (unchanged)
 `npm run build` (tsc --noEmit + vite) + `npm test` + e2e (desktop + web) +
