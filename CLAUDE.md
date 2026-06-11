@@ -1,14 +1,13 @@
-# PIXEL.PAL: Project Context
+﻿# PIXEL.PAL: Project Context
 
 Pixel-art palette generator. Vite 8 + React 19 + TS 6, packaged as Tauri v2
-desktop; also a static browser build on GitHub Pages. Multi-provider AI, user
-brings own key. Ported from a 7820-line Claude artifact (`tests/pixel-pal.tsx`,
+desktop; also a static browser build on GitHub Pages. Ported from a 7820-line Claude artifact (`tests/pixel-pal.tsx`,
 local-only/gitignored).
 
-**Detailed file map + AI-client/Playwright deep-dives:** `docs/ARCHITECTURE.md`
+**Detailed file map + Playwright deep-dives:** `docs/ARCHITECTURE.md`
 (read the relevant section before working in that area).
 
-What it does: hex/image/AI input → 4-8 shade ramps (Punchy/Balanced/Muted) with
+What it does: hex/image input → 4-8 shade ramps (Punchy/Balanced/Muted) with
 pixel-art slot labels; per-ramp HSV/sat/pin/hide/shuffle/lock; global Harmonize +
 Hardware Lock (NES/GB/CGA/EGA/C64) + harmony derivation; mosaic/lightness/polar/
 adjacency views; sprite previews; side-by-side compare; WCAG check + CVD sim;
@@ -139,20 +138,16 @@ replaces navigation/edits, not verification.
 `/pixel-pal-app/` for GH Pages, branched on `VITE_BUILD_TARGET=web` in
 `vite.config.ts`. Custom domain would change web base to `/`. Do not flatten.
 
-**Desktop runtime:** Tauri v2, Rust shell in `src-tauri/`. Secure AI-config storage
-(OS keychain via `keyring`), native Save-As (plugin-dialog), HTTP proxy for
-CORS-blocked providers (plugin-http). AI calls run in the renderer; user's own key,
-`dangerouslyAllowBrowser: true` is safe.
+**Desktop runtime:** Tauri v2, Rust shell in `src-tauri/`. Native Save-As (plugin-dialog).
 
 **Web runtime:** plain browser, `window.__TAURI_INTERNALS__` is undefined. ALL
-Tauri imports must be dynamic + gated on that check (`main.tsx`, `lib/ai.ts`); static
-imports bloat the bundle / defeat tree-shaking. The `IS_WEB` build flag
-(`src/lib/env.ts`) drives provider filtering + the key-warning banner + the desktop
+Tauri imports must be dynamic + gated on that check (`main.tsx`); static
+imports bloat the bundle / defeat tree-shaking. The `IS_WEB` build flag (`src/lib/env.ts`) drives the desktop
 footer link; runtime `isTauri()`/`__TAURI_INTERNALS__` drives storage/dialog/IPC
 fallbacks.
 
 **Persistence:** Tauri plugin-store for desktop settings; localStorage for palette
-list, theme, web-only AI key. The `window.storage` shim in `src/App.tsx` bridges the
+list, theme. The `window.storage` shim in `src/App.tsx` bridges the
 artifact's async storage API to localStorage, **do not remove**. (Typed globally in
 `vite-env.d.ts`.)
 
@@ -173,11 +168,6 @@ artifact's async storage API to localStorage, **do not remove**. (Typed globally
   3 `@tailwind` directives in `src/index.css`. No Tailwind plugin in vite.config.ts.
   Don't upgrade to v4 without config rework.
 
-**AI-client landmines** (full detail: `docs/ARCHITECTURE.md` → AI Client; a breadcrumb
-is at the top of `ai.ts`): use `ChatCompletionCreateParamsNonStreaming` (the generic
-`Parameters<…create>[0]` breaks under openai SDK v6); Anthropic skips
-`response_format: json_object`; Anthropic + Ollama are filtered from the web dropdown
-and auto-migrate to OpenAI defaults on web load.
 
 **Playwright landmines** (full detail: `docs/ARCHITECTURE.md` → Playwright Gotchas):
 use `toBeAttached()` not `toBeVisible()` for conditional nodes; `getByTitle()`/buttons

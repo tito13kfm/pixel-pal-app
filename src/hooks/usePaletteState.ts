@@ -24,7 +24,6 @@ export function usePaletteState() {
   // ----- 20 snapshot fields -----
   const [baseColors, setBaseColors] = useState(['#ff00ff']);
   const [aiColorNames, setAiColorNames] = useState([]);
-  const [aiReasoning, setAiReasoning] = useState('');
   const [rampSize, setRampSize] = useState(6);
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [overrides, setOverrides] = useState({});
@@ -81,7 +80,6 @@ export function usePaletteState() {
   const buildSnapshot = () => ({
     baseColors,
     aiColorNames,
-    aiReasoning,
     rampSize,
     shuffleSeed,
     overrides,
@@ -107,7 +105,6 @@ export function usePaletteState() {
   const applySnapshotFields = (snap: any) => {
     setBaseColors(snap.baseColors);
     setAiColorNames(snap.aiColorNames);
-    setAiReasoning(snap.aiReasoning);
     setRampSize(snap.rampSize);
     setShuffleSeed(snap.shuffleSeed);
     setOverrides(snap.overrides);
@@ -172,7 +169,6 @@ export function usePaletteState() {
     // 20 snapshot fields + setters
     baseColors, setBaseColors,
     aiColorNames, setAiColorNames,
-    aiReasoning, setAiReasoning,
     rampSize, setRampSize,
     shuffleSeed, setShuffleSeed,
     overrides, setOverrides,

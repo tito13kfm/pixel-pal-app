@@ -146,21 +146,6 @@ test('pre-satisfied detector step shows manual Next and Back does not bounce', a
 // the spotlight popover renders, and drives a forward path (detector edge or
 // Next) so a target/detector/copy drift breaks the test.
 
-test('ai-assist: starts, then AI Assist tab click auto-advances to step 2', async ({ page }) => {
-  await openLauncher(page)
-  await page.getByText('Use AI Assist').click()
-
-  // Step 1 "Switch to AI Assist": detector mode==='ai'. Default mode is 'color'
-  // so the detector starts false (drivable, not pre-satisfied).
-  await expect(page.getByText('Switch to AI Assist')).toBeVisible()
-  await expect(page.locator('.tour-popover')).toBeVisible()
-
-  // mode-ai is step 1's spotlight target; clicking the AI Assist tab through the
-  // cutout fires the mode==='ai' edge → auto-advance.
-  await page.getByRole('button', { name: 'AI Assist', exact: true }).click()
-  await expect(page.getByText('Add your API key')).toBeVisible({ timeout: 2000 })
-})
-
 test('image-import: starts, then From Image tab click auto-advances to step 2', async ({ page }) => {
   await openLauncher(page)
   await page.getByText('Extract from an image').click()

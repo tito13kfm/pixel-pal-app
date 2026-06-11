@@ -9,9 +9,6 @@ if (window.__TAURI_INTERNALS__) {
   import('./lib/tauri-bridge')
     .then(({ initTauriBridge }) => initTauriBridge())
     .catch(e => console.error('[main] failed to load tauri-bridge:', e))
-  import('./lib/ai')
-    .then(({ ensureTauriFetchLoaded }) => ensureTauriFetchLoaded())
-    .catch(e => console.error('[main] failed to preload ai:', e))
 }
 
 createRoot(document.getElementById('root')!).render(

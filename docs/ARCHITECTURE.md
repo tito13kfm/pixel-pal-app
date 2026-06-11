@@ -1,4 +1,4 @@
-# PIXEL.PAL — Architecture Reference
+﻿# PIXEL.PAL — Architecture Reference
 
 On-demand reference for `CLAUDE.md`. Read the relevant section before working in
 that area. CLAUDE.md keeps only the always-relevant constraints + terse landmine
@@ -14,10 +14,7 @@ src/
                         decomposed: pure helpers → lib/ (Tier A, done), domain
                         state → hooks/ (Tier B), JSX → components (Tier C).
   main.tsx              entry; dynamic-imports Tauri bridge when in Tauri
-  settings/
-    AISettingsPanel.tsx provider selector, base URL, key, model
   components/
-    WebKeyWarning.tsx   web-only: localStorage key-storage banner
     DesktopAppLink.tsx  web-only: footer link to releases page
     AdjacencyMatrix.tsx viz: pairwise ΔE_OK heatmap (canvas + hover readout)
     DitherBlend.tsx     viz: 2-color dither-blend preview (canvas)
@@ -51,11 +48,10 @@ src/
                         for themedAccent + accentTextGlow; accentTextGlow cast to
                         (hex, px?) signature to match 2-arg usage in ramp headers
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
-                        useExportSettings, useTour, useSpriteImport, useAIAssist,
+                        useExportSettings, useTour, useSpriteImport,
                         useImageExtract, useImageRemap, useSideBySide,
                         useSavedPalettes, usePanelLayout, useUpdater, useBaseDock, …)
   lib/
-    ai.ts               multi-provider OpenAI-compat client, provider filter
     color.ts            15 color math fns, // @ts-nocheck intentional
     oklch.ts            OKLab/OKLCH conversion, ΔE_OK distance, gamut mapping
     ramp-engine.ts      perceptual base-anchored generateRamp (reach/chroma falloff)
@@ -107,26 +103,6 @@ scripts/
   deploy-web.yml        v* tags → build:web + GH Pages deploy
 ```
 
----
-
-## AI Client (`src/lib/ai.ts`)
-
-- Uses `ChatCompletionCreateParamsNonStreaming` from `'openai/resources/chat/completions'`.
-  Generic `Parameters<typeof client.chat.completions.create>[0]` does NOT work in
-  openai SDK v6 (wrong overload, TS2339 on `.choices`).
-- Anthropic endpoints skip `response_format: { type: 'json_object' }` (unsupported);
-  all other providers get it.
-- Response schema: `{ colors: [{hex, name}], description }` →
-  `AIResponse { colors: string[], names: string[], description: string }`.
-- `tauriFetch` is dynamically imported + cached via `loadTauriFetch()`; in Tauri
-  windows it's preloaded from `main.tsx` via `ensureTauriFetchLoaded()`. In browser,
-  `_tauriFetch` stays null and the OpenAI SDK uses `globalThis.fetch`.
-- Anthropic + Ollama are filtered out of the web provider dropdown (Anthropic: CORS
-  blocked; Ollama: https→http mixed-content). A saved AIConfig with either
-  auto-migrates to OpenAI defaults on first web load (`migrateStaleProvider`).
-
----
-
 ## Playwright Gotchas
 
 - Use `toBeAttached()` / `not.toBeAttached()` for conditionally rendered elements,
@@ -136,9 +112,6 @@ scripts/
 - `vite preview` for the web build MUST use `--base /pixel-pal-app/`; otherwise SPA
   fallback returns `index.html` for `/pixel-pal-app/assets/*.js`, the bundle never
   loads, and every selector times out. `playwright.web.config.ts` already does this.
-- The AI Settings button (`[title="AI Settings"]`) only exists after switching to AI
-  mode — click the AI tab first.
-
 ---
 
 ## Cross-cutting state-maintenance rules (App.tsx wiring)
@@ -152,9 +125,9 @@ panels), so verify current structure before relying on it.
 
 Invariants that must hold across edits:
 
-1. **`resetPaletteState` is the shared wipe for all 8 full-palette-replace paths**
-   (New palette, AI generate, Surprise Me, image extract / re-extract, load saved,
-   load classic, GPL import). It clears every per-ramp customization layer
+1. **`resetPaletteState` is the shared wipe for all 7 full-palette-replace paths**
+   (New palette, Surprise Me, image extract / re-extract, load saved, load classic,
+   GPL import). It clears every per-ramp customization layer
    (overrides/pins, harmony anchor, size + sat overrides, per-ramp hue, hidden,
    shuffle offsets, locks, collapsed, curves, side-by-side slots, remap output) and
    resets `hueShiftStrength = 1.0`. Callers separately set `baseColors`, tag history
@@ -238,9 +211,7 @@ Key inventory:
   `ui:rampExportStyle`, `ui:rampSize`, `ui:panels`, `ui:sectionOrder`, `ui:vizSubOpen`.
 - **Palettes:** `palettes:{slug}` → full `SavedPalettePayload` JSON. No separate index;
   the list is rebuilt by scanning the prefix.
-- **AI:** `ai:config` (web/browser only; desktop uses the OS keychain via Tauri).
-- **One-shot flags:** `pixel-pal-tour-seen`, `webKeyWarningDismissed`,
-  `v2EngineNoticeDismissed`.
+- **One-shot flags:** `pixel-pal-tour-seen`, `v2EngineNoticeDismissed`.
 
 `loadPalette` validates, clamps, and defaults **every** field (tolerates older
 payloads); invalid entries are dropped, never fatal. Gates: `engineVersion !== 2` ⇒
@@ -309,5 +280,5 @@ to mount (≤ 2 s, then degrades to a centered card + Next), captures the baseli
 mount, positions via `lib/tour-runtime.ts` (floating-ui, `strategy: 'fixed'`,
 viewport-clamped), and arms `autoUpdate`. It auto-advances on a detector false→true edge.
 App.tsx wires `runTourSetup` (only the `export` / `harmony` panel setters),
-`snapshotTourState` / `restoreTourState` (save + restore mode / panels / AI / compare
+`snapshotTourState` / `restoreTourState` (save + restore mode / panels / compare
 around a tour run), and feeds the live `appState`.

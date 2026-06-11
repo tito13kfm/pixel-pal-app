@@ -14,8 +14,6 @@ import {
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
   HARDWARE_PALETTES,
 } from './lib/constants';
-import { getCachedAIConfig, createAIClient, generatePaletteFromPrompt } from './lib/ai';
-import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
 import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
@@ -42,7 +40,7 @@ import { HarmonyPanel } from './components/panels/HarmonyPanel';
 import { RampsPanel, PixelSprite } from './components/panels/RampsPanel';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
-import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
+import { buildRandomHex } from './lib/randomizer';
 import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
@@ -57,7 +55,6 @@ import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
 import { useTour } from './hooks/useTour';
 import { useSpriteImport } from './hooks/useSpriteImport';
-import { useAIAssist } from './hooks/useAIAssist';
 import { useImageExtract } from './hooks/useImageExtract';
 import { useImageRemap } from './hooks/useImageRemap';
 import { useSideBySide } from './hooks/useSideBySide';
@@ -128,7 +125,7 @@ export default function PixelPalGenerator() {
   const palette = usePaletteState();
   const {
     baseColors, setBaseColors, aiColorNames, setAiColorNames,
-    aiReasoning, setAiReasoning, rampSize, setRampSize,
+    rampSize, setRampSize,
     shuffleSeed, setShuffleSeed, overrides, setOverrides,
     harmonyAnchor, setHarmonyAnchor, rampSizeOverrides, setRampSizeOverrides,
     rampSatOverrides, setRampSatOverrides, hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp,
@@ -172,7 +169,7 @@ export default function PixelPalGenerator() {
     spriteImportName, setSpriteImportName, spriteImportError, setSpriteImportError,
     spriteDragging, setSpriteDragging, spriteLibrary,
   } = useSpriteImport();
-  const { aiInput, setAiInput, aiLoading, setAiLoading, aiError, setAiError, showAISettings, setShowAISettings, aiConfigured, setAiConfigured } = useAIAssist();
+
   const {
     imageDataUrl, setImageDataUrl, imageColorCount, setImageColorCount,
     imageLoading, setImageLoading, imageError, setImageError,
@@ -265,7 +262,7 @@ export default function PixelPalGenerator() {
     resetTransientEditors,
     setExportFeedback,
     snapshotInputs: [
-      baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
+      baseColors, aiColorNames, rampSize, shuffleSeed,
       overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
       hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
       lockedRamps, collapsedRamps, stylePresets,
@@ -565,7 +562,7 @@ export default function PixelPalGenerator() {
   const handleGenerate = () => {
     tagNextLabel(mode === 'color' ? 'New palette' : 'Shuffle');
     if (mode === 'color') {
-      setBaseColors([colorInput]); setAiReasoning(''); setAiColorNames([]);
+      setBaseColors([colorInput]); setAiColorNames([]);
       resetPaletteState();
       // Hard reset path: lockedRamps just got cleared. Bump shuffleSeed
       // directly rather than via bumpShuffleSeed, because the latter
@@ -580,72 +577,12 @@ export default function PixelPalGenerator() {
     }
   };
 
-  const handleAiGenerate = async () => {
-    if (!aiInput.trim()) return;
-    setAiLoading(true); setAiError(''); setAiReasoning(''); setAiColorNames([]);
-    try {
-      const cfg = getCachedAIConfig();
-      if (!cfg) {
-        setAiError('No AI provider configured. Click the gear icon to add one.');
-        setAiReasoning('Configure an AI provider in settings (gear icon) to use AI Assist.');
-        return;
-      }
-      const aiClient = createAIClient(cfg);
-      const result = await generatePaletteFromPrompt(aiClient, cfg.model, `Pixel art palette for: ${aiInput}`);
-      const hexes = (result.colors || []).filter(h => /^#[0-9a-fA-F]{6}$/.test(h));
-      if (hexes.length === 0) throw new Error('No valid colors in AI response');
-      const names = (result.names && result.names.length === result.colors.length)
-        ? hexes.map((_, i) => result.names[i] || `Color ${i + 1}`)
-        : hexes.map((_, i) => `Color ${i + 1}`);
-      tagNextLabel('AI generate');
-      setBaseColors(hexes); setAiColorNames(names); setAiReasoning(result.description || '');
-      resetPaletteState();
-      setShuffleSeed(s => s + 1);
-    } catch (err) {
-      console.error(err);
-      const msg = `Signal lost: ${err && err.message ? err.message : 'unknown error'}`;
-      setAiError(msg);
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
-  const handleAiRandom = async () => {
-    setAiLoading(true); setAiError(''); setAiReasoning(''); setAiColorNames([]);
-    try {
-      const cfg = getCachedAIConfig();
-      if (!cfg) {
-        setAiError('No AI provider configured. Click the gear icon to add one.');
-        setAiReasoning('Configure an AI provider in settings (gear icon) to use AI Assist.');
-        return;
-      }
-      const seedHint = buildRandomDescription();
-      const prompt = `Invent a creative pixel art subject and give me its palette. For variety, lean toward something in the spirit of: "${seedHint}" (but you can pick anything). Subject should be tangible (object/creature/scene), visually specific, and suited for pixel art. Use rich saturated colors at mid lightness. Include a "subject" field in your JSON with a short 2-5 word title for the subject you invented.`;
-      const aiClient = createAIClient(cfg);
-      const result = await generatePaletteFromPrompt(aiClient, cfg.model, prompt);
-      const hexes = (result.colors || []).filter(h => /^#[0-9a-fA-F]{6}$/.test(h));
-      if (hexes.length === 0) throw new Error('No valid colors in AI response');
-      const names = (result.names && result.names.length === result.colors.length)
-        ? hexes.map((_, i) => result.names[i] || `Color ${i + 1}`)
-        : hexes.map((_, i) => `Color ${i + 1}`);
-      tagNextLabel('Surprise me');
-      if (result.subject) setAiInput(result.subject);
-      setBaseColors(hexes); setAiColorNames(names); setAiReasoning(result.description || '');
-      resetPaletteState();
-      setShuffleSeed(s => s + 1);
-    } catch (err) {
-      console.error(err);
-      const msg = `Signal lost: ${err && err.message ? err.message : 'unknown error'}`;
-      setAiError(msg);
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const handleImageUpload = (file) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) { setImageError('Please upload an image file'); return; }
-    setImageLoading(true); setImageError(''); setAiReasoning(''); setAiColorNames([]);
+    setImageLoading(true); setImageError(''); setAiColorNames([]);
     // Reset zoom and naturalSize so the new image starts at 1x and the
     // onLoad handler captures fresh dimensions.
     setImageZoom(1);
@@ -730,10 +667,6 @@ export default function PixelPalGenerator() {
   }, []);
 
 
-  function handleAISettingsClose() {
-    setShowAISettings(false);
-    setAiConfigured(getCachedAIConfig() !== null);
-  }
 
   function handleTourMarkSeen() {
     localStorage.setItem('pixel-pal-tour-seen', '1');
@@ -751,7 +684,7 @@ export default function PixelPalGenerator() {
 
   const snapshotTourState = () => {
     tourSnapshot.current = {
-      mode, exportOpen, hwPickerOpen, showAISettings, compareMode, harmonyOpen,
+      mode, exportOpen, hwPickerOpen, compareMode, harmonyOpen,
     };
   };
 
@@ -761,7 +694,6 @@ export default function PixelPalGenerator() {
     setMode(s.mode);
     setExportOpen(s.exportOpen);
     setHwPickerOpen(s.hwPickerOpen);
-    setShowAISettings(s.showAISettings);
     setCompareMode(s.compareMode);
     if (!s.compareMode) { setCompareAnchor(null); setCompareResult(null); }
     setHarmonyOpen(s.harmonyOpen);
@@ -1179,8 +1111,7 @@ export default function PixelPalGenerator() {
   // got reported as confusing during usability session 2 followup work:
   // a user wanting to "roll until I see something good, then add it" had
   // no way to do that because every roll wiped their pins/locks/anchor.
-  // The non-destructive contract matches the AI tab's Random button which
-  // only updates aiInput.
+  // Non-destructive: replaces only the hex preview; pins/locks/anchor stay.
   const randomizeColor = () => {
     setColorInput(buildRandomHex());
   };
@@ -1630,8 +1561,8 @@ export default function PixelPalGenerator() {
   // hex outputs to specific (shuffleSeed, offset) pairs; the test suite
   // doesn't do that.
   //
-  // Called by: handleGenerate (non-reset path), handleAiGenerate,
-  // surpriseMe, image extract handlers, handleImageClick eyedropper
+  // Called by: handleGenerate (non-reset path), image extract handlers,
+  // handleImageClick eyedropper
   // append, and any other "global shuffle" entry point. Hard-reset
   // entry points (loadClassicPalette, applyGplImport, randomizeColor,
   // load-from-storage) bypass this helper and call setShuffleSeed
@@ -1653,7 +1584,7 @@ export default function PixelPalGenerator() {
 
   // resetPaletteState: clears every customization layer that the eight
   // full-palette-replace paths share. Callers are still responsible for
-  // setting baseColors (or aiColorNames / aiReasoning when applicable),
+  // setting baseColors (or aiColorNames when applicable),
   // tagging the next history label via tagNextLabel, and bumping the shuffle seed if their path
   // requires it. Preserves rampSize, hardwareLock, theme, CRT, CVD on
   // purpose: those are session-level settings, not per-palette state.
@@ -1695,8 +1626,6 @@ export default function PixelPalGenerator() {
       const fresh = buildRandomHex();
       setColorInput(fresh);
       setBaseColors([fresh]);
-      setAiInput('');
-      setAiReasoning('');
       setAiColorNames([]);
       setEditingIndex(null);
       resetPaletteState();
@@ -1916,7 +1845,6 @@ export default function PixelPalGenerator() {
   useEffect(() => {
     const randomHex = buildRandomHex();
     setColorInput(randomHex);
-    setAiInput(buildRandomDescription());
     setBaseColors([randomHex]);
     setShuffleSeed(s => s + 1);
   }, []);
@@ -2008,7 +1936,7 @@ export default function PixelPalGenerator() {
   // ---------- Saved palette storage helpers ----------
   // Storage layout:
   //   key `palettes:{slug}` -> JSON.stringify({ name, savedAt, baseColors,
-  //     aiColorNames, aiReasoning, rampSize, gplStyle, vizStyle, spriteKey,
+  //     aiColorNames, rampSize, gplStyle, vizStyle, spriteKey,
   //     shuffleSeed, customSprites }) where customSprites is the FULL custom
   //     sprite library at save time. We snapshot the whole custom library so
   //     that loading a palette later restores any imported sprite it depended
@@ -2439,7 +2367,6 @@ export default function PixelPalGenerator() {
       savedAt: Date.now(),
       baseColors,
       aiColorNames,
-      aiReasoning,
       rampSize,
       gplStyle,
       vizStyle,
@@ -2519,7 +2446,6 @@ export default function PixelPalGenerator() {
       tagNextLabel(`Load: ${parsed.name || slug}`);
       setBaseColors(parsed.baseColors);
       setAiColorNames(Array.isArray(parsed.aiColorNames) ? parsed.aiColorNames : []);
-      setAiReasoning(typeof parsed.aiReasoning === 'string' ? parsed.aiReasoning : '');
       if ([4, 5, 6, 7, 8].includes(parsed.rampSize)) setRampSize(parsed.rampSize);
       // hueShiftStrength: number in [0.0, 2.0]. Missing field (pre-E
       // saved palettes) restores to 1.0, which matches their original
@@ -2734,16 +2660,14 @@ export default function PixelPalGenerator() {
   };
 
   // Load a built-in classic palette. Unlike loadPalette this doesn't touch
-  // storage; the source is the CLASSIC_PALETTES constant. We set the tip text
-  // as aiReasoning so the user gets a brief description of what they just
-  // loaded. shuffleSeed resets to 0 so the ramps are deterministic and don't
+  // storage; the source is the CLASSIC_PALETTES constant.
+  // shuffleSeed resets to 0 so the ramps are deterministic and don't
   // depend on whatever shuffle the user happened to be on.
   const loadClassicPalette = (classic) => {
     if (!classic || !Array.isArray(classic.baseColors) || classic.baseColors.length === 0) return;
     tagNextLabel(`Load classic: ${classic.name}`);
     setBaseColors(classic.baseColors);
     setAiColorNames(classic.names || classic.baseColors.map((_, i) => `${classic.name} ${i + 1}`));
-    setAiReasoning(`Inspired by ${classic.name}. ${classic.tip}`);
     resetPaletteState();
     // Classics weren't designed for any specific hardware constraint. Clear
     // any active lock so the loaded classic renders as-authored.
@@ -2806,7 +2730,6 @@ export default function PixelPalGenerator() {
     tagNextLabel(`Import GPL: ${gplImport.name}`);
     setBaseColors(chosen);
     setAiColorNames(chosen.map((_, i) => `${gplImport.name} ${i + 1}`));
-    setAiReasoning(`Imported from ${gplImport.name}. ${chosen.length} base color${chosen.length === 1 ? '' : 's'} loaded.`);
     resetPaletteState();
     setHardwareLock(null);
     setShuffleSeed(0);
@@ -4458,7 +4381,6 @@ export default function PixelPalGenerator() {
         <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" style={{ background: t.cardBgPinkBright, borderColor: themedAccentBorder('#ff00ff'), boxShadow: t.glowStrong > 0.5 ? '0 0 30px rgba(255, 0, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.2)' : accentGlow('#ff00ff', 0.5) }}>
           <div className="flex flex-wrap gap-2 mb-4 justify-center" data-tour-id="mode-tabs">
             <button onClick={() => setMode('color')} data-tour-id="mode-single" title="Build a palette from a single hex color" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm ${mode === 'color' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={mode === 'color' ? { boxShadow: '0 0 15px #00ffff' } : {}}>Single Color</button>
-            <button onClick={() => setMode('ai')} data-tour-id="mode-ai" title="Describe a subject, mood, or scene and let AI pick the palette" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'ai' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-pink-900/60 text-pink-200 border-pink-700/50 hover:bg-pink-800/60'}`} style={mode === 'ai' ? { boxShadow: '0 0 15px #ff00ff' } : {}}><Wand2 size={16} />AI Assist</button>
             <button onClick={() => setMode('image')} data-tour-id="mode-image" title="Extract a palette from an uploaded image" className={`px-4 py-2 rounded font-bold transition-all border-2 uppercase tracking-wider text-sm flex items-center gap-1 ${mode === 'image' ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-yellow-900/60 text-yellow-200 border-yellow-700/50 hover:bg-yellow-800/60'}`} style={mode === 'image' ? { boxShadow: '0 0 15px #ffff00' } : {}}><ImageIcon size={16} />From Image</button>
           </div>
 
@@ -4474,12 +4396,6 @@ export default function PixelPalGenerator() {
                 {addBaseFeedback && (
                   <span className="absolute -left-1 top-full mt-2 z-20 whitespace-nowrap text-xs font-bold px-2 py-1 rounded bg-cyan-500 text-purple-900 border-2 border-cyan-200 uppercase tracking-wider">{addBaseFeedback}</span>
                 )}
-              </div>
-            )}
-            {mode === 'ai' && (
-              <div className="flex gap-2 items-center w-full sm:w-auto">
-                <input type="text" value={aiInput} onChange={(e) => setAiInput(e.target.value)} data-tour-id="ai-prompt-input" placeholder="describe anything..." title="Describe a subject, mood, or scene. Press Enter to generate." className="px-3 py-2 rounded bg-black/60 text-pink-200 border-2 border-pink-400 w-full sm:w-96 focus:outline-none" onKeyDown={(e) => e.key === 'Enter' && !aiLoading && handleAiGenerate()} disabled={aiLoading} />
-                <button onClick={() => setAiInput(buildRandomDescription())} disabled={aiLoading} title="Roll a random description (does not call AI)" className="px-3 py-2 rounded font-bold bg-pink-500 text-white border-2 border-pink-300 hover:bg-pink-400 hover:scale-105 transition-all flex-shrink-0 disabled:opacity-60" style={{ boxShadow: '0 0 12px #ff00ff' }}><Dice5 size={18} /></button>
               </div>
             )}
             {mode === 'image' && (
@@ -4569,39 +4485,14 @@ export default function PixelPalGenerator() {
               </div>
             )}
 
-            {mode === 'ai' ? (
-              <>
-                <button onClick={handleAiGenerate} disabled={aiLoading} data-tour-id="ai-execute-btn" title="Send the description to AI and generate a palette" className="px-5 py-2 rounded font-bold bg-pink-400 text-purple-900 border-2 border-pink-200 hover:bg-pink-300 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-60 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 15px #ff00ff' }}>
-                  <Wand2 size={18} className={aiLoading ? 'animate-spin' : ''} />{aiLoading ? 'Processing...' : 'Execute'}
-                </button>
-                <button onClick={handleAiRandom} disabled={aiLoading} data-tour-id="ai-surprise-btn" title="AI invents a random subject and generates its palette" className="px-5 py-2 rounded font-bold bg-purple-500 text-cyan-100 border-2 border-purple-200 hover:bg-purple-400 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-60 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 15px #a855f7' }}>
-                  <Dice5 size={18} className={aiLoading ? 'animate-spin' : ''} />Surprise Me
-                </button>
-                <button
-                  onClick={() => setShowAISettings(true)}
-                  data-tour-id="ai-settings-btn"
-                  title="AI Settings"
-                  className={`px-4 py-2 rounded font-bold border-2 font-mono text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all hover:scale-105 ${aiConfigured === false ? 'bg-purple-950 text-purple-300 border-purple-500 ai-setup-pulse' : 'bg-purple-900 text-purple-200 border-purple-700'}`}
-                  style={aiConfigured !== false ? { boxShadow: '0 0 8px rgba(126,34,206,0.4)' } : undefined}
-                >
-                  ⚙{aiConfigured === false && ' AI Setup'}
-                </button>
-              </>
-            ) : mode === 'image' ? null : (
+            {mode === 'image' ? null : (
               <button onClick={handleGenerate} data-tour-id="new-palette-btn" title="Replace the palette with a new single-ramp palette built from the hex above. Destructive: wipes pins, hidden shades, ramp locks, side-by-side slots, harmony anchor, and per-ramp customizations. To keep your existing palette, click Add base instead." className="px-4 py-2 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 10px #ffff00' }}>
                 <Sparkles size={18} />New palette
               </button>
             )}
           </div>
 
-          {mode === 'ai' && aiReasoning && (
-            <div className={`mb-4 p-3 rounded border-2 text-sm italic ${t.alertVisionBg} ${t.alertVisionText} ${t.alertVisionBorder}`}>
-              <span className="font-bold not-italic uppercase tracking-wider">▸ VISION ▸ </span>{aiReasoning}
-            </div>
-          )}
-          {mode === 'ai' && aiError && (
-            <div className={`mb-4 p-3 rounded border-2 text-sm ${t.alertErrorBg} ${t.alertErrorText} ${t.alertErrorBorder}`}>{aiError}</div>
-          )}
+
 
           <div className="mt-4 pt-4 border-t border-cyan-700/30">
             <div className="flex flex-wrap gap-2 items-center justify-center text-cyan-100 mb-3">
@@ -5177,7 +5068,7 @@ export default function PixelPalGenerator() {
           </div>
         )}
       </div>
-      {showAISettings && <AISettingsPanel onClose={handleAISettingsClose} />}
+
       <TourPanel
         open={launcherOpen}
         onClose={() => setLauncherOpen(false)}
@@ -5187,7 +5078,7 @@ export default function PixelPalGenerator() {
         open={tourOpen}
         guideId={tourGuideId}
         step={tourStep}
-        appState={{ mode, showAISettings, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors, harmonized: harmonizeBaseline != null }}
+        appState={{ mode, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors, harmonized: harmonizeBaseline != null }}
         runSetup={runTourSetup}
         onSetStep={setTourStep}
         onExit={exitTour}

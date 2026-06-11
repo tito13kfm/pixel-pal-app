@@ -1,8 +1,6 @@
 declare global {
   interface Window {
     electronAPI: {
-      getAIConfig: () => Promise<{ config: { provider: string; baseUrl: string; apiKey: string; model: string } | null; encrypted: boolean }>
-      setAIConfig: (config: { provider: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ encrypted: boolean }>
       openExternal: (url: string) => Promise<void>
       onUpdateAvailable: (cb: (info: { version: string; isPortable?: boolean; releaseUrl?: string }) => void) => void
       onUpdateReady: (cb: (info: { version: string }) => void) => void

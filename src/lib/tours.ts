@@ -1,6 +1,5 @@
 export interface TourAppState {
   mode: string
-  showAISettings: boolean
   imageDataUrl: string | null
   exportOpen: boolean
   compareMode: boolean
@@ -97,43 +96,6 @@ export const TASK_GUIDES: TourGuide[] = [
         target: 'ramp-area',
         advance: 'next',
         placement: 'auto',
-      },
-    ],
-  },
-  {
-    id: 'ai-assist',
-    label: 'Use AI Assist',
-    steps: [
-      {
-        title: 'Switch to AI Assist',
-        body: 'AI Assist generates palettes from a text prompt using a language model.',
-        hint: '→ click AI Assist',
-        target: 'mode-ai',
-        advance: 'detector',
-        detector: (s) => s.mode === 'ai',
-        placement: 'bottom',
-      },
-      {
-        title: 'Add your API key',
-        body: 'Open settings and paste in your API key. Works with OpenAI and OpenAI-compatible providers.',
-        hint: '→ click the gear icon',
-        target: 'ai-settings-btn',
-        advance: 'detector',
-        detector: (s) => s.showAISettings,
-        placement: 'bottom',
-      },
-      {
-        title: 'Generate from a prompt',
-        body: 'Type a description (e.g. "sunset over ocean") in the field, then click Execute.',
-        hint: '→ click Execute',
-        target: 'ai-execute-btn',
-        advance: 'next',
-        placement: 'bottom',
-      },
-      {
-        title: 'Palette generated',
-        body: 'Colors extracted from the AI response and built into ramps.',
-        advance: 'next',
       },
     ],
   },

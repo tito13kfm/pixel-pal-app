@@ -20,13 +20,6 @@
     {
       "identifier": "fs:scope",
       "allow": [{ "path": "**" }]
-    },
-    {
-      "identifier": "http:default",
-      "allow": [
-        { "url": "https://**" },
-        { "url": "http://localhost:**/**" }
-      ]
     }
   ]
 }

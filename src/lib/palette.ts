@@ -1,16 +1,5 @@
 import type { CurvePoints } from './curve';
 
-// ---------- AI Configuration ----------
-// Defined here (shared type layer) since it lives in the data layer.
-// The actual AI client code lives in src/lib/ai.ts.
-
-export interface AIConfig {
-  provider: string
-  baseUrl: string
-  apiKey: string
-  model: string
-}
-
 // ---------- Palette payload types ----------
 // Inferred from saveCurrentPalette / loadPalette in pixel-pal.tsx.
 // Most fields are optional because loadPalette validates and defaults each one,
@@ -24,7 +13,6 @@ export interface SavedPalettePayload {
   savedAt: number
   baseColors: string[]
   aiColorNames?: string[]
-  aiReasoning?: string
   rampSize?: number
   gplStyle?: 'punchy' | 'balanced' | 'muted'
   vizStyle?: 'punchy' | 'balanced' | 'muted'

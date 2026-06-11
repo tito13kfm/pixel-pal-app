@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project are documented in this file.
 
@@ -17,6 +17,12 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 > carry the build artifacts but no written notes.
 
 ## [Unreleased]
+
+### Removed
+- AI-assisted palette generation (multi-provider AI, settings panel, key storage)
+  removed entirely, including the frontend, Tauri backend, and the `openai`/`keyring`/
+  `tauri-plugin-http` dependencies. Existing stored AI config is left orphaned and
+  ignored. Color-name labels (`aiColorNames`) are retained.
 
 ## [0.21.0] - 2026-06-09
 

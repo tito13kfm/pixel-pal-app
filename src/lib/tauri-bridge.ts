@@ -4,7 +4,6 @@ import { check, type Update } from '@tauri-apps/plugin-updater'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { load } from '@tauri-apps/plugin-store'
 import { relaunch } from '@tauri-apps/plugin-process'
-import type { AIConfig } from './palette'
 
 export type UpdateInfo = { version: string; isPortable?: boolean; releaseUrl?: string }
 type UpdateCallback = (info: UpdateInfo) => void
@@ -105,12 +104,6 @@ async function checkForUpdates(): Promise<void> {
 
 export function initTauriBridge(): void {
   const bridge = {
-    getAIConfig: () =>
-      invoke<{ config: AIConfig | null; encrypted: boolean }>('ai_config_get'),
-
-    setAIConfig: (config: AIConfig) =>
-      invoke<{ encrypted: boolean }>('ai_config_set', { config }),
-
     openExternal: (url: string): Promise<void> => {
       if (url.startsWith('https://') || url.startsWith('http://'))
         return openUrl(url)

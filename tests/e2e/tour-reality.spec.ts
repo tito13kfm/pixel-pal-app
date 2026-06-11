@@ -59,15 +59,6 @@ test.describe('tour copy references real UI elements', () => {
     await expect(page.getByRole('button', { name: 'New palette', exact: true })).toBeVisible()
   })
 
-  test('AI Assist tab controls exist', async ({ page }) => {
-    // onboarding step 2 + ai-assist steps 1,3
-    await expect(page.getByRole('button', { name: 'AI Assist', exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'AI Assist', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Execute', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Surprise Me', exact: true })).toBeVisible()
-    await expect(page.locator('input[placeholder="describe anything..."]')).toBeVisible()
-  })
-
   test('From Image tab exists (no image needed for tab check)', async ({ page }) => {
     // onboarding step 2 + image-import step 1
     await expect(page.getByRole('button', { name: 'From Image', exact: true })).toBeVisible()
@@ -131,8 +122,7 @@ test.describe('tour auto-advance detectors fire correctly', () => {
   // so it is pre-satisfied on entry → the engine surfaces a manual Next (no dead-
   // end). Steps 2–4 are advance:'next'. So: Next, Next, Next, Done. Mode must NOT
   // be switched away from 'color' before starting, or step 1 loses its pre-
-  // satisfaction. (Old test clicked AI Assist + expected a "Ramps generated"
-  // detector auto-advance that no longer exists in the restructured 4-step guide.)
+  // satisfaction.
   test('hex-palette: Next-driven walk reaches Done', async ({ page }) => {
     await openGuides(page)
     await page.getByText('Generate from a hex color').click()
