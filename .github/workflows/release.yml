@@ -103,7 +103,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # Tag-push: build + publish to a GitHub Release entry.
+      # Tag-push: build + create a DRAFT GitHub Release. Nothing reaches users
+      # (and the updater's latest.json stays unreachable) until you click Publish
+      # on the Releases page, so a tag can never auto-go-live past a manual check.
       - name: Build and release (tag push)
         if: github.event_name == 'push'
         uses: tauri-apps/tauri-action@v0
@@ -114,7 +116,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'PIXEL.PAL ${{ github.ref_name }}'
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           includeDebug: false
 
