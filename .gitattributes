@@ -7,3 +7,12 @@
 # Git hooks must stay LF: a CRLF shebang (#!/bin/sh\r) breaks the interpreter
 # lookup on Linux/CI. The Windows dev box would otherwise store CRLF.
 .githooks/** text eol=lf
+
+# Source files: pin LF so regex/anchor edit tools (Serena replace_content, sed)
+# and Linux CI see byte-identical endings. eol=lf overrides core.autocrlf=true.
+/src/**/*.ts   text eol=lf
+/src/**/*.tsx  text eol=lf
+/src/**/*.css  text eol=lf
+/src/*.ts      text eol=lf
+/src/*.tsx     text eol=lf
+/src/*.css     text eol=lf
