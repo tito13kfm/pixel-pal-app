@@ -35,6 +35,7 @@ export function CrossRampDither({
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (n > 0) drawCrossRampDither(ctx, bases, { cell, pattern, header });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [basesKey, pattern, cell, header, size, n]);
 
   const label = (i: number) => (names && names[i]) || `Ramp ${i + 1}`;

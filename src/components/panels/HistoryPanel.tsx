@@ -1,6 +1,9 @@
+import { memo } from 'react';
 import { usePalette } from '../../contexts';
+import { recordRender } from '../../lib/renderCount';
 
-export function HistoryPanel() {
+function HistoryPanelImpl() {
+  recordRender('HistoryPanel');
   const { historyEntries, historyIndex, jumpToHistoryIndex, canUndo, canRedo, formatHistoryAge } = usePalette();
   return (
     <div className="p-4 pt-0">
@@ -42,3 +45,5 @@ export function HistoryPanel() {
     </div>
   );
 }
+
+export const HistoryPanel = memo(HistoryPanelImpl);

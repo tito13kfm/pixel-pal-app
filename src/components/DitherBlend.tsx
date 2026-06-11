@@ -31,6 +31,7 @@ export function DitherBlend({ rows, pattern, compact, borderColor, zoom = 1 }: D
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (rows.length > 0) drawDitherBlend(ctx, rows, { pattern, rowH, solidW, blendW, sub });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [rowsKey, pattern, rowH, solidW, blendW, width, height]);
 
   if (rows.length === 0) return null;

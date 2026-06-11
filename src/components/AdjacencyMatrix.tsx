@@ -34,6 +34,7 @@ export function AdjacencyMatrix({
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (n > 0) drawAdjacencyMatrix(ctx, colors, { cell, view, header });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [colorKey, view, cell, header, size, n]);
 
   const handleMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
