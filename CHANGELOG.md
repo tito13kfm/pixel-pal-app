@@ -5,14 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project tries its best to adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Versioning notes.** The first public tag is `0.2.0` — there was no `0.1.0`
+> **Versioning notes.** The first public tag is `0.2.0`; there was no `0.1.0`
 > release. `0.3.0` was bumped internally but never tagged or released (the
 > first `0.3.x` release is `0.3.1`). `0.5.0` marks the rewrite from an Electron
 > shell to **Tauri v2**; because that work branched from before `0.4.0`, the
 > tag lineage resets there. The `0.5.x` line saw rapid patch releases while the
 > new Tauri auto-updater signing was stabilized.
 >
-> Entries for `0.2.0`–`0.12.0` were backfilled from git history; the
+> Entries for `0.2.0` through `0.12.0` were backfilled from git history; the
 > corresponding [GitHub Releases](https://github.com/tito13kfm/pixel-pal-app/releases)
 > carry the build artifacts but no written notes.
 
@@ -35,12 +35,12 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ### Added
 - Atkinson and Stucki error-diffusion dither kernels for image remapping, joining
-  the existing Floyd–Steinberg option (#48).
+  the existing Floyd-Steinberg option (#48).
 
 ### Changed
 - Saved palettes now always render with the v2 perceptual shading engine. A
-  palette saved under the original (v1) engine is auto-migrated on load — it may
-  look slightly different — and a one-time, dismissible notice explains the
+  palette saved under the original (v1) engine is auto-migrated on load (it may
+  look slightly different), and a one-time, dismissible notice explains the
   change. **Breaking:** pre-v2 saves no longer render byte-identically (#70).
 
 ### Removed
@@ -62,7 +62,7 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   the two new cards to the end of the existing order rather than resetting the
   whole arrangement (#44).
 - Individual ramps can be dragged to reorder within the Color Ramps card. The
-  new order propagates everywhere ramps are used in order — ramp grid, Mosaic,
+  new order propagates everywhere ramps are used in order: ramp grid, Mosaic,
   Adjacency, Dither, and all exports (gpl/pal/ase/png-strip/txt). Every per-ramp
   setting moves with its ramp: pins, shade count, saturation, hue shift, hidden
   shades, shuffle offset, lightness/saturation curves, lock, collapse, harmony
@@ -83,7 +83,7 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Cross-ramp dither grid: a Per-ramp ↔ Cross-ramp toggle shows an N×N grid that
   dithers every ramp's base color against every other, previewing the perceived
   in-between hue of two ramps (e.g. red × blue reads as purple) (#46).
-- 1×/2×/4× zoom control for the Dither-Blend preview — magnifies on screen while
+- 1×/2×/4× zoom control for the Dither-Blend preview: magnifies on screen while
   staying pixel-crisp; does not affect the exported PNG (#49).
 
 ### Changed
@@ -91,14 +91,14 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   instead of equal-width cells, so gaps in tonal coverage are visible. The
   exported PNG matches the on-screen view (#51).
 - Default **Punchy** preset retuned (reach 1.0→0.9, chroma falloff 0.1→0.15) for
-  a slightly tamer look at the extremes. Affects new palettes only — existing
+  a slightly tamer look at the extremes. Affects new palettes only; existing
   saved palettes keep their stored preset values (#40).
 - The Image Preview subsection in Visualize & Compare is now individually
   collapsible too, completing the per-subsection collapse work (#45).
 
 ### Fixed
 - Visualize/export/compare of the working palette now honor per-ramp hue-shift
-  overrides instead of falling back to the global value — matching the main
+  overrides instead of falling back to the global value, matching the main
   color grid (#37).
 - Freehand pencil/eraser strokes no longer leave gaps on fast drags: the path
   between pointer samples is interpolated, and pointer capture keeps the stroke
@@ -120,7 +120,7 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   actually visible and the two are distinguishable (#43).
 
 ### Fixed
-- The 4×4 Bayer dither preview no longer renders as vertical streaks — it now shows
+- The 4×4 Bayer dither preview no longer renders as vertical streaks; it now shows
   a real Bayer ordered-dither pattern, on screen and in the PNG export (#43).
 - Pixel Playground tool labels and icons are legible on the Neutral theme (they were
   dark-on-dark) (#42).
@@ -145,14 +145,14 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ### Added
 - The remapped-image preview in Visualize & Compare now scales with the
-  selected export scale, so larger pixels are shown at higher scales — easier
+  selected export scale, so larger pixels are shown at higher scales, easier
   to judge the remapped result before downloading (#28).
 
 ### Fixed
 - Dither-blend preview now renders a distinct 4×4 Bayer gradient ramp instead of
   a pattern identical to the 2×2 checker, so the Bayer ordered-dither mode is
   visually distinguishable (#23).
-- Pixel Playground canvas state — drawn pixels, undo stack, and active color —
+- Pixel Playground canvas state (drawn pixels, undo stack, and active color)
   now survives collapsing and expanding the panel. Previously the component
   unmounted on collapse and wiped everything (#25).
 
@@ -160,9 +160,9 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ### Added
 - Export to JASC `.pal` (GrafX2, Paint Shop Pro).
-- Export to Adobe Swatch Exchange `.ase` (Photoshop, Illustrator, Krita — not
+- Export to Adobe Swatch Exchange `.ase` (Photoshop, Illustrator, Krita, not
   Aseprite, despite the shared extension).
-- Export a PNG palette strip — a flat swatch sheet for eyedropper import into
+- Export a PNG palette strip: a flat swatch sheet for eyedropper import into
   any editor.
 - Desktop "Reveal in folder" action after exporting.
 
@@ -181,7 +181,7 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   Color set switches between all unique shades and ramp bases; hover (full-size)
   reads out the exact pair and ΔE.
 - **Dither-blend preview** view: the 2-color optical mix of consecutive ramp
-  shades, rendered at sprite scale, with a 2×2 checkerboard / 4×4 Bayer toggle —
+  shades, rendered at sprite scale, with a 2×2 checkerboard / 4×4 Bayer toggle,
   the "in-between" shade you get for free when dithering.
 - PNG export for both new views, alongside the existing Mosaic and Lightness
   Distribution exports. Both views also render in the side-by-side compare slots.

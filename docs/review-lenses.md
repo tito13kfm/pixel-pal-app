@@ -30,13 +30,13 @@ For each finding: location, severity, what breaks, suggested fix.
 
 Ask whether the types make illegal states hard or impossible to represent:
 
-- **Encapsulation** — are internal details hidden, or can an invariant be broken
+- **Encapsulation**: are internal details hidden, or can an invariant be broken
   from outside?
-- **Invariant expression** — do the types encode the rule, or is it only enforced
+- **Invariant expression**: do the types encode the rule, or is it only enforced
   by a runtime check that a caller can skip? (e.g. shade-count bounds, ramp index
   ranges, hardware-lock palettes.)
-- **Usefulness** — does the invariant prevent a bug that actually happens here?
-- **Enforcement** — is it enforced by the type system, or is there an easy escape
+- **Usefulness**: does the invariant prevent a bug that actually happens here?
+- **Enforcement**: is it enforced by the type system, or is there an easy escape
   hatch (`as any`, a widened union, an optional field that should be required)?
 
 For each type reviewed: name + location, a note on each of the four dimensions,
