@@ -60,6 +60,7 @@ docs/
 docs/*
 !docs/ARCHITECTURE.md
 !docs/review-lenses.md
+!docs/architecture-rebuild-roadmap.md
 !docs/superpowers/
 docs/superpowers/*
 !docs/superpowers/specs/
