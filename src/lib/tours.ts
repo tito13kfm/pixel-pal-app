@@ -1,6 +1,5 @@
 export interface TourAppState {
   mode: string
-  showAISettings: boolean
   imageDataUrl: string | null
   exportOpen: boolean
   compareMode: boolean
