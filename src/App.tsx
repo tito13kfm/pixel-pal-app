@@ -733,7 +733,6 @@ export default function PixelPalGenerator() {
       return () => window.removeEventListener('paste', pasteHandler);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  // eslint-disable-next-line react-hooks/exhaustive-deps  // TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [mode]);
 
   const getPixelColorFromImage = (event) => {

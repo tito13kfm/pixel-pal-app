@@ -36,4 +36,36 @@ export function AdjacencyMatrix({
     if (n > 0) drawAdjacencyMatrix(ctx, colors, { cell, view, header });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [colorKey, view, cell, header, size, n]);
+
+  const handleMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (compact || n === 0) return;
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    const cx = (e.clientX - rect.left) * sx - header;
+    const cy = (e.clientY - rect.top) * sy - header;
+    if (cx < 0 || cy < 0) { setReadout(''); return; }
+    const j = Math.floor(cx / cell);
+    const i = Math.floor(cy / cell);
+    if (i < 0 || j < 0 || i >= n || j >= n) { setReadout(''); return; }
+    if (i === j) { setReadout(`${colors[i].toUpperCase()} (self)`); return; }
+    const d = adjacencyDeltaE(colors[i], colors[j]);
+    setReadout(`${colors[i].toUpperCase()} ↔ ${colors[j].toUpperCase()} · ΔE ${d === null ? 'n/a' : d.toFixed(3)}`);
+  };
+
+  if (n === 0) return null;
+  return (
+    <div>
+      <canvas
+        ref={canvasRef}
+        onMouseMove={handleMove}
+        onMouseLeave={() => setReadout('')}
+        style={{ imageRendering: 'pixelated', maxWidth: '100%', height: 'auto', display: 'block', border: `1px solid ${borderColor ?? '#444'}` }}
+      />
+      {!compact && (
+        <div className="text-[10px] text-cyan-100/70 font-mono mt-1 h-4" aria-live="polite">{readout || ' '}</div>
+      )}
+    </div>
+  );
 }

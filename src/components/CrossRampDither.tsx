@@ -37,4 +37,37 @@ export function CrossRampDither({
     if (n > 0) drawCrossRampDither(ctx, bases, { cell, pattern, header });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [basesKey, pattern, cell, header, size, n]);
+
+  const label = (i: number) => (names && names[i]) || `Ramp ${i + 1}`;
+
+  const handleMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (compact || n === 0) return;
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    const cx = (e.clientX - rect.left) * sx - header;
+    const cy = (e.clientY - rect.top) * sy - header;
+    if (cx < 0 || cy < 0) { setReadout(''); return; }
+    const j = Math.floor(cx / cell);
+    const i = Math.floor(cy / cell);
+    if (i < 0 || j < 0 || i >= n || j >= n) { setReadout(''); return; }
+    if (i === j) { setReadout(`${label(i)} ${bases[i].toUpperCase()} (self)`); return; }
+    setReadout(`${label(i)} ${bases[i].toUpperCase()} × ${label(j)} ${bases[j].toUpperCase()} (dither blend)`);
+  };
+
+  if (n === 0) return null;
+  return (
+    <div style={{ width: size, maxWidth: '100%' }}>
+      <canvas
+        ref={canvasRef}
+        onMouseMove={handleMove}
+        onMouseLeave={() => setReadout('')}
+        style={{ imageRendering: 'pixelated', maxWidth: '100%', height: 'auto', display: 'block', border: `1px solid ${borderColor ?? '#444'}` }}
+      />
+      {!compact && (
+        <div className="text-[10px] text-cyan-100/70 font-mono mt-1 h-4 whitespace-nowrap overflow-hidden" aria-live="polite">{readout || ' '}</div>
+      )}
+    </div>
+  );
 }

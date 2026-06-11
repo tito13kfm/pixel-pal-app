@@ -1,3 +1,3 @@
 {
-  "ignore": "(contexts[\\\\/]index\\.ts|vite-env\\.d\\.ts|[\\\\/]main\\.tsx)"
+  "ignore": "(contexts[\\\\/]index\\.ts|vite-env\\.d\\.ts|[\\\\/]main\\.tsx|renderCount\\.ts)"
 }
