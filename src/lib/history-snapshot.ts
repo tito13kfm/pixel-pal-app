@@ -6,7 +6,7 @@ export const SNAPSHOT_FIELDS = [
   'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',
 ] as const;
 
-// Verbatim from App.tsx inferLabel — do not "improve". Characterized by spec.
+// Verbatim from App.tsx inferLabel, do not "improve". Characterized by spec.
 export function inferLabel(prev: any, next: any): string {
   if (!prev || !next) return 'Edit';
   if (JSON.stringify(prev.baseColors) !== JSON.stringify(next.baseColors)) {

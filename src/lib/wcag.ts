@@ -1,6 +1,6 @@
 import { hexToRgb } from './color';
 
-// WCAG 2.1 relative luminance — https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+// WCAG 2.1 relative luminance: https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
 export const wcagRelativeLuminance = (hex: string): number => {
   const { r, g, b } = hexToRgb(hex);
   const channel = (c: number): number => {

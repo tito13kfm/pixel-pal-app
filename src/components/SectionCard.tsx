@@ -5,7 +5,7 @@ import { useLayout, useTheme } from '../contexts';
 export interface SectionCardProps {
   sectionKey: string;
   accent: string;       // accent hex for border/glow/heading
-  bg: string;           // background token (e.g. t.cardBgViz) — varies per section
+  bg: string;           // background token (e.g. t.cardBgViz), varies per section
   glow: number;         // accentGlow strength for this card
   open: boolean;
   onToggle: () => void;

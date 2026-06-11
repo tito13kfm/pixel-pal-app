@@ -51,7 +51,7 @@ function falloffParams(chromaFalloff: number): { floorFrac: number; exp: number 
   return { floorFrac: lerp(0.92, 0.12, f), exp: lerp(1.0, 0.55, f) };
 }
 
-// v2 slot-allocation constants — starting values; tune in Task 7 to satisfy the
+// v2 slot-allocation constants: starting values; tune in Task 7 to satisfy the
 // threshold test (no adjacent ΔL > 1.5× median) AND the visual sign-off.
 const V2_BIAS_C = 1.5;     // centering strength numerator
 const V2_BIAS_MAX = 0.6;   // max centering weight at tiny N
@@ -63,7 +63,7 @@ function computeBaseIndex(
   if (N <= 1) return 0;
   const span = lightTop - darkBottom;
   const proportionalDark = span > 1e-6 ? (baseL - darkBottom) / span : 0.5;
-  // v2 — bias toward center, fading with N; guarantee a usable short side.
+  // v2: bias toward center, fading with N; guarantee a usable short side.
   const w = clamp(V2_BIAS_C / (N - 1), 0, V2_BIAS_MAX);
   const biasedDark = lerp(proportionalDark, 0.5, w);
   const minSide = Math.min(V2_MIN_SIDE, Math.floor((N - 1) / 2));

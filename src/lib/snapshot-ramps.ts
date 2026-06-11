@@ -6,9 +6,9 @@ import { buildRamp } from './ramp-pipeline';
 // seededHueDelta: deterministic hue offset in degrees for (effectiveSeed,
 // rampIdx). Replaces the old seededRandom jitter that the legacy HSV engine
 // used per-shade. The perceptual engine is called once per ramp so jitter is
-// applied to the BASE color instead — the whole ramp shifts together, keeping
+// applied to the BASE color instead, the whole ramp shifts together, keeping
 // the smooth OKLCH graduation intact. Seed 0 always returns 0 (baseline, no
-// jitter). Range ±8° — noticeable variation without changing color identity.
+// jitter). Range ±8°, noticeable variation without changing color identity.
 export const seededHueDelta = (effectiveSeed: number, rampIdx: number): number => {
   if (effectiveSeed === 0) return 0;
   const n = Math.imul(effectiveSeed * 17 + rampIdx * 31, 0x45d9f3b) >>> 0;
@@ -20,7 +20,7 @@ export const seededHueDelta = (effectiveSeed: number, rampIdx: number): number =
 // or a synthesized snapshot of the live working palette), regenerate the
 // ramps for a single style. Self-contained: does NOT depend on component
 // state. Delegates to the shared per-ramp pipeline (buildRamp in
-// ramp-pipeline.ts) — the same code path the live App.tsx memos use — so
+// ramp-pipeline.ts), the same code path the live App.tsx memos use, so
 // there is no longer any per-style generate→pin→snap→filter logic duplicated
 // here (the #30 duplication is gone; the structural mirror is enforced).
 //
@@ -74,7 +74,7 @@ export const buildRampsForSnapshot = (snapshot: RampSnapshot | null, style: stri
     return [];
   }
   // Delegates to the shared per-ramp pipeline (src/lib/ramp-pipeline.ts) so the
-  // live App.tsx memos and this snapshot path are ONE code path — structural
+  // live App.tsx memos and this snapshot path are ONE code path, structural
   // mirror, no duplicated generate→pin→snap→filter (the #30 duplication is gone).
   return snapshot.baseColors.map((_, i) => buildRamp(snapshot, style, i));
 };

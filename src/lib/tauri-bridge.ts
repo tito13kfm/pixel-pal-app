@@ -52,7 +52,7 @@ async function fetchLatestRelease(
   if (!res.ok) {
     // Network or rate-limit failure: fall back to stale cache if we have one
     // so the user still sees a (possibly outdated) prompt rather than a silent
-    // miss. If no cache, give up — checkForUpdatesPortable handles the null.
+    // miss. If no cache, give up; checkForUpdatesPortable handles the null.
     if (cached) return { tagName: cached.tagName, htmlUrl: cached.htmlUrl }
     throw new Error(`GitHub API ${res.status}`)
   }

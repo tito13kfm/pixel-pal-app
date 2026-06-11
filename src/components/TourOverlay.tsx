@@ -160,7 +160,7 @@ export function TourOverlay({
       >
         {/* Arrow is mounted unconditionally so arrowRef attaches before the first
             recompute. recompute() bails if arrowRef.current is null, and cutout is
-            only set inside recompute — gating the arrow on `cutout` deadlocked the
+            only set inside recompute, gating the arrow on `cutout` deadlocked the
             spotlight (no cutout ever formed, full-screen dim swallowed all clicks).
             Hidden when there is no cutout. */}
         <div ref={arrowRef} className="tour-arrow"

@@ -60,7 +60,7 @@ export function usePanelLayout() {
   });
   const resetSectionOrder = () => setSectionOrder(DEFAULT_SECTION_ORDER);
 
-  // { key, pos: 'before'|'after' } — drop target + which edge, from cursor half
+  // { key, pos: 'before'|'after' }: drop target + which edge, from cursor half
   const [dragOver, setDragOver] = useState(null);
   const [draggingKey, setDraggingKey] = useState(null);
 

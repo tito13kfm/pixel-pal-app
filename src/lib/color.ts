@@ -1,6 +1,6 @@
 // @ts-nocheck
 // Color math extracted verbatim from pixel-pal.tsx.
-// Do NOT refactor — the existing test suite verifies these exact implementations.
+// Do NOT refactor: the existing test suite verifies these exact implementations.
 
 export const hexToRgb = (hex) => {
   const r = parseInt(hex.slice(1, 3), 16);

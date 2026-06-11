@@ -4,7 +4,7 @@ export type MatrixColorSet = 'unique' | 'bases';
 export type MatrixView = 'pair' | 'heatmap';
 // Ordered-dither patterns offered in the Dither-Blend preview. Each maps to an
 // N×N threshold matrix (a permutation of 0..N²-1) tiled in both axes and swept
-// by a left→right threshold — see drawDitherBlend in strip-export.ts. Adding a
+// by a left→right threshold; see drawDitherBlend in strip-export.ts. Adding a
 // pattern is just another matrix in DITHER_PATTERNS below.
 export type DitherPattern =
   | 'bayer2' | 'bayer4' | 'bayer8' | 'clustered' | 'lines' | 'crosshatch';
@@ -55,7 +55,7 @@ export const BAYER_4X4: number[][] = [
   [15, 7, 13, 5],
 ];
 
-// 8x8 Bayer ordered-dither threshold matrix, values 0..63 — the same family as
+// 8x8 Bayer ordered-dither threshold matrix, values 0..63, the same family as
 // 2×2/4×4, with 64 tonal levels (the smoothest ordered ramp). Standard matrix.
 export const BAYER_8X8: number[][] = [
   [0, 32, 8, 40, 2, 34, 10, 42],

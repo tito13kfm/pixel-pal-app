@@ -15,7 +15,7 @@ export interface CurveEditorProps {
 
 const SAMPLES = 60;
 const HIT_R   = 10;   // SVG units
-const CLICK_D = 4;    // SVG units — squared = 16
+const CLICK_D = 4;    // SVG units, squared = 16
 const MAX_MID = 4;    // max interior (non-endpoint) anchors
 
 export function CurveEditor({
@@ -167,7 +167,7 @@ export function CurveEditor({
         onPointerUp={handlePointerUp}
         onContextMenu={handleContextMenu}
       >
-        {/* Neutral reference line — only for sat curve (yMax > 1) */}
+        {/* Neutral reference line, only for sat curve (yMax > 1) */}
         {yMax > 1 && (
           <line x1={0} y1={neutralSy} x2={svgW} y2={neutralSy}
             stroke="#2a2a2a" strokeWidth={0.5} strokeDasharray="4 4" />

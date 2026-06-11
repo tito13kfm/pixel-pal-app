@@ -4,7 +4,7 @@ import { DEFAULT_STYLE_PRESETS } from '../lib/style-presets';
 import { computePermutation, permuteRampState } from '../lib/permute-indexed-state';
 
 /**
- * usePaletteState — thin document state-bag (App.tsx Tier B, Wave 2).
+ * usePaletteState: thin document state-bag (App.tsx Tier B, Wave 2).
  *
  * Owns the 26 "document core" fields: the 20 `SNAPSHOT_FIELDS` that participate
  * in undo/redo snapshots, plus the 6-field editor/compare cluster that
@@ -100,7 +100,7 @@ export function usePaletteState() {
 
   // Write the 19 snapshot fields from a snapshot. Does NOT set the
   // isReplayingHistory flag (that's useHistory's job) and does NOT reset the
-  // transient editors (see resetTransientEditors) — both are layered by
+  // transient editors (see resetTransientEditors), both are layered by
   // useHistory's applyUndoSnapshot wrapper.
   const applySnapshotFields = (snap: any) => {
     setBaseColors(snap.baseColors);

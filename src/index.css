@@ -27,7 +27,7 @@
   pointer-events: none;
 }
 .tour-overlay-dim {
-  fill: rgba(0, 0, 0, 0.69); /* intentional 0.69 — do not change to 0.68/0.70 */
+  fill: rgba(0, 0, 0, 0.69); /* intentional 0.69, do not change to 0.68/0.70 */
 }
 .tour-ring {
   fill: none;

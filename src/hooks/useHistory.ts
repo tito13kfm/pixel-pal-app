@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { inferLabel } from '../lib/history-snapshot';
 
 /**
- * useHistory — undo / redo / jump-to-state machinery (App.tsx Tier B, Wave 2).
+ * useHistory: undo / redo / jump-to-state machinery (App.tsx Tier B, Wave 2).
  *
  * Photoshop-style whole-state snapshots (NOT diff patches). Each entry holds a
  * JSON-serializable snapshot of the document core plus the action label and a
@@ -18,9 +18,9 @@ import { inferLabel } from '../lib/history-snapshot';
  * the watcher doesn't record a replayed state as a new entry.
  *
  * The watcher's dependency array is the caller-supplied `snapshotInputs` (the
- * snapshot INPUT values, NOT historyEntries/historyIndex — those are read via
+ * snapshot INPUT values, NOT historyEntries/historyIndex, those are read via
  * refs to avoid a record→re-run loop). It is deliberately 17 fields, omitting
- * lightnessCurvePerRamp / satCurvePerRamp — preserved verbatim from the original.
+ * lightnessCurvePerRamp / satCurvePerRamp, preserved verbatim from the original.
  *
  * `tagNextLabel(label)` replaces the scattered `pendingLabelRef.current = ...`
  * writes: handler-tagged actions (Generate, Harmonize, Load, …) call it before

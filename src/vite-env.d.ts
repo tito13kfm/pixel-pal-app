@@ -16,7 +16,7 @@ interface ImportMeta {
 //
 // This file is an ambient script (no top-level import/export), so this bare
 // `interface Window` merges into the global Window type. Do NOT add an
-// `export {}` here — it would turn the file into a module and demote the
+// `export {}` here, it would turn the file into a module and demote the
 // ImportMetaEnv/ImportMeta augmentations above to module-local.
 interface Window {
   storage?: {

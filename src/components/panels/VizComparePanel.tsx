@@ -324,7 +324,7 @@ export function VizComparePanel({
           </>
         ), compact, (
           <>
-          {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Every color paired with every other. Pair mode shows the two together; heatmap shades each cell by perceptual distance (ΔE_OK) — dark = near-duplicate pair, bright = outlier. Hover for the exact pair. (Compare slots use heatmap.)</p>}
+          {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">Every color paired with every other. Pair mode shows the two together; heatmap shades each cell by perceptual distance (ΔE_OK): dark = near-duplicate pair, bright = outlier. Hover for the exact pair. (Compare slots use heatmap.)</p>}
           <div className="flex justify-center overflow-x-auto">
             <AdjacencyMatrix
               allColors={allColors}
@@ -343,7 +343,7 @@ export function VizComparePanel({
             <select value={ditherPattern} onChange={(e) => setDitherPattern(e.target.value as DitherPattern)} title="Ordered-dither pattern for the blend preview. Bayer 2×2/4×4/8×8 give progressively smoother ramps (4/16/64 levels); clustered dot, scanline and cross-hatch are hand-placeable sprite textures." className="px-2 py-1 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-[11px] font-bold uppercase tracking-wider">
               {DITHER_PATTERNS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
-            {!ditherCrossRamp && <div className="flex items-center gap-px" title="Magnify the dither preview (display only — stays pixel-crisp, does not affect the PNG export)">
+            {!ditherCrossRamp && <div className="flex items-center gap-px" title="Magnify the dither preview (display only, stays pixel-crisp, does not affect the PNG export)">
               {[1, 2, 4].map((z) => (
                 <button key={z} onClick={() => setDitherZoom(z)} className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${ditherZoom === z ? 'bg-cyan-400 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>{z}×</button>
               ))}
@@ -352,7 +352,7 @@ export function VizComparePanel({
           </>
         ), compact, (
           <>
-          {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">{ditherCrossRamp ? 'Every ramp base dithered against every other — preview the perceived in-between hue of two ramps (e.g. red × blue reads as purple) without spending a slot. Diagonal is the solid base.' : 'Between each pair of consecutive ramp shades, an ordered-dither ramp from one shade to the next — how the two mix when dithered at sprite scale. Pick a pattern: Bayer 2×2/4×4/8×8 grow smoother (4/16/64 levels); clustered dot, scanline and cross-hatch are hand-placeable textures.'}</p>}
+          {!compact && <p className="text-[11px] text-cyan-100/70 italic mb-2">{ditherCrossRamp ? 'Every ramp base dithered against every other, preview the perceived in-between hue of two ramps (e.g. red × blue reads as purple) without spending a slot. Diagonal is the solid base.' : 'Between each pair of consecutive ramp shades, an ordered-dither ramp from one shade to the next, how the two mix when dithered at sprite scale. Pick a pattern: Bayer 2×2/4×4/8×8 grow smoother (4/16/64 levels); clustered dot, scanline and cross-hatch are hand-placeable textures.'}</p>}
           <div className="flex justify-center overflow-x-auto">
             {ditherCrossRamp ? (
               <CrossRampDither

@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 
-// Live editor state — ticks on every HSV slider drag. Deliberately separate from
+// Live editor state: ticks on every HSV slider drag. Deliberately separate from
 // PaletteContext so committed-state consumers (Export/Saved/TopControls) do NOT
 // re-render per drag frame.
 export interface EditorValue {

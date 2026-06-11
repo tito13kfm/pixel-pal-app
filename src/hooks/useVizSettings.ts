@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react';
  *   - vizStyle: which contrast style ('punchy' | 'balanced' | 'muted') the
  *     visualization views (mosaic, strips, sprites, etc.) render. Persisted
  *     globally under the 'ui:vizStyle' storage key so the preference sticks
- *     across sessions. NOT saved per-palette — it's a viewing preference, not
+ *     across sessions. NOT saved per-palette, it's a viewing preference, not
  *     a property of the palette. This is the only viz setting with load/persist
  *     effects.
  *

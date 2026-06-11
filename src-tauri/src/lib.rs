@@ -5,7 +5,7 @@ use tauri_plugin_log::{Target, TargetKind};
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
-    // Skip the Tauri updater plugin on portable builds — the plugin assumes
+    // Skip the Tauri updater plugin on portable builds; the plugin assumes
     // an installer-style update artifact and would corrupt a standalone exe.
     // Portable users get a frontend-driven popup linking to the Releases page.
     if !commands::runtime::is_portable() {

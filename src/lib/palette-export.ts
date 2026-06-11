@@ -1,7 +1,7 @@
 // src/lib/palette-export.ts
 //
 // Pure palette serializers. Each takes a pre-built, pre-deduped entry list
-// and returns text or bytes — NO color/ramp logic lives here. The single
+// and returns text or bytes; NO color/ramp logic lives here. The single
 // source of those entries is App.tsx's collectPaletteEntries(), so .gpl /
 // .pal / .ase cannot describe different color sets (mirror/round-trip rule).
 import { hexToRgb } from './color';
@@ -54,7 +54,7 @@ export function buildJascPal(entries: PaletteEntry[]): string {
 
 /** Adobe Swatch Exchange (.ase), big-endian binary. Flat (no group blocks),
  *  matching the flat dedup of the text formats. Targets Photoshop / Illustrator
- *  / Krita — NOT Aseprite (whose .ase/.aseprite sprite files are unrelated).
+ *  / Krita, NOT Aseprite (whose .ase/.aseprite sprite files are unrelated).
  *  Entries must be pre-deduped (call dedupeEntries first). */
 export function buildAse(entries: PaletteEntry[]): Uint8Array {
   const out: number[] = [];

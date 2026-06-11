@@ -1,6 +1,6 @@
 // Heuristic for "is this a portable build?"
 //
-// Tauri builds a single binary regardless of how it ends up packaged — the
+// Tauri builds a single binary regardless of how it ends up packaged, the
 // same `pixel-pal-app.exe` is what NSIS wraps as the installer payload AND
 // what we ship as the standalone portable .exe. There's no compile-time
 // feature flag distinguishing the two (see `docs/notes/portable.md` /
@@ -73,7 +73,7 @@ mod tests {
         // so the heuristic correctly treats every non-Windows install as
         // portable. The Tauri updater plugin on macOS/Linux uses a
         // different update format anyway and is currently a no-op for
-        // portable mode — both paths converge to "skip auto-update".
+        // portable mode; both paths converge to "skip auto-update".
         assert!(is_path_portable("/usr/local/bin/pixel-pal-app"));
         assert!(is_path_portable("/Applications/PIXEL.PAL.app/Contents/MacOS/pixel-pal-app"));
         assert!(is_path_portable("/home/alice/bin/pixel-pal-app"));
