@@ -69,6 +69,12 @@ These files hold non-AI code; remove only the AI parts.
   **Keep all `aiColorNames` lines (26, 83, 109, 146, 153, 174).**
 - `src/lib/history-snapshot.ts`: remove `'aiReasoning'` from the serialized field
   list (line 2). **Keep `'aiColorNames'`.**
+- `src/main.tsx`: remove the `import('./lib/ai')` boot preload block (lines 12-14,
+  `.then(...).catch(... 'failed to preload ai')`). This is the startup caller of
+  `ai.ts`'s `ensureTauriFetchLoaded` warm-up; with `ai.ts` deleted the preload has
+  no target. `main.tsx` is NOT `@ts-nocheck`, so a leftover would be a build error,
+  but it is enumerated here as a deliberate behavioral edit, not a build-time
+  discovery.
 
 ### Frontend — edit `src/App.tsx`
 
@@ -103,8 +109,11 @@ The broad-regex grep gate is the correctness check (see Verification).
 
 ### Frontend — edit `src/lib/tours.ts`
 
-Remove the tour step whose `detector` is `(s) => s.mode === 'ai'` (line 113) and
-any AI-settings step. Renumber/relink remaining steps so the tour still flows.
+Remove BOTH AI tour steps (confirmed by code): the `detector: (s) => s.mode === 'ai'`
+step (line 113) and the AI-settings step at line 118 ("Open settings and paste in
+your API key. Works with OpenAI and OpenAI-compatible providers."). Renumber/relink
+remaining steps so the tour still flows. (Leaving 118 would also trip the broad-regex
+gate on `openai`/`apiKey` — a real miss, not a false positive.)
 
 ### Frontend — keep (NOT AI-dependent)
 
@@ -171,10 +180,22 @@ contain an `aiReasoning` key load fine — the extra key is ignored on parse.
 
 ## Tests
 
-- Remove the AI-settings Playwright e2e specs (already flaky / timing out per
-  recent session notes). Add none.
-- Unit suite: remove any AI-specific tests; the rest must stay green. The
-  `aiColorNames` rendering/permute tests stay.
+All five affected test files are **tracked** (git per-file exceptions to the
+gitignored `tests/`), so they run in CI — this is real scope.
+
+**Delete (pure AI):**
+- `tests/e2e/ai-settings.spec.ts` — AI settings panel e2e (also flaky/timing out).
+- `tests/unit/provider-migration.spec.ts` — tests `migrateStaleProvider` (ai.ts).
+- `tests/unit/provider-filter.spec.ts` — tests `getProviderPresets` /
+  `DROPPED_WEB_PROVIDERS` (ai.ts).
+
+**Edit (mixed — keep the non-AI parts):**
+- `tests/unit/history-snapshot.spec.ts` — remove `aiReasoning` assertions from the
+  snapshot field tests; **keep `aiColorNames`** assertions.
+- `tests/e2e/web-build.spec.ts` — remove the `WebKeyWarning` / provider-filter
+  web assertions; keep the build / base-path / general web checks.
+
+Add no new tests.
 
 ## Verification gates
 
@@ -183,6 +204,15 @@ contain an `aiReasoning` key load fine — the extra key is ignored on parse.
    `useAIAssist|AISettingsPanel|WebKeyWarning|aiReasoning|setAiReasoning|AIConfig|getAIConfig|setAIConfig|ai_config|aiInput|aiError|aiLoading|aiConfigured|showAISettings|mode === 'ai'|anthropic|openai|ollama|apiKey|keyring|plugin-http`.
    Require zero hits except inside retained, non-AI contexts (`DesktopAppLink`,
    `env.ts`). **`aiColorNames` is explicitly allowed to remain** (kept by design).
+1a. **Import-path clause (catches a renamed re-export the symbol regex misses).**
+   Zero surviving imports from any deleted module path: `./lib/ai` / `../lib/ai`,
+   `./settings/AISettingsPanel`, `./hooks/useAIAssist`, `./components/WebKeyWarning`.
+   Confirmed at spec time: the only importers are `App.tsx:17`, `main.tsx:12-14`
+   (both edited), `AISettingsPanel`, and `useAIAssist` (both deleted) — no retained
+   file imports `ai.ts` or its exports (`PROVIDER_PRESETS`, `getProviderPresets`,
+   `migrateStaleProvider`, `loadAIConfig(Async)`, `saveAIConfig(Async)`,
+   `getCachedAIConfig`, `ensureTauriFetchLoaded`, `createAIClient`,
+   `generatePaletteFromPrompt`, `DROPPED_WEB_PROVIDERS`).
 2. **`cargo build`** clean (catches Rust dangling refs after module/handler removal).
 3. **Dependency check:** `openai`, `tauri-plugin-http`, `keyring` each have zero
    non-AI consumers before being dropped.
