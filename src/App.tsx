@@ -125,7 +125,7 @@ export default function PixelPalGenerator() {
   const palette = usePaletteState();
   const {
     baseColors, setBaseColors, aiColorNames, setAiColorNames,
-    aiReasoning, setAiReasoning, rampSize, setRampSize,
+    rampSize, setRampSize,
     shuffleSeed, setShuffleSeed, overrides, setOverrides,
     harmonyAnchor, setHarmonyAnchor, rampSizeOverrides, setRampSizeOverrides,
     rampSatOverrides, setRampSatOverrides, hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp,
@@ -262,7 +262,7 @@ export default function PixelPalGenerator() {
     resetTransientEditors,
     setExportFeedback,
     snapshotInputs: [
-      baseColors, aiColorNames, aiReasoning, rampSize, shuffleSeed,
+      baseColors, aiColorNames, rampSize, shuffleSeed,
       overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
       hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
       lockedRamps, collapsedRamps, stylePresets,
@@ -562,7 +562,7 @@ export default function PixelPalGenerator() {
   const handleGenerate = () => {
     tagNextLabel(mode === 'color' ? 'New palette' : 'Shuffle');
     if (mode === 'color') {
-      setBaseColors([colorInput]); setAiReasoning(''); setAiColorNames([]);
+      setBaseColors([colorInput]); setAiColorNames([]);
       resetPaletteState();
       // Hard reset path: lockedRamps just got cleared. Bump shuffleSeed
       // directly rather than via bumpShuffleSeed, because the latter
@@ -582,7 +582,7 @@ export default function PixelPalGenerator() {
   const handleImageUpload = (file) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) { setImageError('Please upload an image file'); return; }
-    setImageLoading(true); setImageError(''); setAiReasoning(''); setAiColorNames([]);
+    setImageLoading(true); setImageError(''); setAiColorNames([]);
     // Reset zoom and naturalSize so the new image starts at 1x and the
     // onLoad handler captures fresh dimensions.
     setImageZoom(1);
@@ -1584,7 +1584,7 @@ export default function PixelPalGenerator() {
 
   // resetPaletteState: clears every customization layer that the eight
   // full-palette-replace paths share. Callers are still responsible for
-  // setting baseColors (or aiColorNames / aiReasoning when applicable),
+  // setting baseColors (or aiColorNames when applicable),
   // tagging the next history label via tagNextLabel, and bumping the shuffle seed if their path
   // requires it. Preserves rampSize, hardwareLock, theme, CRT, CVD on
   // purpose: those are session-level settings, not per-palette state.
@@ -1626,7 +1626,6 @@ export default function PixelPalGenerator() {
       const fresh = buildRandomHex();
       setColorInput(fresh);
       setBaseColors([fresh]);
-      setAiReasoning('');
       setAiColorNames([]);
       setEditingIndex(null);
       resetPaletteState();
@@ -1937,7 +1936,7 @@ export default function PixelPalGenerator() {
   // ---------- Saved palette storage helpers ----------
   // Storage layout:
   //   key `palettes:{slug}` -> JSON.stringify({ name, savedAt, baseColors,
-  //     aiColorNames, aiReasoning, rampSize, gplStyle, vizStyle, spriteKey,
+  //     aiColorNames, rampSize, gplStyle, vizStyle, spriteKey,
   //     shuffleSeed, customSprites }) where customSprites is the FULL custom
   //     sprite library at save time. We snapshot the whole custom library so
   //     that loading a palette later restores any imported sprite it depended
@@ -2368,7 +2367,6 @@ export default function PixelPalGenerator() {
       savedAt: Date.now(),
       baseColors,
       aiColorNames,
-      aiReasoning,
       rampSize,
       gplStyle,
       vizStyle,
@@ -2448,7 +2446,6 @@ export default function PixelPalGenerator() {
       tagNextLabel(`Load: ${parsed.name || slug}`);
       setBaseColors(parsed.baseColors);
       setAiColorNames(Array.isArray(parsed.aiColorNames) ? parsed.aiColorNames : []);
-      setAiReasoning(typeof parsed.aiReasoning === 'string' ? parsed.aiReasoning : '');
       if ([4, 5, 6, 7, 8].includes(parsed.rampSize)) setRampSize(parsed.rampSize);
       // hueShiftStrength: number in [0.0, 2.0]. Missing field (pre-E
       // saved palettes) restores to 1.0, which matches their original
@@ -2663,16 +2660,14 @@ export default function PixelPalGenerator() {
   };
 
   // Load a built-in classic palette. Unlike loadPalette this doesn't touch
-  // storage; the source is the CLASSIC_PALETTES constant. We set the tip text
-  // as aiReasoning so the user gets a brief description of what they just
-  // loaded. shuffleSeed resets to 0 so the ramps are deterministic and don't
+  // storage; the source is the CLASSIC_PALETTES constant.
+  // shuffleSeed resets to 0 so the ramps are deterministic and don't
   // depend on whatever shuffle the user happened to be on.
   const loadClassicPalette = (classic) => {
     if (!classic || !Array.isArray(classic.baseColors) || classic.baseColors.length === 0) return;
     tagNextLabel(`Load classic: ${classic.name}`);
     setBaseColors(classic.baseColors);
     setAiColorNames(classic.names || classic.baseColors.map((_, i) => `${classic.name} ${i + 1}`));
-    setAiReasoning(`Inspired by ${classic.name}. ${classic.tip}`);
     resetPaletteState();
     // Classics weren't designed for any specific hardware constraint. Clear
     // any active lock so the loaded classic renders as-authored.
@@ -2735,7 +2730,6 @@ export default function PixelPalGenerator() {
     tagNextLabel(`Import GPL: ${gplImport.name}`);
     setBaseColors(chosen);
     setAiColorNames(chosen.map((_, i) => `${gplImport.name} ${i + 1}`));
-    setAiReasoning(`Imported from ${gplImport.name}. ${chosen.length} base color${chosen.length === 1 ? '' : 's'} loaded.`);
     resetPaletteState();
     setHardwareLock(null);
     setShuffleSeed(0);
