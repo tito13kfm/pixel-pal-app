@@ -1,5 +1,7 @@
+import { memo } from 'react';
 import { PixelPlayground } from '../PixelPlayground';
 import { useTheme } from '../../contexts';
+import { recordRender } from '../../lib/renderCount';
 
 type VizStyle = 'punchy' | 'balanced' | 'muted';
 
@@ -13,7 +15,7 @@ export interface PlaygroundPanelProps {
   isDark: boolean;
 }
 
-export function PlaygroundPanel({
+function PlaygroundPanelImpl({
   pgOpen,
   vizStyle,
   setVizStyle,
@@ -22,6 +24,7 @@ export function PlaygroundPanel({
   rampsPunchy,
   isDark,
 }: PlaygroundPanelProps) {
+  recordRender('PlaygroundPanel');
   const { t, sectionHeadColor } = useTheme();
 
   return (
@@ -47,3 +50,5 @@ export function PlaygroundPanel({
     </div>
   );
 }
+
+export const PlaygroundPanel = memo(PlaygroundPanelImpl);

@@ -733,6 +733,7 @@ export default function PixelPalGenerator() {
       return () => window.removeEventListener('paste', pasteHandler);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
+  // eslint-disable-next-line react-hooks/exhaustive-deps  // TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [mode]);
 
   const getPixelColorFromImage = (event) => {
@@ -3933,7 +3934,8 @@ export default function PixelPalGenerator() {
       vignette: 'none',
     },
   };
-  const t = themeTokens[theme] || themeTokens.dark;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- themeTokens is pure static; deps=[theme] is correct
+  const t = useMemo(() => themeTokens[theme] || themeTokens.dark, [theme]);
 
   // Helper for accent shadows. In dark mode we use the full neon glow; in
   // neutral/light we dial the intensity way down so accent borders read but
