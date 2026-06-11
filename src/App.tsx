@@ -39,6 +39,7 @@ import { SavedPalettesPanel } from './components/panels/SavedPalettesPanel';
 import { PlaygroundPanel } from './components/panels/PlaygroundPanel';
 import { VizComparePanel } from './components/panels/VizComparePanel';
 import { HarmonyPanel } from './components/panels/HarmonyPanel';
+import { RampsPanel, PixelSprite } from './components/panels/RampsPanel';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
 import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
@@ -116,41 +117,6 @@ if (typeof window !== 'undefined' && !(window as any).storage) {
 
 
 
-// ---------- Sprite renderer ----------
-const PixelSprite = ({ palette, scale = 6, spriteKey = 'vase', spriteLibrary }) => {
-  const lib = spriteLibrary || DEFAULT_SPRITE_LIBRARY;
-  const sprite = lib[spriteKey] || lib.vase || DEFAULT_SPRITE_LIBRARY.vase;
-  if (!sprite) return null;
-  const pattern = sprite.pattern;
-  if (!pattern || pattern.length === 0) return null;
-  const size = pattern[0].length;
-  const spriteShades = sprite.numShades || 5;
-
-  const mapIndex = (idx) => {
-    if (spriteShades <= 1) return Math.floor(palette.length / 2);
-    if (palette.length === 1) return 0;
-    const ratio = idx / (spriteShades - 1);
-    return Math.max(0, Math.min(palette.length - 1, Math.round(ratio * (palette.length - 1))));
-  };
-
-  const parseChar = (ch) => {
-    if (ch >= '0' && ch <= '9') return ch.charCodeAt(0) - 48;
-    if (ch >= 'a' && ch <= 'z') return ch.charCodeAt(0) - 87;
-    return 0;
-  };
-
-  return (
-    <svg width={size * scale} height={pattern.length * scale} style={{ imageRendering: 'pixelated', display: 'block' }}>
-      {pattern.map((row, y) =>
-        row.split('').map((ch, x) => {
-          if (ch === '.') return null;
-          const colorIdx = mapIndex(parseChar(ch));
-          return <rect key={`${x}-${y}`} x={x * scale} y={y * scale} width={scale} height={scale} fill={palette[colorIdx]} />;
-        })
-      )}
-    </svg>
-  );
-};
 
 
 // ---------- Main ----------
@@ -3671,120 +3637,6 @@ export default function PixelPalGenerator() {
     }
   };
 
-  const Swatch = ({ hex, label, large = false, borderClass = 'border-cyan-400', shadowRgba = 'rgba(0, 255, 255, 0.3)', baseIndex = null, shadeIndex = null, style = null, onContextMenu = null, extraTooltip = null }) => {
-    const isCopied = copiedHex === hex;
-    const isFailed = copiedHex === 'FAIL:' + hex;
-    // A swatch is "pinnable" if it knows its position in the ramp grid
-    // AND which style it belongs to. Harmony swatches and any other ad-hoc
-    // swatches don't pass these props and behave exactly as before (no pushpin).
-    const pinnable = baseIndex !== null && shadeIndex !== null && style !== null;
-    const pinned = pinnable && isShadePinned(baseIndex, shadeIndex, style);
-    const pinEditorOpenHere = pinnable && pinEditor && pinEditor.baseIndex === baseIndex && pinEditor.shadeIndex === shadeIndex && pinEditor.style === style;
-    // Compare-mode awareness. Only ramp swatches participate (pinnable);
-    // harmony/ad-hoc swatches stay click-to-copy regardless of compare mode.
-    const isAnchor = pinnable && compareAnchor
-                  && compareAnchor.baseIndex === baseIndex
-                  && compareAnchor.shadeIndex === shadeIndex
-                  && compareAnchor.style === style;
-    const compareActive = compareMode && pinnable;
-    // Tooltip composition. Three sources, concatenated with " | ":
-    //   - mode hint (copy / compare)
-    //   - right-click hint (hide shade) if available
-    //   - adjacent-pair contrast info from extraTooltip
-    const hintParts = [];
-    if (compareActive) {
-      if (!compareAnchor) hintParts.push(`Click to set ${hex} as anchor`);
-      else if (isAnchor) hintParts.push(`Anchor (${hex}). Click again to unlock.`);
-      else hintParts.push(`Compare ${hex} vs anchor (${compareAnchor.hex})`);
-    } else {
-      hintParts.push(`Click to copy ${hex}`);
-      if (onContextMenu) hintParts.push('Right-click to hide this shade across all 3 styles');
-    }
-    if (extraTooltip) hintParts.push(extraTooltip);
-    const hoverHint = hintParts.join(' | ');
-    const handleClick = () => {
-      if (compareActive) {
-        pickCompareSwatch(baseIndex, shadeIndex, style, hex);
-      } else {
-        copyHex(hex);
-      }
-    };
-    return (
-      <div className="flex flex-col items-center gap-1 w-full min-w-0">
-        <div className="relative group">
-          <button
-            onClick={handleClick}
-            onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(); } : undefined}
-            className={`relative ${large ? 'w-16 h-16' : 'w-12 h-12'} rounded border-2 ${borderClass} hover:scale-110 transition-transform cursor-pointer flex-shrink-0 ${isAnchor ? 'ring-4 ring-yellow-300' : ''}`}
-            style={{ backgroundColor: hex, boxShadow: isAnchor ? '0 0 14px #ffff00' : `0 0 8px ${shadowRgba}` }}
-            title={hoverHint}
-          >
-            {isCopied && <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded text-cyan-200 text-[10px] font-bold">Copied!</div>}
-            {isFailed && <div className="absolute inset-0 flex items-center justify-center bg-red-900/80 rounded text-red-100 text-[10px] font-bold leading-tight text-center px-1">Copy<br/>failed</div>}
-          </button>
-          {/* Hover + button: promote this generated shade to a new base
-              color. Only shown on ramp-grid swatches (pinnable === true,
-              same gate the Pin button uses) and hidden if the exact hex
-              is already a base (duplicate add is a likely mistake, and
-              HarmonySwatch uses the same precedent). Click stops event
-              propagation so the swatch's copy-to-clipboard doesn't also
-              fire. Positioned top-LEFT, opposite the Pin (top-right),
-              so they don't overlap. Group-hover on the parent .relative
-              div surfaces this on swatch hover, matching the
-              HarmonySwatch "+" affordance.
-
-              State to update on click: only baseColors. No other base-
-              keyed map needs an entry at the new index (sparse maps
-              default to "no override"), and the auto-collapse useEffect
-              that watches baseColors.length will collapse the new ramp
-              card if the resulting total is >=3. Tag history with a
-              specific label so undo lands somewhere sensible. */}
-          {pinnable && label !== 'base' && !baseColors.includes(hex) && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                tagNextLabel('Add base from shade');
-                setBaseColors(prev => [...prev, hex]);
-              }}
-              title={`Add ${hex.toUpperCase()} as a new base color`}
-              className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full border flex items-center justify-center transition-all hover:scale-110 bg-cyan-300 text-purple-900 border-cyan-100 opacity-0 group-hover:opacity-100"
-              style={{ boxShadow: '0 0 6px rgba(0, 255, 255, 0.7)' }}
-            >
-              <Plus size={12} strokeWidth={3} />
-            </button>
-          )}
-          {/* Pin button: shown on every shade EXCEPT the one labeled
-              'base'. Rationale: the 'base' label is positioned by
-              labelsForRamp to land on the slot containing the input
-              base hex (which is preserved exactly by generateRamp's
-              `const baseColor = { ...base };` line). So the 'base'
-              swatch ALWAYS shows the input base hex. Pinning that hex
-              would just substitute it for itself, accomplishing nothing
-              in the common case, and would actively trap the user if
-              they edit the base via the slider editor: the pin would
-              override the new base and make the edit appear to do
-              nothing. Hardware lock applies AFTER pins anyway, so a
-              pinned base under hwlock just gets snapped to a hardware-
-              legal color too. We DO still show the button on a pinned
-              base shade so the user can clear pre-existing pins
-              inherited from older saved palettes (when this UI didn't
-              exist). */}
-          {pinnable && (label !== 'base' || pinned) && (
-            <button
-              onClick={(e) => { e.stopPropagation(); togglePinEditor(baseIndex, shadeIndex, style, hex); }}
-              title={pinned ? `Unpin this ${style} shade` : `Pin this ${style} shade`}
-              className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full border flex items-center justify-center transition-all hover:scale-110 ${pinned ? 'bg-yellow-300 text-purple-900 border-yellow-100' : `bg-purple-900/80 text-cyan-200 border-cyan-500/60 ${pinEditorOpenHere ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} ${pinEditorOpenHere ? 'ring-2 ring-yellow-200' : ''}`}
-              style={pinned ? { boxShadow: '0 0 6px rgba(255, 255, 0, 0.7)' } : {}}
-            >
-              <Pin size={10} strokeWidth={pinned ? 3 : 2} />
-            </button>
-          )}
-        </div>
-        <span className="text-xs font-mono truncate w-full text-center" style={{ color: t.swatchHex }}>{hex.toUpperCase()}</span>
-        {label && <span className="text-[10px] w-full text-center leading-tight break-words" style={{ color: t.swatchLabel }}>{label}</span>}
-      </div>
-    );
-  };
 
   // Theme token map. Centralizes every theme-aware className and color
   // value used by the chrome. The principle: section accent hues
@@ -4860,454 +4712,81 @@ export default function PixelPalGenerator() {
           headerTitle={rampsOpen ? 'Collapse Color Ramps' : 'Expand Color Ramps'}
           icon={<Sun size={22} />} title="Color Ramps"
         >
-          <div className="px-6 pb-6">
-          <div className="flex items-center gap-2 flex-wrap justify-end mb-4">
-              {/* Per-ramp export style toggle. Governs the per-ramp Copy
-                  and Download buttons on every ramp card. Decoupled from
-                  vizStyle (Visualization panel near the bottom of the
-                  page) so changing one does not change the other. Three
-                  buttons share the segmented look of the existing
-                  vizStyle picker in the Visualization section for
-                  consistency, but at smaller size since this is a
-                  header-row control. */}
-              <div className={`flex items-center gap-1 px-2 py-1 rounded border-2 ${t.controlPanelBg} ${t.controlPanelBorder}`} title="Style used by the Copy and Download buttons on each ramp card. Independent of the Visualization panel's style. Hidden shades are always excluded.">
-                <span className={`text-[10px] font-bold uppercase tracking-wider mr-1 ${theme === 'dark' ? 'text-cyan-200/80' : t.panelTextInactive}`}>Ramp export:</span>
-                <button onClick={() => setRampExportStyle('punchy')} title="Per-ramp Copy and Download use Punchy shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'punchy' ? { boxShadow: '0 0 8px #ff00ff' } : {}}>Punchy</button>
-                <button onClick={() => setRampExportStyle('balanced')} title="Per-ramp Copy and Download use Balanced shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'balanced' ? { boxShadow: '0 0 8px #00ffff' } : {}}>Balanced</button>
-                <button onClick={() => setRampExportStyle('muted')} title="Per-ramp Copy and Download use Muted shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'muted' ? { boxShadow: '0 0 8px #a855f7' } : {}}>Muted</button>
-              </div>
-              {baseColors.length > 1 && (
-                <button onClick={toggleAllRampsCollapse} title={anyRampExpanded ? 'Collapse every ramp card to its icon previews' : 'Expand every ramp card to show all swatches'} className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}>
-                  {anyRampExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  {anyRampExpanded ? 'Collapse All' : 'Expand All'}
-                </button>
-              )}
-              <button onClick={resetToDefaults} title={confirmReset ? 'Click again to confirm. Wipes pins, hidden shades, ramp locks, per-ramp sizes and saturations, hue shift strength, side-by-side slots, harmony anchor, and the AI prompt. Picks a new random base color. Preserves shade count, hardware lock, and theme.' : 'Reset all per-palette customizations and start from a new random base color. Asks for confirmation.'} className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${confirmReset ? 'bg-red-300 text-red-900 border-red-100 animate-pulse' : 'bg-pink-500 text-white border-pink-200 hover:bg-pink-400'}`}>
-                <RotateCcw size={14} />
-                {confirmReset ? 'Confirm?' : 'Reset to Defaults'}
-              </button>
-          </div>
-          <div className="mb-4 p-3 rounded border-2 border-cyan-700/40 bg-black/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style Tuning</span>
-              {JSON.stringify(stylePresets) !== JSON.stringify(DEFAULT_STYLE_PRESETS) && (
-                <button
-                  onClick={resetStylePresets}
-                  title="Restore Punchy/Balanced/Muted to their default reach and chroma falloff"
-                  className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}
-                >
-                  <RotateCcw size={14} /> Reset Styles
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {(['punchy', 'balanced', 'muted'] as const).map((sk) => (
-                <div key={sk} className="p-2 rounded bg-purple-900/30 border border-purple-700/40">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-cyan-100 mb-1">{sk}</div>
-                  <label className="block text-[10px] text-cyan-300 uppercase tracking-wider">Reach: {Math.round(stylePresets[sk].reach * 100)}%</label>
-                  <input
-                    type="range" min={0} max={100} value={Math.round(stylePresets[sk].reach * 100)}
-                    onChange={(e) => setStylePresets(prev => ({ ...prev, [sk]: { ...prev[sk], reach: Number(e.target.value) / 100 } }))}
-                    className="w-full"
-                  />
-                  <label className="block text-[10px] text-cyan-300 uppercase tracking-wider mt-1">Chroma falloff: {Math.round(stylePresets[sk].chromaFalloff * 100)}%</label>
-                  <input
-                    type="range" min={0} max={100} value={Math.round(stylePresets[sk].chromaFalloff * 100)}
-                    onChange={(e) => setStylePresets(prev => ({ ...prev, [sk]: { ...prev[sk], chromaFalloff: Number(e.target.value) / 100 } }))}
-                    className="w-full"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-          {activeHardware && (
-            <div className="mb-4 p-2 rounded border-2 border-yellow-400 bg-yellow-900/30 flex items-center gap-2 text-xs" style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.4)' }}>
-              <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
-              <span className="text-yellow-100">
-                <strong className="text-yellow-200 uppercase tracking-wider">Locked to {activeHardware.name}.</strong>
-                {' '}Every generated shade snaps to one of the {activeHardware.colors.length} hardware-legal {activeHardware.colors.length === 1 ? 'color' : 'colors'}. Ramps with more requested shades than the palette supports will visually collapse to unique entries.
-              </span>
-            </div>
-          )}
-          {baseColors.map((_, i) => {
-            const punchy = rampsPunchy[i];
-            const balanced = rampsBalanced[i];
-            const muted = rampsMuted[i];
-            // Per-style labels: each style ramp may have its base land at
-            // a different post-sort position because the style curves
-            // can clamp midHighlight/midShadow above/below the base in
-            // certain L ranges. Compute labels independently for each.
-            const effectiveBase = resolveBaseForRamp(baseColors[i], i);
-            const labelsP = labelsForRamp(punchy, effectiveBase);
-            const labelsB = labelsForRamp(balanced, effectiveBase);
-            const labelsM = labelsForRamp(muted, effectiveBase);
-            // For downstream uses that need a single labels array (e.g.
-            // the shade label tooltip line and the sprite preview which
-            // operates on the punchy ramp), use the punchy variant.
-            const labels = labelsP;
-            // Filtered variants honor hiddenShades for that base. Used by
-            // the sprite preview (so the demo updates as shades are
-            // hidden), the swatch grid, and the card bg tint. The full
-            // unfiltered ramps stay around because pin overrides and
-            // shade-index semantics still reference the pre-filter
-            // positions.
-            const fPunchyTop = filterHidden(punchy, labelsP, i);
-            const fBalancedTop = filterHidden(balanced, labelsB, i);
-            const fMutedTop = filterHidden(muted, labelsM, i);
-            // For the card bg tint, use the brightest visible shade of
-            // each filtered ramp. The "last visible shade" refusal in
-            // hideShade ensures these arrays always have length >= 1, but
-            // we still guard defensively in case a load restored an
-            // edge-case state.
-            const bgFromHex = (hex, alpha) => {
-              const { r, g, b } = hexToRgb(hex);
-              return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-            };
-            const punchyBg = bgFromHex(fPunchyTop.hexes[fPunchyTop.hexes.length - 1] || punchy[punchy.length - 1], 0.7);
-            const balancedBg = bgFromHex(fBalancedTop.hexes[fBalancedTop.hexes.length - 1] || balanced[balanced.length - 1], 0.7);
-            const mutedBg = bgFromHex(fMutedTop.hexes[fMutedTop.hexes.length - 1] || muted[muted.length - 1], 0.7);
-            const baseHex = baseColors[i];
-            // Contrast check: if the base color is too close to the card background
-            // (e.g. user picked a near-black or dark-purple base), fall back to a
-            // light cyan border so the bounding box stays visible.
-            const lumChannel = (c) => {
-              const v = c / 255;
-              return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-            };
-            const relLum = ({ r, g, b }) => 0.2126 * lumChannel(r) + 0.7152 * lumChannel(g) + 0.0722 * lumChannel(b);
-            const baseRgb = hexToRgb(baseHex);
-            // Approximate the ramps-section background (dark purple gradient ~30,5,56)
-            const cardBgLum = relLum({ r: 30, g: 5, b: 56 });
-            const baseLum = relLum(baseRgb);
-            const contrastRatio = (Math.max(baseLum, cardBgLum) + 0.05) / (Math.min(baseLum, cardBgLum) + 0.05);
-            const useFallback = contrastRatio < 2.0;
-            const borderHex = useFallback ? '#a8e0ff' : baseHex;
-            const baseBorder = bgFromHex(borderHex, 0.85);
-            const baseGlow = bgFromHex(borderHex, 0.45);
-            // When the ramp is locked, override the per-ramp base-color
-            // border with a yellow lock-indicator border so the locked
-            // state is visible at a glance across the page. The glow
-            // also goes yellow. Lock state ranks above per-ramp base
-            // color for border purposes; the swatches themselves still
-            // render in their own colors.
-            const isLocked = lockedRamps.has(i);
-            const cardBorder = isLocked ? 'rgba(255, 220, 0, 0.85)' : baseBorder;
-            const cardGlow = isLocked ? 'rgba(255, 220, 0, 0.5)' : baseGlow;
-            return (
-              <div key={i} {...makeRampDragHandlers(i)} data-ramp-index={i} className="mb-4 last:mb-0 relative rounded-lg p-4" style={{ border: `2px solid ${cardBorder}`, boxShadow: [`0 0 14px ${cardGlow}`, rampDropLine(i), highlightedRamp === i ? '0 0 0 3px #ff2ec4, 0 0 22px rgba(255,46,196,0.6)' : null].filter(Boolean).join(', ') }}>
-                <div className="absolute top-1/2 right-0 -translate-y-1/2 z-10">{rampGrip(i)}</div>
-                {/* Top-right action buttons: edit (toggles editor), shuffle
-                    this ramp's jitter, lock (freezes this ramp against
-                    global regenerate), restore hidden shades (only when
-                    this base has any), and remove (visible when >1 ramp).
-                    The shuffle button is hidden when locked, since
-                    re-jittering contradicts the lock contract; shuffleRamp
-                    itself also gates on lock as a defense in depth. */}
-                <div className="absolute -top-2 right-2 flex gap-1 z-10">
-                  <button onClick={() => toggleBaseEditor(i)} title={editingIndex === i ? 'Close editor' : 'Edit base color'} className={`w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center ${editingIndex === i ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-cyan-500 text-white border-cyan-200 hover:bg-cyan-400'}`} style={editingIndex === i ? { boxShadow: '0 0 10px #ffff00' } : { boxShadow: '0 0 8px rgba(0, 200, 255, 0.6)' }}>
-                    <Sliders size={14} />
-                  </button>
-                  {!isLocked && (
-                    <button onClick={() => shuffleRamp(i)} title="Reshuffle this ramp's jitter (does not affect other ramps)" className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-purple-600 text-cyan-100 border-cyan-400 hover:bg-purple-500" style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.5)' }}>
-                      <Shuffle size={12} />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => toggleRampLock(i)}
-                    title={isLocked
-                      ? 'Unlock this ramp. Once unlocked, it will be affected by Generate, Shuffle, and Harmonize again.'
-                      : 'Lock this ramp. The Generate/Shuffle buttons will skip it, and Harmonize will use it as a fixed reference. Pins and hidden shades are unaffected (they were per-ramp anyway).'}
-                    className={`w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center ${isLocked ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-600 text-cyan-100 border-cyan-400 hover:bg-purple-500'}`}
-                    style={isLocked ? { boxShadow: '0 0 10px rgba(255, 220, 0, 0.8)' } : { boxShadow: '0 0 8px rgba(0, 255, 255, 0.5)' }}
-                  >
-                    {isLocked ? <Lock size={12} /> : <Unlock size={12} />}
-                  </button>
-                  {/* Duplicate: append a copy of this ramp at the end of the
-                      palette, carrying over per-ramp settings (pins, shade
-                      count, sat multiplier, hidden shades, shuffle offset).
-                      Lock state does not carry over (duplicate is for
-                      tweaking; the user can re-lock if they want). The
-                      auto-collapse useEffect handles whether the new
-                      ramp's card starts collapsed (total >= 3 collapses
-                      it; total < 3 leaves it expanded). With the v0.6
-                      perceptual engine, the duplicate is byte-identical
-                      to the source — engine is deterministic from
-                      (base, style, size, hueShift, curve, gamut,
-                      satMult) and ignores the shuffle seed. */}
-                  <button
-                    onClick={() => duplicateRamp(i)}
-                    title="Duplicate this ramp at the end of the palette. Carries over pins, shade count, saturation multiplier, hidden shades, and shuffle offset. Does not carry over lock state. The duplicate is identical to the source."
-                    className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-purple-600 text-cyan-100 border-cyan-400 hover:bg-purple-500"
-                    style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.5)' }}
-                  >
-                    <CopyPlus size={12} />
-                  </button>
-                  {/* Per-ramp export buttons. Both operate on the
-                      rampExportStyle setting (the Punchy/Balanced/Muted
-                      toggle in the Color Ramps section header), which is
-                      independent of the Visualization panel's vizStyle.
-                      Hidden shades are excluded (same as the full-palette
-                      exporters). */}
-                  <button
-                    onClick={() => copyRampToClipboard(i)}
-                    title={`Copy this ramp's hex values to clipboard at the active per-ramp export style (${rampExportStyle}). Change the style via the Punchy/Balanced/Muted toggle in the section header. Hidden shades excluded.`}
-                    className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-cyan-500 text-white border-cyan-200 hover:bg-cyan-400"
-                    style={{ boxShadow: '0 0 8px rgba(0, 200, 255, 0.6)' }}
-                  >
-                    <Copy size={12} />
-                  </button>
-                  <button
-                    onClick={() => downloadSingleRampGpl(i)}
-                    title={`Download this ramp as a single-ramp .gpl file at the active per-ramp export style (${rampExportStyle}). Change the style via the Punchy/Balanced/Muted toggle in the section header. Hidden shades excluded.`}
-                    className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-yellow-400 text-purple-900 border-yellow-200 hover:bg-yellow-300"
-                    style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.6)' }}
-                  >
-                    <Download size={12} />
-                  </button>
-                  {Array.isArray(hiddenShades[i]) && hiddenShades[i].length > 0 && (
-                    <button onClick={() => resetHiddenShades(i)} title={`Restore ${hiddenShades[i].length} hidden shade${hiddenShades[i].length === 1 ? '' : 's'}`} className="h-7 px-2 bg-yellow-400 text-purple-900 rounded-full border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-110 transition-all flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider" style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.6)' }}>
-                      <Sparkles size={12} />Restore {hiddenShades[i].length}
-                    </button>
-                  )}
-                  {baseColors.length > 1 && (
-                    <button onClick={() => removeRamp(i)} title="Remove this ramp" className="w-7 h-7 bg-pink-500 text-white rounded-full border-2 border-pink-200 hover:bg-pink-400 hover:scale-110 transition-all flex items-center justify-center text-base font-bold" style={{ boxShadow: '0 0 8px rgba(255, 0, 110, 0.6)' }}>×</button>
-                  )}
-                </div>
-
-                {/* Base color editor (feature #1). Slides in above the ramps row. */}
-                {editingIndex === i && (
-                  <div className="mb-4 p-3 rounded border-2 border-yellow-500/60 bg-black/40" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.25)' }}>
-                    <div className="flex flex-wrap items-center gap-3 mb-3">
-                      <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">▸ Adjust Base</span>
-                      <div className="flex items-center gap-2">
-                        <input type="color" value={baseColors[i]} onChange={(e) => updateEditorHex(e.target.value)} title="Pick a new base color from the OS color picker" className="w-10 h-10 rounded border-2 border-yellow-400 cursor-pointer" style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.5)' }} />
-                        <input type="text" value={baseColors[i]} onChange={(e) => { const v = e.target.value.trim(); if (/^#[0-9a-fA-F]{6}$/.test(v)) updateEditorHex(v); }} title="Type a hex color (e.g. #ff6b35)" className="px-2 py-1 rounded bg-black/60 text-yellow-100 font-mono text-sm border-2 border-yellow-400 w-24 focus:outline-none" />
-                      </div>
-                      <div className="ml-auto">
-                        <button onClick={() => setEditingIndex(null)} title="Close the base color editor" className="text-xs px-2 py-1 rounded font-bold bg-purple-700 text-cyan-100 border-2 border-cyan-500 hover:bg-purple-600 transition-all uppercase tracking-wider">Done</button>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {/* Hue 0-359 (wraps), Sat 0-100, Value 0-100. HSV: V=100 with S=100 is the pure color, not white. */}
-                      <div className="flex items-center gap-3">
-                        <span className="text-[11px] font-mono text-yellow-200 w-12">Hue</span>
-                        <input type="range" min={0} max={359} value={editorHsv.h} onChange={(e) => updateEditorHsv({ ...editorHsv, h: Number(e.target.value) })} title={`Hue: ${editorHsv.h}°`} className="flex-1 accent-yellow-400" />
-                        <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{editorHsv.h}°</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[11px] font-mono text-yellow-200 w-12">Sat</span>
-                        <input type="range" min={0} max={100} value={editorHsv.s} onChange={(e) => updateEditorHsv({ ...editorHsv, s: Number(e.target.value) })} title={`Saturation: ${editorHsv.s}%`} className="flex-1 accent-yellow-400" />
-                        <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{editorHsv.s}%</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[11px] font-mono text-yellow-200 w-12">Value</span>
-                        <input type="range" min={0} max={100} value={editorHsv.v} onChange={(e) => updateEditorHsv({ ...editorHsv, v: Number(e.target.value) })} title={`Value: ${editorHsv.v}%`} className="flex-1 accent-yellow-400" />
-                        <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{editorHsv.v}%</span>
-                      </div>
-                    </div>
-                    {/* Per-ramp overrides: shade count and saturation
-                        multiplier. Both live in the editor since they're
-                        per-ramp scopes. Size overrides the global Shades
-                        selector; saturation multiplier is applied to the
-                        base color BEFORE generateRamp, scaling the resulting
-                        ramp's saturation up or down. Reset buttons clear
-                        the override and fall back to global / 1x. */}
-                    <div className="mt-3 pt-3 border-t border-yellow-500/30 flex flex-col gap-2">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="text-[11px] font-bold text-yellow-200 uppercase tracking-wider">Shades:</span>
-                        <div className="flex gap-1">
-                          {[4, 5, 6, 7, 8].map(n => {
-                            const effective = resolveSizeForRamp(i);
-                            const isOverride = rampSizeOverrides[i] !== undefined;
-                            const isActive = effective === n;
-                            return (
-                              <button
-                                key={n}
-                                onClick={() => setRampSizeOverrides(prev => ({ ...prev, [i]: n }))}
-                                className={`w-7 h-7 rounded text-xs font-bold border-2 transition-all ${isActive ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-100 border-yellow-700/50 hover:bg-purple-800/60'}`}
-                                style={isActive ? { boxShadow: '0 0 8px rgba(255, 255, 0, 0.5)' } : {}}
-                                title={isActive ? (isOverride ? `Currently overridden to ${n}` : `${n} (inheriting global)`) : `Override this ramp to ${n} shades`}
-                              >
-                                {n}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {rampSizeOverrides[i] !== undefined && (
-                          <button onClick={() => setRampSizeOverrides(prev => { const n = { ...prev }; delete n[i]; return n; })} title={`Clear the per-ramp size override and use the global setting (${rampSize})`} className="text-[10px] px-2 py-1 rounded font-bold bg-purple-700 text-yellow-100 border-2 border-yellow-700/50 hover:bg-purple-600 transition-all uppercase tracking-wider">Inherit ({rampSize})</button>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="text-[11px] font-bold text-yellow-200 uppercase tracking-wider w-12">Sat ×</span>
-                        <input
-                          type="range"
-                          min={50}
-                          max={200}
-                          step={5}
-                          value={Math.round((rampSatOverrides[i] ?? 1) * 100)}
-                          onChange={(e) => {
-                            const pct = Number(e.target.value);
-                            setRampSatOverrides(prev => ({ ...prev, [i]: pct / 100 }));
-                          }}
-                          className="flex-1 accent-yellow-400 min-w-[100px]"
-                          title={`Saturation multiplier for this ramp: ${(rampSatOverrides[i] ?? 1).toFixed(2)}x (range 0.50x to 2.00x)`}
-                        />
-                        <span className="text-[11px] font-mono text-yellow-100 w-14 text-right">{(rampSatOverrides[i] ?? 1).toFixed(2)}x</span>
-                        {rampSatOverrides[i] !== undefined && rampSatOverrides[i] !== 1 && (
-                          <button onClick={() => setRampSatOverrides(prev => { const n = { ...prev }; delete n[i]; return n; })} title="Reset per-ramp saturation multiplier to 1.00x" className="text-[10px] px-2 py-1 rounded font-bold bg-purple-700 text-yellow-100 border-2 border-yellow-700/50 hover:bg-purple-600 transition-all uppercase tracking-wider">Reset</button>
-                        )}
-                      </div>
-                      <RampAdvancedPanel
-                        open={advancedOpen[String(i)] ?? false}
-                        lightnessCurve={lightnessCurvePerRamp[String(i)] ?? LIGHTNESS_PRESETS.eased}
-                        satCurve={satCurvePerRamp[String(i)] ?? SAT_PRESETS.flat}
-                        gamut={gamutPerRamp[String(i)] ?? 'auto'}
-                        hueShift={resolveHueShiftForRamp(i)}
-                        hueShiftOverridden={hueShiftStrengthPerRamp[i] !== undefined}
-                        onToggle={() => setAdvancedOpen(prev => ({ ...prev, [String(i)]: !prev[String(i)] }))}
-                        onLightnessCurveChange={pts => setLightnessCurvePerRamp(prev => ({ ...prev, [String(i)]: pts }))}
-                        onSatCurveChange={pts => setSatCurvePerRamp(prev => ({ ...prev, [String(i)]: pts }))}
-                        onGamutChange={g => setGamutPerRamp(prev => ({ ...prev, [String(i)]: g }))}
-                        onHueShiftChange={v => setHueShiftStrengthPerRamp(prev => ({ ...prev, [i]: v }))}
-                        onHueShiftReset={() => setHueShiftStrengthPerRamp(prev => { const n = { ...prev }; delete n[i]; return n; })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col lg:flex-row gap-4 items-start">
-                  <div onClick={() => toggleRampCollapse(i)} title={collapsedRamps.has(i) ? 'Expand this ramp card' : 'Collapse this ramp card to icons only'} className="flex flex-row gap-3 items-start flex-shrink-0 flex-wrap cursor-pointer select-none hover:opacity-90 transition-opacity">
-                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-pink-500/50" style={{ background: punchyBg, boxShadow: '0 0 12px rgba(255, 0, 255, 0.3)' }}>
-                      <PixelSprite palette={fPunchyTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#ff00ff'), textShadow: accentTextGlow('#ff00ff', 6) }}>Punchy</span>
-                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                    </div>
-                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-cyan-500/50" style={{ background: balancedBg, boxShadow: '0 0 12px rgba(0, 255, 255, 0.3)' }}>
-                      <PixelSprite palette={fBalancedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#00ffff'), textShadow: accentTextGlow('#00ffff', 6) }}>Balanced</span>
-                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                    </div>
-                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-purple-400/60" style={{ background: mutedBg, boxShadow: '0 0 12px rgba(168, 85, 247, 0.3)' }}>
-                      <PixelSprite palette={fMutedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>Muted</span>
-                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                    </div>
-                    <span className="self-center pl-1 text-cyan-200" aria-hidden="true">
-                      {collapsedRamps.has(i) ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
-                    </span>
-                  </div>
-                  {!collapsedRamps.has(i) && (() => {
-                  // Reuse fPunchyTop/fBalancedTop/fMutedTop computed at
-                  // the top of the loop iteration. Aliases for brevity.
-                  const fPunchy = fPunchyTop;
-                  const fBalanced = fBalancedTop;
-                  const fMuted = fMutedTop;
-                  // Right-click hide uses the ORIGINAL shade index
-                  // (pre-filter) so the hidden map keys stay aligned with
-                  // the full computed ramps. originalIndices[k] gives that
-                  // for the kth visible swatch.
-                  const rampLen = punchy.length;
-                  // Adjacent-pair contrast helper: build a hover-tooltip
-                  // fragment describing the WCAG ratio between this swatch
-                  // and each of its left/right visible neighbors in the same
-                  // row. Returns null for ramps of length 1 (no neighbors)
-                  // and an empty string for the only-one-side cases isn't
-                  // useful; we always include whichever sides exist.
-                  const adjTip = (rampHexes, rampLabels, k) => {
-                    if (rampHexes.length <= 1) return null;
-                    const here = rampHexes[k];
-                    const parts = [];
-                    if (k > 0) {
-                      const prev = rampHexes[k - 1];
-                      const prevLabel = rampLabels[k - 1] || `shade ${k}`;
-                      const ratio = wcagContrast(here, prev);
-                      const tier = wcagAaTier(ratio);
-                      parts.push(`vs ${prevLabel}: ${ratio.toFixed(2)}:1 ${tier}`);
-                    }
-                    if (k < rampHexes.length - 1) {
-                      const next = rampHexes[k + 1];
-                      const nextLabel = rampLabels[k + 1] || `shade ${k + 2}`;
-                      const ratio = wcagContrast(here, next);
-                      const tier = wcagAaTier(ratio);
-                      parts.push(`vs ${nextLabel}: ${ratio.toFixed(2)}:1 ${tier}`);
-                    }
-                    return `Contrast: ${parts.join(', ')}`;
-                  };
-                  return (
-                  <div className="flex flex-col gap-3 flex-1 min-w-0">
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: themedAccent('#ff00ff'), textShadow: accentTextGlow('#ff00ff', 6) }}>▸ Punchy</div>
-                      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${fPunchy.hexes.length}, minmax(0, 100px))` }}>
-                        {fPunchy.hexes.map((hex, k) => {
-                          const origJ = fPunchy.originalIndices[k];
-                          return <Swatch key={`p-${i}-${origJ}`} hex={hex} label={fPunchy.labels[k] || ''} borderClass="border-pink-400" shadowRgba="rgba(255, 0, 255, 0.3)" baseIndex={i} shadeIndex={origJ} style="punchy" onContextMenu={() => hideShade(i, origJ, rampLen)} extraTooltip={adjTip(fPunchy.hexes, fPunchy.labels, k)} />;
-                        })}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: themedAccent('#00ffff'), textShadow: accentTextGlow('#00ffff', 6) }}>▸ Balanced</div>
-                      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${fBalanced.hexes.length}, minmax(0, 100px))` }}>
-                        {fBalanced.hexes.map((hex, k) => {
-                          const origJ = fBalanced.originalIndices[k];
-                          return <Swatch key={`b-${i}-${origJ}`} hex={hex} label={fBalanced.labels[k] || ''} borderClass="border-cyan-400" shadowRgba="rgba(0, 255, 255, 0.3)" baseIndex={i} shadeIndex={origJ} style="balanced" onContextMenu={() => hideShade(i, origJ, rampLen)} extraTooltip={adjTip(fBalanced.hexes, fBalanced.labels, k)} />;
-                        })}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>▸ Muted</div>
-                      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${fMuted.hexes.length}, minmax(0, 100px))` }}>
-                        {fMuted.hexes.map((hex, k) => {
-                          const origJ = fMuted.originalIndices[k];
-                          return <Swatch key={`m-${i}-${origJ}`} hex={hex} label={fMuted.labels[k] || ''} borderClass="border-purple-400" shadowRgba="rgba(168, 85, 247, 0.3)" baseIndex={i} shadeIndex={origJ} style="muted" onContextMenu={() => hideShade(i, origJ, rampLen)} extraTooltip={adjTip(fMuted.hexes, fMuted.labels, k)} />;
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                  );
-                  })()}
-                </div>
-                {/* Per-shade pin editor. Renders below the ramp rows when the
-                    user has clicked a pushpin on a swatch belonging to this
-                    base. Per-style: each pin affects only the style row it
-                    was clicked on. The editor reads its starting hex from
-                    the matching style's ramp so the picker opens on the
-                    user's actual current shade. */}
-                {pinEditor && pinEditor.baseIndex === i && (() => {
-                  const j = pinEditor.shadeIndex;
-                  const ps = pinEditor.style;
-                  const sourceRamp = ps === 'balanced' ? rampsBalanced[i] : ps === 'muted' ? rampsMuted[i] : rampsPunchy[i];
-                  const currentHex = (sourceRamp && sourceRamp[j]) || baseColors[i];
-                  const pinned = isShadePinned(i, j, ps);
-                  const shadeLabel = labels[j] || `shade ${j + 1}`;
-                  const styleLabel = ps === 'balanced' ? 'Balanced' : ps === 'muted' ? 'Muted' : 'Punchy';
-                  const styleColor = ps === 'balanced' ? '#00ffff' : ps === 'muted' ? '#a855f7' : '#ff00ff';
-                  return (
-                    <div className="mt-4 p-3 rounded border-2 border-yellow-500/60 bg-black/40" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.25)' }}>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider flex items-center gap-1">
-                          <Pin size={12} /> Pin Shade: <span style={{ color: styleColor }}>{styleLabel}</span> / <span className="text-pink-200">{shadeLabel}</span>
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={currentHex} onChange={(e) => setOverride(i, j, ps, e.target.value)} title="Pick the hex color this shade will be pinned to" className="w-10 h-10 rounded border-2 border-yellow-400 cursor-pointer" style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.5)' }} />
-                          <input type="text" value={currentHex} onChange={(e) => { const v = e.target.value.trim(); if (/^#[0-9a-fA-F]{6}$/.test(v)) setOverride(i, j, ps, v); }} title="Type a hex color for this pin (e.g. #ff6b35)" className="px-2 py-1 rounded bg-black/60 text-yellow-100 font-mono text-sm border-2 border-yellow-400 w-24 focus:outline-none" />
-                        </div>
-                        <span className="text-[11px] text-yellow-100/70 italic">Affects only the {styleLabel} ramp</span>
-                        <div className="ml-auto flex gap-2">
-                          {pinned && (
-                            <button onClick={() => { clearOverride(i, j, ps); setPinEditor(null); }} title="Remove this pin and close the editor" className="text-xs px-2 py-1 rounded font-bold bg-pink-500 text-white border-2 border-pink-200 hover:bg-pink-400 transition-all uppercase tracking-wider flex items-center gap-1">
-                              <Trash2 size={12} />Unpin
-                            </button>
-                          )}
-                          <button onClick={() => setPinEditor(null)} title="Close the pin editor (keeps the current pin)" className="text-xs px-2 py-1 rounded font-bold bg-purple-700 text-cyan-100 border-2 border-cyan-500 hover:bg-purple-600 transition-all uppercase tracking-wider">Close</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            );
-          })}
-          </div>
+          <RampsPanel
+            theme={theme}
+            rampExportStyle={rampExportStyle}
+            setRampExportStyle={setRampExportStyle}
+            baseColors={baseColors}
+            aiColorNames={aiColorNames}
+            rampsPunchy={rampsPunchy}
+            rampsBalanced={rampsBalanced}
+            rampsMuted={rampsMuted}
+            stylePresets={stylePresets}
+            setStylePresets={setStylePresets}
+            activeHardware={activeHardware}
+            collapsedRamps={collapsedRamps}
+            anyRampExpanded={anyRampExpanded}
+            lockedRamps={lockedRamps}
+            hiddenShades={hiddenShades}
+            rampSizeOverrides={rampSizeOverrides}
+            setRampSizeOverrides={setRampSizeOverrides}
+            rampSize={rampSize}
+            rampSatOverrides={rampSatOverrides}
+            setRampSatOverrides={setRampSatOverrides}
+            editingIndex={editingIndex}
+            editorHsv={editorHsv}
+            pinEditor={pinEditor}
+            setPinEditor={setPinEditor}
+            advancedOpen={advancedOpen}
+            setAdvancedOpen={setAdvancedOpen}
+            lightnessCurvePerRamp={lightnessCurvePerRamp}
+            setLightnessCurvePerRamp={setLightnessCurvePerRamp}
+            satCurvePerRamp={satCurvePerRamp}
+            setSatCurvePerRamp={setSatCurvePerRamp}
+            gamutPerRamp={gamutPerRamp}
+            setGamutPerRamp={setGamutPerRamp}
+            hueShiftStrengthPerRamp={hueShiftStrengthPerRamp}
+            setHueShiftStrengthPerRamp={setHueShiftStrengthPerRamp}
+            spriteLibrary={spriteLibrary}
+            spriteKey={spriteKey}
+            copiedHex={copiedHex}
+            compareAnchor={compareAnchor}
+            compareMode={compareMode}
+            highlightedRamp={highlightedRamp}
+            confirmReset={confirmReset}
+            makeRampDragHandlers={makeRampDragHandlers}
+            rampDropLine={rampDropLine}
+            rampGrip={rampGrip}
+            labelsForRamp={labelsForRamp}
+            filterHidden={filterHidden}
+            resolveBaseForRamp={resolveBaseForRamp}
+            resolveSizeForRamp={resolveSizeForRamp}
+            resolveHueShiftForRamp={resolveHueShiftForRamp}
+            isShadePinned={isShadePinned}
+            toggleAllRampsCollapse={toggleAllRampsCollapse}
+            resetToDefaults={resetToDefaults}
+            resetStylePresets={resetStylePresets}
+            toggleRampLock={toggleRampLock}
+            shuffleRamp={shuffleRamp}
+            duplicateRamp={duplicateRamp}
+            copyRampToClipboard={copyRampToClipboard}
+            downloadSingleRampGpl={downloadSingleRampGpl}
+            resetHiddenShades={resetHiddenShades}
+            removeRamp={removeRamp}
+            toggleBaseEditor={toggleBaseEditor}
+            updateEditorHex={updateEditorHex}
+            updateEditorHsv={updateEditorHsv}
+            setEditingIndex={setEditingIndex}
+            toggleRampCollapse={toggleRampCollapse}
+            hideShade={hideShade}
+            setOverride={setOverride}
+            clearOverride={clearOverride}
+            pickCompareSwatch={pickCompareSwatch}
+            copyHex={copyHex}
+            tagNextLabel={tagNextLabel}
+            togglePinEditor={togglePinEditor}
+            setBaseColors={setBaseColors}
+          />
         </SectionCard>
 
         <SectionCard

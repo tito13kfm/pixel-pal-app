@@ -44,6 +44,12 @@ src/
                         lockedRamps, harmonizeMode, harmonizeBaseline, harmony,
                         handlers); HarmonySwatch + PairCard as internal components;
                         reads ThemeContext for vizDataBorder only
+      RampsPanel.tsx    props-only (~73 props: baseColors, rampsPunchy/Balanced/Muted,
+                        style/size/sat overrides, per-ramp advanced curve state,
+                        hardware/compare/pin state, all ramp action callbacks);
+                        Swatch + PixelSprite as internal components; reads ThemeContext
+                        for themedAccent + accentTextGlow; accentTextGlow cast to
+                        (hex, px?) signature to match 2-arg usage in ramp headers
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
                         useExportSettings, useTour, useSpriteImport, useAIAssist,
                         useImageExtract, useImageRemap, useSideBySide,
