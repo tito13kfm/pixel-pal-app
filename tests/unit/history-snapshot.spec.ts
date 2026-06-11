@@ -11,9 +11,9 @@ const base = {
 };
 
 describe('SNAPSHOT_FIELDS', () => {
-  it('names exactly the 19 document fields', () => {
+  it('names exactly the 18 document fields', () => {
     expect(SNAPSHOT_FIELDS).toEqual([
-      'baseColors', 'aiColorNames', 'aiReasoning', 'rampSize', 'shuffleSeed',
+      'baseColors', 'aiColorNames', 'rampSize', 'shuffleSeed',
       'overrides', 'harmonyAnchor', 'rampSizeOverrides', 'rampSatOverrides',
       'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
       'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
@@ -60,6 +60,5 @@ describe('inferLabel', () => {
     expect(inferLabel(base, { ...base, lightnessCurvePerRamp: { 0: [] } })).toBe('Edit');
     expect(inferLabel(base, { ...base, satCurvePerRamp: { 0: [] } })).toBe('Edit');
     expect(inferLabel(base, { ...base, aiColorNames: ['x'] })).toBe('Edit');
-    expect(inferLabel(base, { ...base, aiReasoning: 'changed' })).toBe('Edit');
   });
 });
