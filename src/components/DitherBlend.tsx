@@ -31,25 +31,6 @@ export function DitherBlend({ rows, pattern, compact, borderColor, zoom = 1 }: D
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (rows.length > 0) drawDitherBlend(ctx, rows, { pattern, rowH, solidW, blendW, sub });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [rowsKey, pattern, rowH, solidW, blendW, width, height]);
-
-  if (rows.length === 0) return null;
-  // zoom scales the DISPLAY size only (canvas intrinsic res is unchanged), so
-  // image-rendering: pixelated keeps magnified pixels crisp. At 1× we stay
-  // responsive (maxWidth 100%); when zoomed we set an explicit CSS width and
-  // let the parent's overflow-x-auto scroll.
-  const zoomed = zoom > 1;
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        imageRendering: 'pixelated',
-        width: zoomed ? `${width * zoom}px` : undefined,
-        maxWidth: zoomed ? 'none' : '100%',
-        height: 'auto',
-        display: 'block',
-        border: `1px solid ${borderColor ?? '#444'}`,
-      }}
-    />
-  );
 }

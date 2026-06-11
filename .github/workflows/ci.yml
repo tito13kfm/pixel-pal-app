@@ -80,6 +80,10 @@ jobs:
       - name: Vitest unit tests
         run: npm test
 
+      - name: Lint - react hooks dep arrays
+        if: matrix.platform == 'ubuntu-latest'
+        run: npm run lint:hooks
+
       - name: Cargo check
         working-directory: src-tauri
         run: cargo check
