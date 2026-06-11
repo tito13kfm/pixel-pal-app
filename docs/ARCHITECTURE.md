@@ -28,12 +28,19 @@ src/
     panels/             Tier-C per-panel components extracted from App.tsx JSX return.
                         Each owns its own SectionCard body; App.tsx keeps the SectionCard
                         wrapper + open/toggle state + handler wiring.
-      HistoryPanel.tsx  reads PaletteContext (usePalette()); no props
+      HistoryPanel.tsx  reads PaletteContext (usePalette()); no props.
+                        React.memo-wrapped (SP2 phase a): skips re-render when
+                        usePalette() output is unchanged.
       ExportPanel.tsx   props-only (20 props: export handlers, hw-lock, feedback)
       SavedPalettesPanel.tsx  props-only (state from useSavedPalettes + handlers);
                         reads ThemeContext; imports CLASSIC_PALETTES from lib/constants
       PlaygroundPanel.tsx props-only (7 props: pgOpen, vizStyle, setVizStyle,
-                        rampsBalanced/Muted/Punchy, isDark); reads ThemeContext
+                        rampsBalanced/Muted/Punchy, isDark); reads ThemeContext.
+                        React.memo-wrapped (SP2 phase a): skips re-render on
+                        orthogonal state changes. Requires stable ThemeContext value
+                        (App.tsx computes `t = useMemo([theme])` for this).
+                        Remaining panels deferred to phase b/c (need handler wraps
+                        or context slicing first).
       VizComparePanel.tsx SectionCard included as root (IIFE pattern); canvas
                         refs + 3 draw effects co-located; reads ThemeContext;
                         ~57 props (SBS slots, remap state, export callbacks)
@@ -52,6 +59,9 @@ src/
                         useImageExtract, useImageRemap, useSideBySide,
                         useSavedPalettes, usePanelLayout, useUpdater, useBaseDock, …)
   lib/
+    renderCount.ts      SP2 perf test harness (test-only). enableRenderCounts() /
+                        recordRender(name) / getRenderCount(name). No-op in prod
+                        (enabled=false by default). Used by tests/unit/render-isolation.spec.tsx.
     color.ts            15 color math fns, // @ts-nocheck intentional
     oklch.ts            OKLab/OKLCH conversion, ΔE_OK distance, gamut mapping
     ramp-engine.ts      perceptual base-anchored generateRamp (reach/chroma falloff)
@@ -98,7 +108,8 @@ scripts/
   package.json              LOCAL-ONLY: {"type":"commonjs"}
 
 .github/workflows/
-  ci.yml                push/PR → tsc, vitest, Playwright (desktop + web)
+  ci.yml                push/PR → tsc, vitest, lint:hooks (react-hooks dep-array
+                        gate, ubuntu-only), Playwright (desktop + web)
   release.yml           v* tags → Tauri 3-platform matrix + GitHub Release
   deploy-web.yml        v* tags → build:web + GH Pages deploy
 ```
