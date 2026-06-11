@@ -18,6 +18,22 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Changed
+- `HistoryPanel` and `PlaygroundPanel` wrapped in `React.memo`; these panels now
+  skip re-renders when unrelated state changes (PR #102, SP2 phase a).
+- `ThemeContext` value stabilized: `themeTokens[theme]` lookup wrapped in
+  `useMemo([theme])` so context identity is stable between theme changes,
+  preventing unnecessary re-renders in all `useTheme()` consumers.
+
+### Added
+- `src/lib/renderCount.ts`: test-only render-count harness (`recordRender`,
+  `getRenderCount`); no-op in production builds.
+- `tests/unit/render-isolation.spec.tsx`: integration tests that mount the real
+  `<App>` and assert memo'd panels do not re-render on orthogonal interactions.
+- `npm run lint:hooks` (`eslint.hooks.config.js`): blocking
+  `react-hooks/exhaustive-deps` gate; 18 pre-existing violations grandfathered
+  inline with `TODO(sp2-d)` tags for cleanup when `@ts-nocheck` drops (phase d).
+
 ## [0.22.0] - 2026-06-11
 
 ### Removed
