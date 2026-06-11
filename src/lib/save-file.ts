@@ -4,7 +4,7 @@
 // Save As dialog (plugin-dialog) and writes via plugin-fs. In a pure
 // browser (e.g. `npm run dev` at localhost:5173), falls back to the
 // HTML5 anchor-click download trick. Last-folder is remembered per
-// file-type slot via plugin-store (Tauri only — browser has no
+// file-type slot via plugin-store (Tauri only; browser has no
 // concept of "last folder" since the OS picks the Downloads dir).
 
 export type SaveData = { text: string } | { bytes: Uint8Array | Blob };

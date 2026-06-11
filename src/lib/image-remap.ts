@@ -100,7 +100,7 @@ export const remapImageToPalette = (
   if (dither !== 'none') {
     // Error-diffusion dithering. Per-channel accumulated error; Float32 to
     // avoid integer overflow at strong gradients. Stride 3 (RGB only; alpha is
-    // not diffused). The kernel — list of [dx, dy, pre-divided weight] — selects
+    // not diffused). The kernel (list of [dx, dy, pre-divided weight]) selects
     // the algorithm. Atkinson intentionally diffuses only 6/8 of the error
     // (weights sum to 0.75), which keeps flat regions cleaner.
     const DIFFUSION_KERNELS: Record<string, [number, number, number][]> = {
@@ -260,7 +260,7 @@ export const estimateRemapCost = (
   if (paletteSize <= 0) return 0;
   if (dither !== 'none') {
     // All error-diffusion kernels (FS / Atkinson / Stucki) are O(pixels x palette)
-    // and cannot use the dedup cache — same cost class.
+    // and cannot use the dedup cache, same cost class.
     return pixels * paletteSize;
   }
   // no-dither

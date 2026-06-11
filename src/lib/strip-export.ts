@@ -70,7 +70,7 @@ function blockEdges(width: number, n: number, i: number): { x: number; w: number
 // Lightness axis (#51): map each color to its HSL lightness (0..100). Both the
 // on-screen Lightness Distribution and drawLightnessStripPng below consume THIS
 // one function, so the screen view and the exported PNG place every swatch by
-// the same L on the same 0→100 axis — gaps in tonal coverage show as blank space
+// the same L on the same 0→100 axis, gaps in tonal coverage show as blank space
 // in both. Keeping a single L source is the mirror guarantee: there is no
 // second `hexToHsl().l` read that could drift from this one. Input order is
 // preserved (callers pass sortedByL, so the lightest marker draws last = on top
@@ -87,7 +87,7 @@ const LIGHTNESS_MARKER_W = 10;          // px marker width in the PNG
 
 // Markers placed by lightness on a 0→100 axis (NOT equal-width blocks): position
 // encodes L, so missing tonal ranges appear as blank track. Mirrors the on-screen
-// view (App.tsx Lightness subsection) — same lightnessMarkers source, same axis,
+// view (App.tsx Lightness subsection), same lightnessMarkers source, same axis,
 // same gridlines.
 // Precondition: `sortedHexes` is non-empty (callers guard first); an empty
 // array yields a blank track rather than an error.
@@ -161,7 +161,7 @@ const MATRIX_NA = '#3a3a3a';        // cell fill when a hex fails to parse
 const MATRIX_DIAG = '#111111';      // diagonal (identity) fill in heatmap mode
 
 // Draw an N×N adjacency grid onto a provided context. Axes use `colors` order
-// as-is (caller passes ramp-grouped order — never lightness-sorted; a sorted
+// as-is (caller passes ramp-grouped order, never lightness-sorted; a sorted
 // heatmap degenerates into the same corner gradient for every palette).
 // `header` (px) reserves a top + left strip of the actual color swatches.
 export function drawAdjacencyMatrix(
@@ -262,9 +262,9 @@ export function paletteStripLayout(rows: string[][], cellSize: number): PaletteS
   return { width: maxCells * cellSize, height: rows.length * cellSize, cellSize, maxCells };
 }
 
-// PNG PALETTE STRIP — an import-grade swatch sheet (drag onto a canvas, then
+// PNG PALETTE STRIP: an import-grade swatch sheet (drag onto a canvas, then
 // eyedrop). INTENTIONALLY DIVERGES from the .gpl/.pal/.ase palette files in
-// two ways, and that divergence is by design — do NOT "align" it:
+// two ways, and that divergence is by design, do NOT "align" it:
 //   1. No dedup: a color repeated across ramps appears once per cell (a strip
 //      is positional; the palette files dedup because they expect unique entries).
 //   2. No harmony colors: the strip shows only the ramps, not the appended
@@ -291,12 +291,12 @@ export function drawPaletteStripPng(rows: string[][], cellSize = 32): Promise<Bl
 // --- Cross-ramp dither grid (#46) ------------------------------------------
 
 // N×N grid where cell [i][j] is a 50/50 ordered-dither blend of base color i
-// against base color j — previews the perceived in-between hue of two ramps
+// against base color j, previews the perceived in-between hue of two ramps
 // (e.g. red×blue reads as purple) without spending a palette slot. The diagonal
 // is the solid base. Optional header strip shows the solid base swatches (same
 // layout as drawAdjacencyMatrix). Honors the active dither pattern by taking the
 // MIDPOINT slice of that pattern's threshold matrix (ditherMatrix): a block
-// takes color B when its matrix value is in the upper half, A otherwise — the
+// takes color B when its matrix value is in the upper half, A otherwise, the
 // same 50% split the blend preview shows at its center.
 export function drawCrossRampDither(
   ctx: CanvasRenderingContext2D,
@@ -358,7 +358,7 @@ const DITHER_SUB = 8;       // checker/bayer subdivisions per blend cell
 
 // Per ramp row: solid shade · dither blend(shadeᵢ, shadeᵢ₊₁) · solid shade …
 // Blend cells render the pattern at a visible-pixel scale (DITHER_SUB blocks),
-// NOT a shrunk-to-solid midpoint — the texture is the point of the feature.
+// NOT a shrunk-to-solid midpoint; the texture is the point of the feature.
 export function drawDitherBlend(
   ctx: CanvasRenderingContext2D,
   rows: string[][],
@@ -381,17 +381,17 @@ export function drawDitherBlend(
         const a = row[i];
         const b = row[i + 1];
         // Integer edge boundaries so sub-blocks tile [0,blendW) × [0,rowH)
-        // exactly — no gap and no overflow into the neighbouring solid cell
+        // exactly, no gap and no overflow into the neighbouring solid cell
         // (same approach as blockEdges above; avoids round/ceil overdraw).
         // Ordered-dither gradient between shade A (left) and shade B (right).
         // Sweep an A→B threshold across the blend cell and tile the pattern's
         // threshold matrix in BOTH axes. Matrix size sets the tonal levels:
         //   2×2 → 4, 4×4 Bayer → 16, 8×8 Bayer → 64 (smoother ramps).
         // Bayer at the midpoint reduces to the classic checkerboard. Non-Bayer
-        // matrices (clustered dot, scanline, cross-hatch) ride the SAME sweep —
+        // matrices (clustered dot, scanline, cross-hatch) ride the SAME sweep,
         // only the cell ordering differs (see DITHER_PATTERNS in
         // viz-interaction.ts). Tiling in both axes (not keyed to the column
-        // index) is what keeps it from collapsing into vertical bands — the #43
+        // index) is what keeps it from collapsing into vertical bands, the #43
         // bug. cols/rows ~= pixel resolution.
         const matrix = ditherMatrix(opts.pattern);
         const mN = matrix.length;        // 2, 4 or 8

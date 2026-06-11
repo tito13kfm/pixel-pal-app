@@ -27,7 +27,7 @@ import { useState, useEffect, useRef } from 'react';
  *     'ui:rampExportStyle' as a session-level default. Not part of the saved
  *     palette payload, and NOT part of undo history (matches vizStyle /
  *     gplStyle treatment as UI / export preferences rather than palette
- *     content — none of these are in the undo snapshot). See "Per-ramp export
+ *     content, none of these are in the undo snapshot). See "Per-ramp export
  *     style is independent" in ARCHITECTURE.
  *
  * FOUR EPHEMERAL settings (state only, no effects, not persisted):

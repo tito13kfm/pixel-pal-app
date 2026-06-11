@@ -14,14 +14,14 @@ type Hsl = { h: number; s: number; l: number };
 // ---------- Shared per-ramp pipeline ----------
 // buildRamp assembles ONE ramp for one base index and one style. It is the
 // single code path both the live App.tsx memos and buildRampsForSnapshot call,
-// so the live↔snapshot mirror is structural — they cannot diverge by
+// so the live↔snapshot mirror is structural; they cannot diverge by
 // construction (the duplication that produced #30 is gone). Pure: depends only
 // on its snapshot argument, no component state.
 //
 // Pipeline: resolveBase (sat override) → generateRamp → pinRamp (per-style pins)
 // → snapHardware (quantize + dedupe) → filterHidden. Byte-identical to the
 // per-base body previously inlined in buildRampsForSnapshot. Per-snapshot setup
-// (curve migration, hardware lookup) is recomputed per call — cheap, keeps the
+// (curve migration, hardware lookup) is recomputed per call, cheap, keeps the
 // function self-contained, output unchanged.
 export function buildRamp(snapshot: RampSnapshot, style: string, baseIndex: number): string[] {
   const {
@@ -75,7 +75,7 @@ export function buildRamp(snapshot: RampSnapshot, style: string, baseIndex: numb
   // resolveHueShiftForRamp. Snapshots that never stored a per-ramp value fall
   // back to the global hueShiftStrength → identical to the legacy render.
   // (The legacy buildRampsForSnapshot honored ONLY the global value; honoring
-  // the per-ramp map here is the intended #35 mirror fix — a saved palette with
+  // the per-ramp map here is the intended #35 mirror fix: a saved palette with
   // a per-ramp hue override now renders the same in the compare/history view as
   // it does live.)
   const effectiveHueShift = (hueShiftStrengthPerRamp as Record<number, number>)[i] ?? hueShiftStrength;

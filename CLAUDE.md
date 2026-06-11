@@ -52,8 +52,8 @@ the LSP won't surface type errors there, so grep remains the real gate for dangl
 
 `npm run deadcode` (ts-prune) complements grep from the other direction: it lists exported
 symbols nobody imports. During the `App.tsx` decomposition this catches helpers extracted to
-`lib/` that `App.tsx` never adopted (it still runs an inline copy, e.g. `slugify`, `isTauri`) —
-those are a TODO ("finish the extraction"), not a delete target. It does NOT catch dangling
+`lib/` that `App.tsx` never adopted (it still runs an inline copy, e.g. `slugify`, `isTauri`).
+Those are a TODO ("finish the extraction"), not a delete target. It does NOT catch dangling
 refs to a removed local; that is still grep's job. Tune false positives in `.ts-prunerc.json`.
 Lines marked `(used in module)` are exported-but-used-locally, usually safe to ignore.
 

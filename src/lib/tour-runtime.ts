@@ -35,8 +35,8 @@ export async function positionPopover(
   const placement: Placement = preferred === 'auto' ? 'bottom' : preferred
   // strategy:'fixed' returns viewport-relative coords. The popover is
   // position:fixed in CSS, so the default 'absolute' strategy (document-relative)
-  // placed it at the target's document offset — e.g. y≈1868 for a target deep in
-  // a scrolling page — rendering it far below the viewport. Must match the CSS.
+  // placed it at the target's document offset, e.g. y≈1868 for a target deep in
+  // a scrolling page, rendering it far below the viewport. Must match the CSS.
   const { x, y, placement: finalPlacement, middlewareData } = await computePosition(
     targetEl,
     popoverEl,

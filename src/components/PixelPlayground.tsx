@@ -9,7 +9,7 @@ interface PixelPlaygroundProps {
   ramps: string[][];
   // `dark` = the surface behind the playground is dark (dark AND neutral themes),
   // so text/buttons need light treatment. Derived from the theme id in App.tsx,
-  // NOT from glow strength — Neutral is a dark ~18% surface but has low glow, so
+  // NOT from glow strength; Neutral is a dark ~18% surface but has low glow, so
   // a `glowStrong > 0.5` test wrongly picked light-theme dark text on it (#42).
   theme: { dark: boolean; text: string };
 }
@@ -105,7 +105,7 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
   const strokeStart = useRef<(number | null)[] | null>(null);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   // Last freehand cell, for interpolating the path between pointer-move samples
-  // (fast drags skip cells otherwise — #39). null between strokes.
+  // (fast drags skip cells otherwise, #39). null between strokes.
   const lastCell = useRef<{ x: number; y: number } | null>(null);
   const draftRef = useRef<{ x: number; y: number }[]>([]);
   const [draft, setDraftState] = useState<{ x: number; y: number }[]>([]);
@@ -196,7 +196,7 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
       strokeStart.current = pixels.slice();
       lastCell.current = null; // fresh stroke: don't interpolate from a prior one
       // Capture the pointer so moves keep firing even if the cursor leaves the
-      // canvas during a fast drag (the stroke no longer drops on leave — #39).
+      // canvas during a fast drag (the stroke no longer drops on leave, #39).
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
       applyStroke(e);
     } else if (tool === 'fill') {

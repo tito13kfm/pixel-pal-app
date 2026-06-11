@@ -143,7 +143,7 @@ export default function PixelPalGenerator() {
   const [mode, setMode] = useState('color');
   // v2NoticePending: set true when a pre-v2 saved palette is loaded this session,
   // so the one-time V2EngineNotice banner can surface (it self-suppresses once the
-  // user dismisses it — localStorage). See src/components/V2EngineNotice.tsx (#70).
+  // user dismisses it, localStorage). See src/components/V2EngineNotice.tsx (#70).
   const [v2NoticePending, setV2NoticePending] = useState(false);
   const [colorInput, setColorInput] = useState('#ff00ff');
   const imageRef = useRef(null);
@@ -212,7 +212,7 @@ export default function PixelPalGenerator() {
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,
   } = usePanelLayout();
-  // Ramp reorder drag state — deliberately SEPARATE from the section-level
+  // Ramp reorder drag state, deliberately SEPARATE from the section-level
   // dragOver/draggingKey so card-drag (#44) and ramp-drag never collide.
   const [rampDragOver, setRampDragOver] = useState<{ index: number; pos: 'before' | 'after' } | null>(null);
   const [rampDragging, setRampDragging] = useState<number | null>(null);
@@ -247,7 +247,7 @@ export default function PixelPalGenerator() {
   // whole-state snapshots (NOT diff patches), 50-entry cap, session-only. The
   // document core is owned by usePaletteState; useHistory is wired to it via
   // buildSnapshot / applySnapshotFields / resetTransientEditors. The watcher's
-  // dep array (snapshotInputs) is the 17 snapshot INPUT values — it deliberately
+  // dep array (snapshotInputs) is the 17 snapshot INPUT values, it deliberately
   // OMITS lightnessCurvePerRamp / satCurvePerRamp (preserved verbatim from the
   // pre-extraction behavior; do not "complete" it to 19). `tagNextLabel`
   // replaces the old scattered `pendingLabelRef.current = ...` handler writes:
@@ -506,16 +506,16 @@ export default function PixelPalGenerator() {
 
   // Live ramps now flow through the SAME shared buildRamp pipeline that
   // buildRampsForSnapshot uses (src/lib/ramp-pipeline.ts), so the live↔snapshot
-  // mirror is structural — the generate→pin→snap pipeline lives in exactly one
+  // mirror is structural: the generate→pin→snap pipeline lives in exactly one
   // place (no more #30-style duplication). We synthesize a snapshot-shaped object
   // from live state and feed it to buildRamp per base/style.
   //
   // Field-mapping rule (feed buildRamp exactly what the old inline memo fed the
   // engine): pass hueShiftStrengthPerRamp (buildRamp resolves it per ramp, like
-  // resolveHueShiftForRamp). DELIBERATELY OMIT hiddenShades — the live memo does
+  // resolveHueShiftForRamp). DELIBERATELY OMIT hiddenShades: the live memo does
   // NOT hide here; hiding happens at the display boundary via the component-scope
   // filterHidden, so buildRamp's internal hidden-filter must stay inert and these
-  // ramps must remain full-length. DELIBERATELY OMIT curvePerRamp — legacy string
+  // ramps must remain full-length. DELIBERATELY OMIT curvePerRamp: legacy string
   // presets are migrated into lightnessCurvePerRamp on load; the live memo never
   // re-migrated, so passing it would double-apply. hardwareLock is the id string
   // (buildRamp re-finds the palette, exactly as activeHardware does).
@@ -1322,7 +1322,7 @@ export default function PixelPalGenerator() {
   // Since duplicateRamp carries over every per-base setting that the engine
   // reads, the duplicate is byte-identical to the source. The seed formula
   // `shuffleSeed * 17 + i * 31 + offset * 13` is still computed and passed
-  // through the adapter shim, but the new engine drops the value — so the
+  // through the adapter shim, but the new engine drops the value, so the
   // N != i discrepancy from the old HSV engine no longer matters.
   const duplicateRamp = (i) => {
     if (i < 0 || i >= baseColors.length) return;
@@ -1705,7 +1705,7 @@ export default function PixelPalGenerator() {
     setBaseColors(newBaseColors);
     setCompareAnchor(null);
     setCompareResult(null);
-    setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'} — ${modeLabel}`);
+    setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'}: ${modeLabel}`);
     setTimeout(() => setExportFeedback(''), 2000);
   };
   const restoreHarmonizeBaseline = () => {
@@ -2126,7 +2126,7 @@ export default function PixelPalGenerator() {
       hiddenShades,
       hardwareLock,
       hueShiftStrength,
-      hueShiftStrengthPerRamp, // per-ramp hue-shift overrides — mirror the main
+      hueShiftStrengthPerRamp, // per-ramp hue-shift overrides, mirror the main
                                // grid; without this viz/export/compare fall back
                                // to the global hueShiftStrength only (#37)
       lightnessCurvePerRamp,
@@ -2456,7 +2456,7 @@ export default function PixelPalGenerator() {
       } else {
         setHueShiftStrength(1.0);
       }
-      // engineVersion: v1 is gone — every palette renders on v2. A pre-v2 save
+      // engineVersion: v1 is gone; every palette renders on v2. A pre-v2 save
       // (engineVersion absent or !== 2) is auto-migrated on render; flag the
       // one-time notice. Migration persists lazily on the user's next save
       // (the save payload always writes engineVersion: 2). (#70)
@@ -3235,7 +3235,7 @@ export default function PixelPalGenerator() {
       const { allColors } = computeVizData(ramps);
       // Raw bases = one swatch per ramp, matching the on-screen matrix and the
       // spec ("one swatch per ramp"). Do NOT dedupe: two ramps sharing a base
-      // should render as a 0-ΔE off-diagonal cell — that's the bases view's point.
+      // should render as a 0-ΔE off-diagonal cell, that's the bases view's point.
       const colors = matrixColorSet === 'bases'
         ? (Array.isArray(snap?.baseColors) ? snap.baseColors : [])
         : allColors;
@@ -3539,7 +3539,7 @@ export default function PixelPalGenerator() {
       } else if (!result.ok) {
         if (sessionRampGplFolder) {
           setSessionRampGplFolder(null);
-          setExportFeedback('Folder unavailable — pick a new one');
+          setExportFeedback('Folder unavailable, pick a new one');
         } else {
           setExportFeedback('Ramp GPL export failed');
         }
@@ -4843,7 +4843,7 @@ export default function PixelPalGenerator() {
             <HistoryPanel />
         </SectionCard>
 
-        {/* Export & Tools — collapsible card matching section card pattern */}
+        {/* Export & Tools: collapsible card matching section card pattern */}
         <SectionCard
           sectionKey="export" accent="#00ffff" bg={t.cardBgViz} glow={0.3}
           marginClass="mb-3" dataTourId="export-panel" headerTourId="export-header"
@@ -4883,7 +4883,7 @@ export default function PixelPalGenerator() {
           </button>
           {tipsOpen && <div className={`px-4 pb-4 text-xs ${t.tipPanelText}`}>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ TIP:</strong> Click any swatch to copy its hex code.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ DICE:</strong> Rolls a random color (Single Color) or a random description (AI Assist). Free, no API call. Click again to re-roll.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ DICE:</strong> Rolls a random hex into the Single Color input. Click again to re-roll.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SURPRISE ME:</strong> The AI invents a subject AND generates its palette in one shot. Uses one API call.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ IMPORT:</strong> Drop a Piskel C file to add custom preview sprites.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ COPY:</strong> Click the cyan icon on custom sprites to copy their source code.</p>
@@ -4912,7 +4912,7 @@ export default function PixelPalGenerator() {
             <p className="text-xs text-cyan-100/80 mb-3">
               Version {updateInfo.version} is{updateInfo.isPortable ? ' available.' : ' ready.'}{' '}
               {updateInfo.isPortable
-                ? 'Portable builds don’t auto-update — grab the new .exe from the Releases page.'
+                ? 'Portable builds don’t auto-update; grab the new .exe from the Releases page.'
                 : updateReady ? 'Downloaded and ready to install.' : updateDownloading ? 'Downloading...' : 'Download and install now?'}
             </p>
             <div className="flex gap-2 flex-wrap">

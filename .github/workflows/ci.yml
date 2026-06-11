@@ -18,6 +18,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Lint - no em or en dashes in source and living docs
+        if: matrix.platform == 'ubuntu-latest'
+        shell: bash
+        run: |
+          if git grep -nP "\x{2014}|\x{2013}" -- \
+               'src/' 'src-tauri/src/' \
+               README.md CHANGELOG.md CLAUDE.md \
+               docs/ARCHITECTURE.md docs/architecture-rebuild-roadmap.md \
+               docs/review-lenses.md docs/superpowers/specs/FEATURE-BACKLOG.md; then
+            echo "::error::Em or en dash found in tracked source/living-docs (style rule). Use comma, period, parentheses, or colon."
+            exit 1
+          fi
+          echo "No em or en dashes in the checked set."
+
       - name: Install Node.js
         uses: actions/setup-node@v5
         with:

@@ -38,7 +38,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     },
     {
       title: 'Input modes',
-      body: 'Single Color: type or pick a hex. AI Assist: describe a subject or mood to generate, or hit Surprise Me to randomize. From Image: drag, paste, or open a photo.',
+      body: 'Single Color: type or pick a hex. From Image: drag, paste, or open a photo.',
       target: 'mode-tabs',
       advance: 'next',
       placement: 'bottom',
@@ -52,7 +52,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     },
     {
       title: 'Export',
-      body: 'Click the Export & Tools header to expand it. Pick an export format from the dropdown — .gpl, .pal, Adobe .ase, a PNG strip, or .txt — then Download.',
+      body: 'Click the Export & Tools header to expand it. Pick an export format from the dropdown: .gpl, .pal, Adobe .ase, a PNG strip, or .txt, then Download.',
       target: 'export-header',
       advance: 'next',
       placement: 'auto',
@@ -247,7 +247,7 @@ export const TASK_GUIDES: TourGuide[] = [
       },
       {
         title: 'Pick a format and download',
-        body: 'Choose a format in the dropdown — .gpl (Aseprite/GIMP/Krita), .pal (GrafX2), Adobe .ase, a PNG strip for any eyedropper, or plain .txt — then click Download. Note: Adobe .ase is for Photoshop/Illustrator/Krita, not Aseprite; Aseprite users want .gpl, .pal, or the PNG strip.',
+        body: 'Choose a format in the dropdown: .gpl (Aseprite/GIMP/Krita), .pal (GrafX2), Adobe .ase, a PNG strip for any eyedropper, or plain .txt, then click Download. Note: Adobe .ase is for Photoshop/Illustrator/Krita, not Aseprite; Aseprite users want .gpl, .pal, or the PNG strip.',
         target: 'gpl-export-btn',
         setup: 'export',
         advance: 'next',

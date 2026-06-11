@@ -1,7 +1,7 @@
 export interface RampPermutation {
-  /** order[newPos] = oldIndex — rebuild arrays: newArr[k] = oldArr[order[k]] */
+  /** order[newPos] = oldIndex; rebuild arrays: newArr[k] = oldArr[order[k]] */
   order: number[];
-  /** next[oldIndex] = newPos — remap map keys / Set members / scalar indices */
+  /** next[oldIndex] = newPos; remap map keys / Set members / scalar indices */
   next: number[];
 }
 
@@ -38,7 +38,7 @@ export function permuteStringKeyMap<V>(
   for (const k of Object.keys(map)) {
     const oldIdx = Number(k);
     const newIdx = next[oldIdx];
-    if (newIdx === undefined) continue; // key outside [0,n) — drop (shouldn't happen)
+    if (newIdx === undefined) continue; // key outside [0,n), drop (shouldn't happen)
     out[String(newIdx)] = map[k];
   }
   return out;

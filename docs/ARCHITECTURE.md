@@ -1,4 +1,4 @@
-﻿# PIXEL.PAL — Architecture Reference
+﻿# PIXEL.PAL: Architecture Reference
 
 On-demand reference for `CLAUDE.md`. Read the relevant section before working in
 that area. CLAUDE.md keeps only the always-relevant constraints + terse landmine
@@ -66,7 +66,7 @@ src/
     tour-runtime.ts     tour geometry helpers (cutout + popover placement)
     constants.ts        WORD_POOL, sprites, CLASSIC_PALETTES, HARDWARE_PALETTES
     env.ts              IS_WEB build-time flag, isTauri() runtime check
-    palette.ts          AIConfig, SavedPalettePayload, localStorage helpers
+    palette.ts          SavedPalettePayload, localStorage helpers
     save-file.ts        polymorphic save (Tauri native dialog OR browser anchor)
     tauri-bridge.ts     Tauri IPC, updater, plugin-store
     history-snapshot.ts pure inferLabel + SNAPSHOT_FIELDS (undo-history kernel)
@@ -80,7 +80,7 @@ src-tauri/
 
 tests/
   # LOCAL-ONLY dev files (gitignored, NOT in origin, absent on fresh clones;
-  # absence is expected, not deletion — see the dev-environment memory note):
+  # absence is expected, not deletion; see the dev-environment memory note):
   pixel-pal.tsx         source artifact; legacy JS tests parse it, do not modify
   extract.js            text-extracts const-arrow fns by name
   test_*.js             legacy unit tests (read pixel-pal.tsx via fs + vm sandbox)
@@ -89,7 +89,7 @@ tests/
   test_contrast.js      WCAG AA contrast lint
   test_curve.ts         curve math unit test (run via npx tsx)
   unit/                 vitest unit tests (.spec.ts)
-  e2e/                  Playwright: app.spec.ts, ai-settings.spec.ts, web-build.spec.ts
+  e2e/                  Playwright: app.spec.ts, web-build.spec.ts
 
 scripts/
   sync-tauri-version.mjs    TRACKED: syncs Cargo.toml/.lock + tauri.conf.json to
@@ -117,7 +117,7 @@ scripts/
 ## Cross-cutting state-maintenance rules (App.tsx wiring)
 
 `App.tsx` is the **wiring layer**: domain state lives in `hooks/`, the ramp pipeline
-in `lib/`, but orchestration stays here — handlers, the JSX tree, the inline
+in `lib/`, but orchestration stays here: handlers, the JSX tree, the inline
 `PixelSprite` / `Swatch` / `HarmonySwatch` components, the `window.storage` shim, and
 the `themeTokens` map. `@ts-nocheck` means grep is the only gate (see the
 `app-tsx-quirks` note). The file is mid-decomposition (Tier C is extracting JSX
@@ -149,7 +149,7 @@ Invariants that must hold across edits:
    wrong ramp.
 4. **Live ↔ snapshot ramp mirror (the #30 invariant).** Live ramps: App.tsx
    synthesizes `liveRampSnapshot` from state and calls `buildRamp(snapshot, style, i)`
-   per base/style — the SAME function `buildRampsForSnapshot` (compare / export / PNG)
+   per base/style: the SAME function `buildRampsForSnapshot` (compare / export / PNG)
    calls. Never reintroduce a second generate→pin→snap path. The live memo
    deliberately OMITS `hiddenShades` (it hides at display via the component-scope
    `filterHidden`, so memos stay full-length) and `curvePerRamp` (migrated into
@@ -165,7 +165,7 @@ Invariants that must hold across edits:
 
 History (undo/redo) lives in `useHistory`: whole-state snapshots, 50-entry cap,
 300 ms debounce, session-only. Its watcher dep array is the **17** snapshot INPUTS and
-deliberately omits `lightnessCurvePerRamp` / `satCurvePerRamp` (preserved verbatim — do
+deliberately omits `lightnessCurvePerRamp` / `satCurvePerRamp` (preserved verbatim, do
 not "complete" it to 19). `usePaletteState` owns the document core (20 snapshot fields
 + 6 editor/compare fields) and the three snapshot helpers `useHistory` consumes.
 
@@ -176,7 +176,7 @@ not "complete" it to 19). `usePaletteState` owns the document core (20 snapshot 
 Three themes: `dark` (vaporwave neon), `neutral` (18% gray reference for unbiased color
 judgment), `light` (cream "Jazz cup" SVG pattern). `const t = themeTokens[theme]` is the
 single token source; every chrome color / className reads from `t`. **Color DATA
-(swatches, sprites, mosaic, chromatic plot) is never themed — only chrome adapts.**
+(swatches, sprites, mosaic, chromatic plot) is never themed: only chrome adapts.**
 
 - `glowStrong` (1.0 / 0.3 / 0.2) gates neon: `accentGlow` / `accentTextGlow` return
   `'none'` when < 0.5. Many call sites branch on `t.glowStrong > 0.5` for the
@@ -189,7 +189,7 @@ single token source; every chrome color / className reads from `t`. **Color DATA
 - **Light theme uses a scoped `<style>` CSS-injection hack** (rendered only when
   `theme === 'light'`): it overrides hardcoded Tailwind `text-cyan-200` etc. (invisible
   on cream) to dark, with a `bg-black/` descendant carve-out that keeps text on dark
-  panels light. **Neutral does NOT use this** — it is fully token-driven. Do not extend
+  panels light. **Neutral does NOT use this**: it is fully token-driven. Do not extend
   the CSS block for Neutral; point Neutral text at a token instead.
 - CVD simulation: four SVG `feColorMatrix` filters (protan / deutan / tritan) wrap the
   main content. The header / theme / CVD selectors sit OUTSIDE the filter so they stay
@@ -201,7 +201,7 @@ single token source; every chrome color / className reads from `t`. **Color DATA
 ## Persistence & storage
 
 `window.storage` is an async shim over `localStorage` installed at App.tsx module load
-(a Tauri-native backend could swap in later — keep call sites async). Typed globally in
+(a Tauri-native backend could swap in later, keep call sites async). Typed globally in
 `vite-env.d.ts`. All persistence is `localStorage`; there is no IndexedDB.
 
 Key inventory:
@@ -236,13 +236,13 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
    side-by-side slots): `remapImageToPalette` snaps every pixel to the active palette.
    **Alpha policy:** α = 0 → transparent passthrough (no error in or out); α = 255 →
    remap RGB; 0 < α < 255 → composite over white, remap, write back the original α.
-   Dither: `none` (uses a unique-color cache) or Floyd–Steinberg / Atkinson (¾ error,
-   cleaner flats) / Stucki — error diffuses ONLY to α > 0 neighbors. The preview
+   Dither: `none` (uses a unique-color cache) or Floyd-Steinberg / Atkinson (¾ error,
+   cleaner flats) / Stucki, error diffuses ONLY to α > 0 neighbors. The preview
    downsamples to 512 px longest axis (256 for SBS slots, which run two remaps); export
    re-runs at full resolution × scale. `computeRemapScaleOptions` caps output at
    8192 px/axis; `estimateRemapCost` warns above 50 M ops behind a 5 s two-click confirm.
-   The active remap palette = current `vizStyle` ramps, hidden shades filtered, deduped
-   — the same set the chromatic plot dots come from.
+   The active remap palette = current `vizStyle` ramps, hidden shades filtered, deduped,
+   the same set the chromatic plot dots come from.
 
 ---
 
@@ -253,18 +253,18 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
   `buildJascPal` / `buildAse` (`lib/palette-export.ts`) all consume it, so the three
   file formats cannot describe different color sets (mirror rule). `.ase` is big-endian
   binary targeting **Photoshop / Illustrator / Krita, NOT Aseprite** (Aseprite users
-  want `.gpl`, `.pal`, or the PNG strip). `buildAse` is byte-exact — do not reformat.
+  want `.gpl`, `.pal`, or the PNG strip). `buildAse` is byte-exact, do not reformat.
 - **PNG renders** live in `lib/strip-export.ts` (off-screen canvas → Blob): lightness
   strip (markers placed by L on a 0→100 axis, so gaps read as missing tonal ranges),
   mosaic, adjacency matrix, dither-blend, palette strip. `computeVizData(ramps)` is the
   single derivation feeding both the on-screen views and the PNG exports.
 - **The PNG palette strip intentionally diverges** from the `.gpl` / `.pal` / `.ase`
-  files: NO dedup (one cell per shade per ramp — it is positional) and NO harmony
+  files: NO dedup (one cell per shade per ramp, it is positional) and NO harmony
   colors. Do not "align" it.
-- **Dither matrices** (`lib/viz-interaction.ts`): the `DITHER_PATTERNS` registry —
+- **Dither matrices** (`lib/viz-interaction.ts`): the `DITHER_PATTERNS` registry:
   Bayer 2×2 / 4×4 / 8×8 (4 / 16 / 64 levels), clustered-dot, scanline, cross-hatch.
   Adding a pattern is one matrix in the registry; it auto-wires the preview + PNG. The
-  blend sweep tiles the matrix in BOTH axes (the #43 fix — keying to the column index
+  blend sweep tiles the matrix in BOTH axes (the #43 fix, keying to the column index
   alone collapsed it into vertical bands).
 
 ---

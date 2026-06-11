@@ -1,10 +1,10 @@
 # PIXEL.PAL
 
-**A palette studio for pixel artists — build the whole palette before you open the canvas, then hand it off to the editor you already paint in.**
+**A palette studio for pixel artists: build the whole palette before you open the canvas, then hand it off to the editor you already paint in.**
 
-Start from a hex color, an image, or a text prompt. Get labeled shade ramps in three contrast styles, bend them with curve editors and per-shade pins, lock them to real hardware (NES, Game Boy, CGA, EGA, C64), and check them for WCAG contrast and color-blindness — then export a GIMP `.gpl` or PNG strip that Aseprite, Pixelorama, GrafX2, GIMP, and Krita read directly.
+Start from a hex color, an image, or a text prompt. Get labeled shade ramps in three contrast styles, bend them with curve editors and per-shade pins, lock them to real hardware (NES, Game Boy, CGA, EGA, C64), and check them for WCAG contrast and color-blindness, then export a GIMP `.gpl` or PNG strip that Aseprite, Pixelorama, GrafX2, GIMP, and Krita read directly.
 
-It runs on a perceptual OKLCH engine, so shading *starts* visually even and the cool-shadow / warm-highlight shift is a dial you set on purpose, not a side effect of the math you have to fight. That's the floor, not the pitch — the point is everything you do to a palette in one place before a single pixel is painted.
+It runs on a perceptual OKLCH engine, so shading *starts* visually even and the cool-shadow / warm-highlight shift is a dial you set on purpose, not a side effect of the math you have to fight. That's the floor, not the pitch. The point is everything you do to a palette in one place before a single pixel is painted.
 
 ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -23,14 +23,13 @@ The hosted build is rebuilt and deployed on every tagged release.
 
 Pre-built installers for Windows, macOS, and Linux are on the [Releases page](https://github.com/tito13kfm/pixel-pal-app/releases). A standalone portable Windows `.exe` (no installer, no auto-update) ships in each release as `PIXEL.PAL_<version>_x64-portable.exe`.
 
-The desktop build adds OS-keychain key storage, native Save As dialogs, in-app auto-update, and support for AI providers the browser can't reach (Anthropic, local Ollama).
+The desktop build adds native Save As dialogs and in-app auto-update.
 
 ## Features
 
 **Input**
 - Single hex color: type, pick, or roll random
 - Image upload, paste, or drag-and-drop: extracts 3-6 dominant colors; eyedropper with up to 8x zoom lets you click individual pixels
-- AI Assist: describe a subject and a language model picks the colors; "Surprise Me" has the AI invent a subject too
 - Example ramps inspired from classic palettes: DawnBringer 16, PICO-8, Sweetie 16, Game Boy, NES Super Mario Bros, EDG32, CGA, and more.
   - (These are to emulate a feel of the palette, not full palettes.  Intentional design choice, trust me you dont't want 12000+ color swatches showing at once)
 - Import GIMP .gpl files
@@ -50,26 +49,26 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - Pin individual shades to a fixed hex across all three styles
 - Right-click a shade to hide it across all three styles
 - Lock ramp from global operations
-- Drag a ramp by its grip to reorder it; the new order propagates everywhere ramps are used in order — the ramp grid, Mosaic, Adjacency, Dither, and every export. All per-ramp settings (pins, sizes, locks, curves, gamut, and more) move with the ramp
+- Drag a ramp by its grip to reorder it; the new order propagates everywhere ramps are used in order: the ramp grid, Mosaic, Adjacency, Dither, and every export. All per-ramp settings (pins, sizes, locks, curves, gamut, and more) move with the ramp
 - **Advanced disclosure** (closed by default): interactive lightness curve editor and saturation curve editor (drag anchors, click to add, preset chips for one-click shapes), plus gamut strategy (auto / clip / chroma-preserve)
 
 **Global tools**
 - Harmonize: rotate unlocked ramps to color-theory positions relative to an anchor ramp
 - Color harmony derivation: complementary, analogous, triadic, split-complementary, tetradic, square
 - Hardware Lock: snap all shades to the nearest legal color (perceptual ΔE_OK distance) for NES, Game Boy DMG, CGA 16, EGA 64, or C64
-- Base-color dock: a floating, draggable panel listing your base colors — delete any one (or jump to its ramp) from anywhere on the page; collapsible, and it reshapes into a grid for large palettes
+- Base-color dock: a floating, draggable panel listing your base colors, delete any one (or jump to its ramp) from anywhere on the page; collapsible, and it reshapes into a grid for large palettes
 
 **Image tools**
-- Remap any uploaded image to your active palette, with optional error-diffusion dithering (Floyd–Steinberg, Atkinson, or Stucki)
+- Remap any uploaded image to your active palette, with optional error-diffusion dithering (Floyd-Steinberg, Atkinson, or Stucki)
 - Side-by-side view of original vs. palette-remapped image; the preview scales with the selected export scale so you can judge the remapped pixels before downloading
 - Export the remapped image at multiple scale options
 
 **Views**
-- Mosaic preview — export to PNG
-- Lightness distribution strip: colors placed on a 0→100 lightness axis so gaps in tonal coverage are visible — export to PNG
+- Mosaic preview (export to PNG)
+- Lightness distribution strip: colors placed on a 0→100 lightness axis so gaps in tonal coverage are visible (export to PNG)
 - Chromatic polar plot
-- Adjacency matrix: every color paired with every other, with an optional ΔE_OK heatmap that surfaces clashes and near-duplicate colors — export to PNG
-- Dither-blend preview: ordered-dither mix of ramp shades — the optical "in-between" shade you get when dithering at sprite scale. Pick a pattern (2×2 / 4×4 / 8×8 Bayer, clustered-dot, scanline, cross-hatch), zoom 1×/2×/4×, or switch to a cross-ramp grid that dithers every ramp's base against every other — export to PNG
+- Adjacency matrix: every color paired with every other, with an optional ΔE_OK heatmap that surfaces clashes and near-duplicate colors (export to PNG)
+- Dither-blend preview: ordered-dither mix of ramp shades, the optical "in-between" shade you get when dithering at sprite scale. Pick a pattern (2×2 / 4×4 / 8×8 Bayer, clustered-dot, scanline, cross-hatch), zoom 1×/2×/4×, or switch to a cross-ramp grid that dithers every ramp's base against every other (export to PNG)
 - Sprite previews on 4 built-in 32x32 sprites; import custom sprites from Piskel
 - Side-by-side palette comparison
 
@@ -83,8 +82,8 @@ The desktop build adds OS-keychain key storage, native Save As dialogs, in-app a
 - Three themes: Dark, Neutral, Light (persists across sessions)
 - Customizable layout: drag the main section cards (Color Ramps, Harmony, Playground, Visualize, Saved, History, Export) by their grips to reorder them; the arrangement persists, and a Reset Layout button restores defaults
 - Auto-updates: desktop checks for new releases and prompts you to install; web reflects the latest deploy on refresh
-- Export: a format dropdown covers GIMP `.gpl` (Aseprite/GIMP/Krita/Piskel), JASC `.pal` (GrafX2/Paint Shop Pro), Adobe Swatch Exchange `.ase`, a PNG palette strip (drag onto any editor's canvas and eyedrop), and plain `.txt` — each in the Punchy/Balanced/Muted style you select. Desktop adds "Reveal in folder" after a save. Separate one-click PNG export of the Mosaic, Lightness Distribution, Adjacency Matrix, and Dither-Blend views remains (from the view itself or the export panel).
-  - **Note:** Adobe `.ase` targets Photoshop / Illustrator / Krita, **not** Aseprite. Despite the shared extension, Aseprite's `.ase`/`.aseprite` are sprite files; Aseprite imports palettes as `.gpl`, `.pal`, or PNG — pick one of those for Aseprite.
+- Export: a format dropdown covers GIMP `.gpl` (Aseprite/GIMP/Krita/Piskel), JASC `.pal` (GrafX2/Paint Shop Pro), Adobe Swatch Exchange `.ase`, a PNG palette strip (drag onto any editor's canvas and eyedrop), and plain `.txt`, each in the Punchy/Balanced/Muted style you select. Desktop adds "Reveal in folder" after a save. Separate one-click PNG export of the Mosaic, Lightness Distribution, Adjacency Matrix, and Dither-Blend views remains (from the view itself or the export panel).
+  - **Note:** Adobe `.ase` targets Photoshop / Illustrator / Krita, **not** Aseprite. Despite the shared extension, Aseprite's `.ase`/`.aseprite` are sprite files; Aseprite imports palettes as `.gpl`, `.pal`, or PNG. Pick one of those for Aseprite.
 
 ## Getting Started
 
@@ -119,26 +118,12 @@ npm run build:web     # static build for GH Pages hosting (base '/pixel-pal-app/
 npm run dist          # packaged desktop installer, output to src-tauri/target/release/bundle/
 ```
 
-## AI Assist
-
-AI Assist sends your prompt to a language model of your choice and extracts a palette from the response. Your API key never leaves your machine.
-
-**Desktop:** key stored in the OS keychain (Windows Credential Manager on Windows, Keychain on macOS, Secret Service on Linux). Supported providers: OpenAI, Anthropic, Google Gemini, xAI Grok, OpenRouter, Ollama (local), and any OpenAI-compatible endpoint.
-
-**Browser:** key stored in browser local storage on the device (the app shows a notice). Supported providers in the browser dropdown: OpenAI, Google Gemini, xAI Grok, OpenRouter, and custom OpenAI-compatible endpoints. Anthropic is omitted because its API does not allow direct browser calls; Ollama is omitted because the hosted site is HTTPS and cannot reach `http://localhost:11434`. Use the desktop app for those two.
-
-Configure in Settings on first launch.
-
 ## Web vs Desktop
 
 | Feature | Web | Desktop |
 | --- | --- | --- |
 | Generate ramps, edit, save palettes | yes | yes |
 | Export `.txt` / `.gpl` | yes (anchor download to Downloads folder) | yes (native Save As, remembers folder per file type) |
-| AI providers: OpenAI / Gemini / xAI / OpenRouter / custom | yes | yes |
-| AI providers: Anthropic | no (CORS) | yes |
-| AI providers: Ollama (local) | no (mixed-content) | yes |
-| API key storage | browser localStorage (plaintext, per-profile) | OS keychain |
 | Auto-update | automatic on page refresh (always the latest deploy) | in-app update prompt |
 | Offline use | no | yes (once installed) |
 | Install required | no | yes |
@@ -154,18 +139,16 @@ Configure in Settings on first launch.
 For the pre-built release, install these runtime libraries:
 
 ```bash
-sudo apt-get install libwebkit2gtk-4.1-0 libsecret-1-0
+sudo apt-get install libwebkit2gtk-4.1-0
 ```
 
 For building from source, you need the development packages:
 
 ```bash
-sudo apt-get install libwebkit2gtk-4.1-dev librsvg2-dev patchelf libsecret-1-dev
+sudo apt-get install libwebkit2gtk-4.1-dev librsvg2-dev patchelf
 ```
 
-`libsecret` is required for encrypted API key storage. Without it, the app falls back to unencrypted local storage.
-
-For non-Debian/Ubuntu distributions, install the equivalent packages: WebKit2GTK 4.1 runtime, libsecret runtime (and their -dev variants for building).
+For non-Debian/Ubuntu distributions, install the equivalent package: WebKit2GTK 4.1 runtime (and its -dev variant for building).
 
 ## Windows Notes
 

@@ -135,7 +135,7 @@ export function HarmonyPanel({
                 const disabled = unlockedCount === 0;
                 const MODES = [
                   { key: 'complement',       label: 'Compl.',  tip: 'All unlocked ramps snap to the complementary hue (180° from anchor). Maximum contrast.' },
-                  { key: 'analogous',        label: 'Analog',  tip: 'Ramps cluster tightly around the anchor (±15–60°). Low contrast, cohesive feel.' },
+                  { key: 'analogous',        label: 'Analog',  tip: 'Ramps cluster tightly around the anchor (±15-60°). Low contrast, cohesive feel.' },
                   { key: 'triadic',          label: 'Triadic', tip: 'Ramps distributed at 120° intervals around the wheel. Balanced and vibrant.' },
                   { key: 'split-complement', label: 'Split',   tip: 'Ramps land at ±150° from anchor (adjacent to the complement). Softer than straight complement.' },
                   { key: 'square',           label: 'Square',  tip: 'Ramps at 90° intervals around the wheel. Even spacing, four-color symmetry.' },
@@ -188,7 +188,7 @@ export function HarmonyPanel({
                     <span className="text-[10px] text-pink-200/70 italic">
                       {disabled
                         ? 'All non-anchor ramps are locked.'
-                        : `Will rotate ${unlockedCount} ramp${unlockedCount === 1 ? '' : 's'} — ${harmonizeMode.replace('-', ' ')}.`}
+                        : `Will rotate ${unlockedCount} ramp${unlockedCount === 1 ? '' : 's'}: ${harmonizeMode.replace('-', ' ')}.`}
                     </span>
                   </>
                 );
