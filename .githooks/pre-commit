@@ -1,20 +1,52 @@
 #!/bin/sh
-# Guard: refuse direct commits on the release branch.
 # Tracked in-repo and activated via `git config core.hooksPath .githooks`
 # (wired through the npm "prepare" script, so `npm install` self-installs it).
+
+# Guard 1: refuse direct commits on the release branch.
 # Installed 2026-06-04 after repeated accidental commits to master.
-# To intentionally commit on master (rare — releases), set ALLOW_MASTER_COMMIT=1.
+# To intentionally commit on master (rare, releases only), set ALLOW_MASTER_COMMIT=1.
 branch=$(git symbolic-ref --short HEAD 2>/dev/null)
 case "$branch" in
   master|main)
     if [ "$ALLOW_MASTER_COMMIT" = "1" ]; then
-      echo "pre-commit: ALLOW_MASTER_COMMIT=1 set — permitting commit on $branch."
-      exit 0
+      echo "pre-commit: ALLOW_MASTER_COMMIT=1 set, permitting commit on $branch."
+    else
+      echo "pre-commit: refusing to commit on '$branch' (release branch)." >&2
+      echo "  Create a feature branch first:  git checkout -b feat/your-change" >&2
+      echo "  Intentional release commit?     ALLOW_MASTER_COMMIT=1 git commit ..." >&2
+      exit 1
     fi
-    echo "pre-commit: refusing to commit on '$branch' (release branch)." >&2
-    echo "  Create a feature branch first:  git checkout -b feat/your-change" >&2
-    echo "  Intentional release commit?     ALLOW_MASTER_COMMIT=1 git commit ..." >&2
-    exit 1
     ;;
 esac
+
+# Guard 2: reject newly-added em/en dashes (style rule: no em or en dashes in
+# prose; use commas, periods, parentheses, colons). Checks ADDED lines only, so
+# pre-existing dashes never block a commit and removing dashes is always allowed.
+# *.snap and binaries are skipped. ALLOW_DASH=1 for the rare case a dash is the
+# only correct option. The patterns are built from octal UTF-8 byte sequences so
+# this file holds no literal dash and never trips its own guard.
+if [ "$ALLOW_DASH" != "1" ]; then
+  emn=$(printf '\342\200\224|\342\200\223')   # U+2014 em-dash | U+2013 en-dash
+  dash_fail=0
+  for f in $(git diff --cached --name-only --diff-filter=ACM); do
+    case "$f" in
+      *.snap|*.png|*.ico|*.icns|*.jpg|*.jpeg|*.gif|*.webp|*.woff|*.woff2|*.ttf) continue ;;
+    esac
+    hits=$(git diff --cached --no-color -U0 -- "$f" | grep -E '^\+[^+]' | grep -E "$emn")
+    if [ -n "$hits" ]; then
+      if [ "$dash_fail" = "0" ]; then
+        echo "pre-commit: refusing commit, staged changes add banned em/en dashes." >&2
+        echo "  Replace with comma, period, parentheses, or colon." >&2
+        dash_fail=1
+      fi
+      echo "  $f:" >&2
+      printf '%s\n' "$hits" | sed 's/^/    /' >&2
+    fi
+  done
+  if [ "$dash_fail" = "1" ]; then
+    echo "  If a dash is genuinely the only correct option: ALLOW_DASH=1 git commit ..." >&2
+    exit 1
+  fi
+fi
+
 exit 0
