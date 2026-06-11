@@ -15,48 +15,96 @@ so a feature flag would only leave fragile dead code — rejected.
 This also shrinks the app and simplifies the state surface ahead of the separate
 perf/size architecture work (its own later spec).
 
+## The naming trap (read first)
+
+The original artifact fused "AI output" with "palette metadata" under `ai`-prefixed
+names. Two of those fields are NOT AI-only and must be treated carefully:
+
+- **`aiColorNames` — KEEP.** Despite the name, this is the app's color-naming
+  system: the name label rendered under every ramp (`RampsPanel`, `HarmonyPanel`,
+  `VizComparePanel`), always shown, falling back to `Color N`. It is populated by
+  non-AI paths (classic presets `App.tsx:2217/2745`, GPL import `2808`) and
+  reordered with ramps (`permute-indexed-state.ts:84`). Deleting it would strip
+  every ramp's name. It is retained verbatim. (Not renamed: the persisted palette
+  schema stores the `aiColorNames` key, so a rename would break saved palettes.)
+- **`aiReasoning` — REMOVE.** A palette-description string. Its only render site is
+  `App.tsx:4597`, gated on `mode === 'ai'`. The non-AI setters (classic preset
+  `2746` "Inspired by …", GPL import `2809` "Imported from …") write text that is
+  never displayed (mode is not `'ai'` on those loads). Removing the AI mode makes
+  it dead, so it is removed fully — field, state, snapshot, history, and all
+  setters. See Decision Point below.
+
 ## Scope
 
 Hard delete of the entire AI path, frontend and backend, plus its dependencies.
-The input `mode` collapses from `color | image | ai` to `color | image`.
+The input `mode` collapses from `color | image | ai` to `color | image`. `mode` is
+ephemeral UI state (plain `useState` in `App.tsx`, NOT in the snapshot/history or
+saved-palette schema — verified), so no saved palette can carry `mode === 'ai'`
+and no load-time coerce guard is needed.
 
 ### Frontend — delete files
 
-- `src/lib/ai.ts` (225 lines) — provider client + CORS-proxy loader
+- `src/lib/ai.ts` (225) — provider client + CORS-proxy loader
 - `src/settings/AISettingsPanel.tsx` (148) — provider/key config UI
-- `src/components/WebKeyWarning.tsx` (32) — web-only "key stored in localStorage" banner (AI-only)
+- `src/components/WebKeyWarning.tsx` (32) — web-only "key in localStorage" banner
 - `src/hooks/useAIAssist.ts` — AI state hook
+
+### Frontend — surgical edits (shared files, keep the file)
+
+These files hold non-AI code; remove only the AI parts.
+
+- `src/lib/tauri-bridge.ts`: remove `getAIConfig`/`setAIConfig` (lines 108-112,
+  the `invoke('ai_config_get'/'ai_config_set')` wrappers) and the
+  `import type { AIConfig } from './palette'` (line 7). Keep all updater/portable
+  logic. **This is the orphaned-`invoke` risk** — if the Rust commands are deleted
+  but these wrappers survive, the app calls non-existent commands and the symbol
+  grep gate would miss it (hence the broad-regex gate below).
+- `src/types/electron-api.d.ts`: remove the `getAIConfig`/`setAIConfig` type
+  declarations (lines 4-5). Keep `onUpdateAvailable` (line 7).
+- `src/lib/palette.ts`: remove the `AIConfig` interface and the `aiReasoning?`
+  field (line 27) from the palette/snapshot type. **Keep `aiColorNames?`
+  (line 26).**
+- `src/hooks/usePaletteState.ts`: remove the `aiReasoning` state (line 27),
+  its snapshot write (84), restore (110), and the exported pair (175).
+  **Keep all `aiColorNames` lines (26, 83, 109, 146, 153, 174).**
+- `src/lib/history-snapshot.ts`: remove `'aiReasoning'` from the serialized field
+  list (line 2). **Keep `'aiColorNames'`.**
 
 ### Frontend — edit `src/App.tsx`
 
 `App.tsx` is `@ts-nocheck`, so `tsc` will NOT catch dangling references here.
-Grep is the correctness gate (see Verification).
+The broad-regex grep gate is the correctness check (see Verification).
 
-- Remove imports: `AISettingsPanel` (line 18), `useAIAssist` (line 60).
-- Remove the `useAIAssist()` destructure (line 175) and its 9 state vars
-  (`aiInput/setAiInput`, `aiLoading/setAiLoading`, `aiError/setAiError`,
-  `showAISettings/setShowAISettings`, `aiConfigured/setAiConfigured`).
-- Remove the `mode === 'ai'` UI blocks: the AI input panel and submit
-  (around 4479), the result/branch render (4572), `aiReasoning` (4597),
-  `aiError` (4602).
-- Remove the AI option from the input mode-selector control (the button that
-  sets `mode` to `'ai'`).
-- Remove the `{showAISettings && <AISettingsPanel ... />}` render (line 5180)
-  and its `handleAISettingsClose` handler if it has no other use.
-- Any AI-generation handler bodies (the call into `ai.ts`) go with the above.
+- Remove imports: `AISettingsPanel` (18), `useAIAssist` (60).
+- Remove the `useAIAssist()` destructure (175) and its state vars
+  (`aiInput`, `aiLoading`, `aiError`, `showAISettings`, `aiConfigured` + setters).
+- Remove `aiReasoning`/`setAiReasoning` from the `usePaletteState` destructure
+  (131) and from the snapshot/restore/export plumbing (268, 2442, 2521).
+  **Leave `aiColorNames`/`setAiColorNames` in place.**
+- Remove the AI handlers: `handleAiGenerate`/`handleAiRandom` (the bodies around
+  584-633 that call into `ai.ts`) and their AI-only `setAiReasoning(...)` calls.
+- Remove the **non-AI** `setAiReasoning(...)` calls that have no surviving reader:
+  classic preset (2746) and GPL import (2809). Their sibling
+  `setAiColorNames(...)` calls (2745, 2808) **stay** (names still render).
+- In the other reset/load paths that currently clear both (568, 585, 614, 648,
+  1699), drop the `setAiReasoning('')` clears, keep the `setAiColorNames([])`.
+- Remove the `mode === 'ai'` UI blocks: AI input panel + submit (~4479), the
+  result/branch render (4572), `aiReasoning` render (4597), `aiError` (4602).
+- Remove the AI option from the input mode-selector control.
+- Remove `{showAISettings && <AISettingsPanel ... />}` (5180) and
+  `handleAISettingsClose` if unused elsewhere.
 
 ### Frontend — edit `src/lib/tours.ts`
 
-- Remove the tour step whose `detector` is `(s) => s.mode === 'ai'` (line 113),
-  and any AI-settings tour step. Renumber/relink remaining steps as needed so the
-  tour still flows.
+Remove the tour step whose `detector` is `(s) => s.mode === 'ai'` (line 113) and
+any AI-settings step. Renumber/relink remaining steps so the tour still flows.
 
 ### Frontend — keep (NOT AI-dependent)
 
-- `src/components/DesktopAppLink.tsx` — generic "Get the desktop app →" link
-  (native save, updater, offline). No AI copy. Stays.
+- `src/components/DesktopAppLink.tsx` — generic "Get the desktop app →" link. No
+  AI copy. Stays.
 - `src/lib/env.ts` `IS_WEB` — build-time flag for base path + the desktop link.
-  Its AI-only consumers (provider filtering, key warning) go, the flag stays.
+  Its AI-only consumers (provider filtering, key warning) go; the flag stays.
 
 ### Backend (Rust) — delete
 
@@ -83,24 +131,36 @@ Rust IS compiler-checked, so `cargo build` catches any dangling reference here.
 Gate: grep each dependency name across the repo and confirm zero non-AI consumers
 before removal.
 
+## Decision Point: aiReasoning
+
+`aiReasoning` is removed entirely, which also drops the classic-preset
+"Inspired by …" and GPL-import "Imported from …" description strings. Those are
+currently never displayed (the only renderer is AI-mode-gated), so nothing the
+user sees today is lost. If a palette-description feature is wanted later (showing
+provenance for classic/GPL/image loads), that is a separate feature, not part of
+this removal. Flagged for user confirmation during spec review.
+
 ## Stored user data
 
 Leave orphaned. The desktop keychain entry and the web `localStorage` AI key are
-simply no longer read or written. They are inert; no migration/cleanup code is
-added. (Chosen over a one-time purge: zero risk, zero throwaway code.)
+no longer read or written; they are inert. No migration/cleanup code is added.
+(Chosen over a one-time purge: zero risk, zero throwaway code.) Saved palettes that
+contain an `aiReasoning` key load fine — the extra key is ignored on parse.
 
 ## Tests
 
 - Remove the AI-settings Playwright e2e specs (already flaky / timing out per
   recent session notes). Add none.
-- Unit suite: remove any AI-specific tests; the rest must stay green.
+- Unit suite: remove any AI-specific tests; the rest must stay green. The
+  `aiColorNames` rendering/permute tests stay.
 
 ## Verification gates
 
-1. **Grep gate (frontend dangling refs — `@ts-nocheck` blind spot):** after the
-   edits, zero surviving references to any of: `useAIAssist`, `AISettingsPanel`,
-   `WebKeyWarning`, `ai.ts` exports, `aiInput`, `aiError`, `aiReasoning`,
-   `aiLoading`, `aiConfigured`, `showAISettings`, `mode === 'ai'`.
+1. **Broad-regex completeness gate (not an enumerated list).** Re-run the original
+   AI-surface regex across `src/` and `src-tauri/`:
+   `useAIAssist|AISettingsPanel|WebKeyWarning|aiReasoning|setAiReasoning|AIConfig|getAIConfig|setAIConfig|ai_config|aiInput|aiError|aiLoading|aiConfigured|showAISettings|mode === 'ai'|anthropic|openai|ollama|apiKey|keyring|plugin-http`.
+   Require zero hits except inside retained, non-AI contexts (`DesktopAppLink`,
+   `env.ts`). **`aiColorNames` is explicitly allowed to remain** (kept by design).
 2. **`cargo build`** clean (catches Rust dangling refs after module/handler removal).
 3. **Dependency check:** `openai`, `tauri-plugin-http`, `keyring` each have zero
    non-AI consumers before being dropped.
@@ -111,7 +171,7 @@ added. (Chosen over a one-time purge: zero risk, zero throwaway code.)
 
 ## Docs
 
-Update `docs/ARCHITECTURE.md`: remove the AI-Client deep-dive section and any AI
+Update `docs/ARCHITECTURE.md`: remove the AI-Client deep-dive section and AI
 references in the file map. Update `CLAUDE.md` AI-client landmine notes and the
 `IS_WEB` description (drop provider-filtering / key-warning bullets, keep the
 desktop-link + base-path purpose). Remove the `ai.ts` breadcrumb.
@@ -125,6 +185,9 @@ change). At release time: propose the version explicitly, add a CHANGELOG
 
 ## Risk
 
-Low. The AI surface is cleanly severable: the Rust side is compiler-checked, the
-frontend side is grep-gated, and no non-AI feature depends on the deleted pieces
-(`DesktopAppLink` / `IS_WEB` explicitly retained). No data migration.
+Low-to-moderate. The pure-AI surface (ai.ts, AISettingsPanel, Rust ai_config,
+deps) is cleanly severable and compiler/grep gated. The moderate part is the
+shared state: `aiReasoning` threads through the palette hook, history snapshot,
+and persisted schema, and its sibling `aiColorNames` must be preserved while
+`aiReasoning` is removed — the broad-regex gate plus the explicit keep-list guard
+against over- or under-deletion. No data migration; old palettes load unchanged.
