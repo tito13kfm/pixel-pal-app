@@ -17,7 +17,6 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(
@@ -29,8 +28,6 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
-            commands::ai_config::ai_config_get,
-            commands::ai_config::ai_config_set,
             commands::runtime::runtime_is_portable,
         ])
         .run(tauri::generate_context!())
