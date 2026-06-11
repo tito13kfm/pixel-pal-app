@@ -103,14 +103,25 @@ trunk JSX extraction, dropping `@ts-nocheck`.
 - `npm run lint:hooks`: ESLint over `src/` with only `react-hooks/*` rules active
   (legacy `tseslint` backlog suppressed via a minimal flat config or `--rule`
   overrides; time-boxed — if fiddly, a separate config file is the escape hatch).
-- **Baseline-diff, not zero:** `exhaustive-deps` is `warn` by default and the
-  artifact carries pre-existing warnings, so a naive `--max-warnings 0` fails on day
-  one. Gate blocking via `eslint ... --max-warnings <baseline-count>` where baseline =
-  today's pre-existing count; any *new* warning my `useCallback`s introduce pushes the
-  total over baseline and fails CI. Mirrors the tsc completeness gate.
-  - Ratchet note (one-line CI comment): if a future change *removes* a warning, shrink
-    the baseline number so it can't silently mask a new one. Phase d (drop `@ts-nocheck`)
-    will clear App.tsx's backlog and let this go to `--max-warnings 0`.
+- **Grandfather the legacy backlog inline, gate at zero (no magic number).** The
+  backlog is small and measured: **19 `exhaustive-deps` warnings** — 14 in `App.tsx`,
+  1 each in `AdjacencyMatrix.tsx`, `CrossRampDither.tsx`, `DitherBlend.tsx`,
+  `hooks/useHistory.ts`. Approach:
+  1. Set `react-hooks/exhaustive-deps` to **`error`** (in the scoped `lint:hooks`
+     config), `rules-of-hooks` stays error.
+  2. Add `// eslint-disable-next-line react-hooks/exhaustive-deps` at each of the 19
+     existing sites, annotated `// TODO(sp2-d): legacy dep array, verify when @ts-nocheck
+     drops` — a grep-able worklist for phase d.
+     - The 4 warnings in typed files (`useHistory.ts` + the 3 canvas components) are
+       candidates to **fix** instead of grandfather — but only per-site, since adding a
+       missing dep can re-run an effect and change behavior. Default: grandfather;
+       upgrade to a real fix only where the diff is provably safe.
+  3. CI runs `eslint --max-warnings 0` over the scoped config.
+  - Why this over `--max-warnings <baseline>`: no drifting count to maintain. Clearing
+    a warning means deleting its one disable line; introducing one is now a hard
+    **error** (CI fails) until fixed or consciously disabled with a review-visible
+    comment. New silent warnings become impossible. Phase d deletes the grandfather
+    comments as it clears the backlog, reaching a clean zero with no config change.
 - Wire `lint:hooks` into CI as a **blocking** gate (not advisory — advisory lints get
   ignored; guards must be mechanical, per the dash-guard precedent).
 
