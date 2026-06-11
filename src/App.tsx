@@ -14,8 +14,6 @@ import {
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
   HARDWARE_PALETTES,
 } from './lib/constants';
-import { getCachedAIConfig } from './lib/ai';
-import { AISettingsPanel } from './settings/AISettingsPanel';
 import { TourPanel } from './components/TourPanel'
 import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
@@ -42,7 +40,7 @@ import { HarmonyPanel } from './components/panels/HarmonyPanel';
 import { RampsPanel, PixelSprite } from './components/panels/RampsPanel';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS, styleToScalars } from './lib/style-presets';
-import { buildRandomDescription, buildRandomHex } from './lib/randomizer';
+import { buildRandomHex } from './lib/randomizer';
 import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
@@ -57,7 +55,6 @@ import { useVizSettings } from './hooks/useVizSettings';
 import { useExportSettings } from './hooks/useExportSettings';
 import { useTour } from './hooks/useTour';
 import { useSpriteImport } from './hooks/useSpriteImport';
-import { useAIAssist } from './hooks/useAIAssist';
 import { useImageExtract } from './hooks/useImageExtract';
 import { useImageRemap } from './hooks/useImageRemap';
 import { useSideBySide } from './hooks/useSideBySide';
@@ -172,7 +169,7 @@ export default function PixelPalGenerator() {
     spriteImportName, setSpriteImportName, spriteImportError, setSpriteImportError,
     spriteDragging, setSpriteDragging, spriteLibrary,
   } = useSpriteImport();
-  const { aiInput, setAiInput, aiLoading, setAiLoading, aiError, setAiError, showAISettings, setShowAISettings, aiConfigured, setAiConfigured } = useAIAssist();
+
   const {
     imageDataUrl, setImageDataUrl, imageColorCount, setImageColorCount,
     imageLoading, setImageLoading, imageError, setImageError,
@@ -670,10 +667,6 @@ export default function PixelPalGenerator() {
   }, []);
 
 
-  function handleAISettingsClose() {
-    setShowAISettings(false);
-    setAiConfigured(getCachedAIConfig() !== null);
-  }
 
   function handleTourMarkSeen() {
     localStorage.setItem('pixel-pal-tour-seen', '1');
@@ -691,7 +684,7 @@ export default function PixelPalGenerator() {
 
   const snapshotTourState = () => {
     tourSnapshot.current = {
-      mode, exportOpen, hwPickerOpen, showAISettings, compareMode, harmonyOpen,
+      mode, exportOpen, hwPickerOpen, compareMode, harmonyOpen,
     };
   };
 
@@ -701,7 +694,6 @@ export default function PixelPalGenerator() {
     setMode(s.mode);
     setExportOpen(s.exportOpen);
     setHwPickerOpen(s.hwPickerOpen);
-    setShowAISettings(s.showAISettings);
     setCompareMode(s.compareMode);
     if (!s.compareMode) { setCompareAnchor(null); setCompareResult(null); }
     setHarmonyOpen(s.harmonyOpen);
@@ -1119,8 +1111,7 @@ export default function PixelPalGenerator() {
   // got reported as confusing during usability session 2 followup work:
   // a user wanting to "roll until I see something good, then add it" had
   // no way to do that because every roll wiped their pins/locks/anchor.
-  // The non-destructive contract matches the AI tab's Random button which
-  // only updates aiInput.
+  // Non-destructive: replaces only the hex preview; pins/locks/anchor stay.
   const randomizeColor = () => {
     setColorInput(buildRandomHex());
   };
@@ -1635,7 +1626,6 @@ export default function PixelPalGenerator() {
       const fresh = buildRandomHex();
       setColorInput(fresh);
       setBaseColors([fresh]);
-      setAiInput('');
       setAiReasoning('');
       setAiColorNames([]);
       setEditingIndex(null);
@@ -1856,7 +1846,6 @@ export default function PixelPalGenerator() {
   useEffect(() => {
     const randomHex = buildRandomHex();
     setColorInput(randomHex);
-    setAiInput(buildRandomDescription());
     setBaseColors([randomHex]);
     setShuffleSeed(s => s + 1);
   }, []);
@@ -5085,7 +5074,7 @@ export default function PixelPalGenerator() {
           </div>
         )}
       </div>
-      {showAISettings && <AISettingsPanel onClose={handleAISettingsClose} />}
+
       <TourPanel
         open={launcherOpen}
         onClose={() => setLauncherOpen(false)}
@@ -5095,7 +5084,7 @@ export default function PixelPalGenerator() {
         open={tourOpen}
         guideId={tourGuideId}
         step={tourStep}
-        appState={{ mode, showAISettings, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors, harmonized: harmonizeBaseline != null }}
+        appState={{ mode, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors, harmonized: harmonizeBaseline != null }}
         runSetup={runTourSetup}
         onSetStep={setTourStep}
         onExit={exitTour}
