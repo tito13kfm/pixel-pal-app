@@ -93,6 +93,10 @@ The broad-regex grep gate is the correctness check (see Verification).
 - Remove the AI option from the input mode-selector control.
 - Remove `{showAISettings && <AISettingsPanel ... />}` (5180) and
   `handleAISettingsClose` if unused elsewhere.
+- Remove `showAISettings` from the tour state snapshot/restore:
+  `snapshotTourState` (753-755) and `restoreTourState` (758-764) capture and
+  restore `showAISettings`/`setShowAISettings` — drop those two lines. `mode` stays
+  in the tour snapshot (still a valid `color|image` field); only the AI field goes.
 
 ### Frontend — edit `src/lib/tours.ts`
 
@@ -131,14 +135,16 @@ Rust IS compiler-checked, so `cargo build` catches any dangling reference here.
 Gate: grep each dependency name across the repo and confirm zero non-AI consumers
 before removal.
 
-## Decision Point: aiReasoning
+## Decision Point: aiReasoning — RESOLVED (drop it)
 
 `aiReasoning` is removed entirely, which also drops the classic-preset
-"Inspired by …" and GPL-import "Imported from …" description strings. Those are
-currently never displayed (the only renderer is AI-mode-gated), so nothing the
-user sees today is lost. If a palette-description feature is wanted later (showing
-provenance for classic/GPL/image loads), that is a separate feature, not part of
-this removal. Flagged for user confirmation during spec review.
+"Inspired by …" and GPL-import "Imported from …" description strings. Confirmed
+against the code: the only renderer is `App.tsx:4597`, gated `mode === 'ai'`;
+classic (2746) and GPL (2809) never call `setMode`, so their text only ever
+appeared while the user was already in AI mode. Once AI mode is deleted, `mode` is
+`color|image` only and the field is undisplayable — nothing the user can see today
+is lost. User confirmed (2026-06-10): drop it. A palette-provenance feature, if
+wanted later, is separate.
 
 ## Stored user data
 
