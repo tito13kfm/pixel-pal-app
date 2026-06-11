@@ -90,7 +90,10 @@ The broad-regex grep gate is the correctness check (see Verification).
   1699), drop the `setAiReasoning('')` clears, keep the `setAiColorNames([])`.
 - Remove the `mode === 'ai'` UI blocks: AI input panel + submit (~4479), the
   result/branch render (4572), `aiReasoning` render (4597), `aiError` (4602).
-- Remove the AI option from the input mode-selector control.
+- Remove the AI button from the mode-selector. Confirmed by code: the
+  `data-tour-id="mode-tabs"` div (4459-4463) holds exactly three buttons —
+  `setMode('color')` (4460), `setMode('image')` (4461), `setMode('ai')` (4462).
+  Delete the `'ai'` button; `color | image` remain.
 - Remove `{showAISettings && <AISettingsPanel ... />}` (5180) and
   `handleAISettingsClose` if unused elsewhere.
 - Remove `showAISettings` from the tour state snapshot/restore:
@@ -115,25 +118,38 @@ any AI-settings step. Renumber/relink remaining steps so the tour still flows.
 - `src-tauri/src/commands/ai_config.rs` (keychain get/set via `keyring`).
 - `src-tauri/src/commands/mod.rs` line 1: `pub mod ai_config;`.
 - `src-tauri/src/lib.rs`:
-  - line 20: `.plugin(tauri_plugin_http::init())` (present ONLY for the AI
-    provider CORS proxy; the updater uses its own path).
+  - line 20: `.plugin(tauri_plugin_http::init())`. **Confirmed AI-only by code:**
+    the sole `@tauri-apps/plugin-http` consumer is `ai.ts:159`
+    (`await import('@tauri-apps/plugin-http')` → `mod.fetch`). The updater path in
+    `tauri-bridge.ts` imports `check` (plugin-updater), `load` (plugin-store),
+    `relaunch`, `openUrl` — NOT plugin-http (imports read, lines 1-7) — and its
+    GitHub call (line 50) uses the webview global `fetch`.
   - lines 32-33: `commands::ai_config::ai_config_get` and `..._set` from the
     `invoke_handler!` list.
 - `src-tauri/capabilities/default.json`: remove the `http:default` permission
-  block (scoped `https://**` + `http://localhost:**/**`) — that grant exists for
-  the provider proxy.
+  block (scoped `https://**` + `http://localhost:**/**`) — that grant governs the
+  plugin-http `fetch` (the provider proxy). **Confirmed safe for the updater:**
+  `tauri.conf.json` CSP is `null` (no connect-src restriction) and the updater
+  endpoint (`tauri.conf.json` plugins.updater) is served by plugin-updater's own
+  bundled HTTP client, so neither the global `fetch` to GitHub nor `check()`
+  depends on `http:default`.
 
 Rust IS compiler-checked, so `cargo build` catches any dangling reference here.
 
-### Dependencies — drop (after confirming AI-only)
+### Dependencies — drop (sole consumers confirmed by code)
 
-- `package.json`: `openai` (^6.39.0). Only consumer is `ai.ts`.
-- `src-tauri/Cargo.toml`: `tauri-plugin-http` (line 21) and `keyring` (all three
-  platform blocks: windows-native / apple-native / linux-native).
+- `package.json`: `openai` (^6.39.0). **Sole importer is `ai.ts:3-4`**
+  (`import OpenAI from 'openai'` + types). All other `openai` occurrences are
+  string literals (`provider: 'openai'`), preset references, or tour copy — no
+  other package import.
+- `src-tauri/Cargo.toml`: `tauri-plugin-http` (line 21, sole consumer `ai.ts:159`,
+  above) and `keyring` (all three platform blocks: windows-native /
+  apple-native / linux-native — **sole consumer is `ai_config.rs:1`
+  `use keyring::Entry;`**, deleted with the file).
 - `Cargo.lock` updates in lockstep.
 
-Gate: grep each dependency name across the repo and confirm zero non-AI consumers
-before removal.
+`cargo build` (Rust, compiler-checked) and the broad-regex grep gate are the
+backstops after removal.
 
 ## Decision Point: aiReasoning — RESOLVED (drop it)
 
@@ -185,7 +201,8 @@ desktop-link + base-path purpose). Remove the `ai.ts` breadcrumb.
 ## Versioning
 
 Removing a feature pre-1.0 is a **MINOR** bump (backward-incompatible behavior
-change). At release time: propose the version explicitly, add a CHANGELOG
+change). Current version is `0.21.0` (`tauri.conf.json:4`), so this lands as
+`0.22.0`. At release time: propose the version explicitly, add a CHANGELOG
 `Removed` entry plus a breaking note, move `[Unreleased]` → `[x.y.z]`, add the
 `compare/` footer link, and bump the four version files in lockstep.
 
