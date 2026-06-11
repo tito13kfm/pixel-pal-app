@@ -57,7 +57,7 @@ export function CrossRampDither({
 
   if (n === 0) return null;
   return (
-    <div>
+    <div style={{ width: size, maxWidth: '100%' }}>
       <canvas
         ref={canvasRef}
         onMouseMove={handleMove}
@@ -65,7 +65,7 @@ export function CrossRampDither({
         style={{ imageRendering: 'pixelated', maxWidth: '100%', height: 'auto', display: 'block', border: `1px solid ${borderColor ?? '#444'}` }}
       />
       {!compact && (
-        <div className="text-[10px] text-cyan-100/70 font-mono mt-1 h-4" aria-live="polite">{readout || ' '}</div>
+        <div className="text-[10px] text-cyan-100/70 font-mono mt-1 h-4 whitespace-nowrap overflow-hidden" aria-live="polite">{readout || ' '}</div>
       )}
     </div>
   );
