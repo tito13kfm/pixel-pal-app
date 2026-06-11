@@ -4883,7 +4883,7 @@ export default function PixelPalGenerator() {
           </button>
           {tipsOpen && <div className={`px-4 pb-4 text-xs ${t.tipPanelText}`}>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ TIP:</strong> Click any swatch to copy its hex code.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ DICE:</strong> Rolls a random color (Single Color) or a random description (AI Assist). Free, no API call. Click again to re-roll.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ DICE:</strong> Rolls a random hex into the Single Color input. Click again to re-roll.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SURPRISE ME:</strong> The AI invents a subject AND generates its palette in one shot. Uses one API call.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ IMPORT:</strong> Drop a Piskel C file to add custom preview sprites.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ COPY:</strong> Click the cyan icon on custom sprites to copy their source code.</p>

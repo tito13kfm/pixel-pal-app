@@ -38,7 +38,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     },
     {
       title: 'Input modes',
-      body: 'Single Color: type or pick a hex. AI Assist: describe a subject or mood to generate, or hit Surprise Me to randomize. From Image: drag, paste, or open a photo.',
+      body: 'Single Color: type or pick a hex. From Image: drag, paste, or open a photo.',
       target: 'mode-tabs',
       advance: 'next',
       placement: 'bottom',

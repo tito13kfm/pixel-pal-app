@@ -66,7 +66,7 @@ src/
     tour-runtime.ts     tour geometry helpers (cutout + popover placement)
     constants.ts        WORD_POOL, sprites, CLASSIC_PALETTES, HARDWARE_PALETTES
     env.ts              IS_WEB build-time flag, isTauri() runtime check
-    palette.ts          AIConfig, SavedPalettePayload, localStorage helpers
+    palette.ts          SavedPalettePayload, localStorage helpers
     save-file.ts        polymorphic save (Tauri native dialog OR browser anchor)
     tauri-bridge.ts     Tauri IPC, updater, plugin-store
     history-snapshot.ts pure inferLabel + SNAPSHOT_FIELDS (undo-history kernel)
@@ -89,7 +89,7 @@ tests/
   test_contrast.js      WCAG AA contrast lint
   test_curve.ts         curve math unit test (run via npx tsx)
   unit/                 vitest unit tests (.spec.ts)
-  e2e/                  Playwright: app.spec.ts, ai-settings.spec.ts, web-build.spec.ts
+  e2e/                  Playwright: app.spec.ts, web-build.spec.ts
 
 scripts/
   sync-tauri-version.mjs    TRACKED: syncs Cargo.toml/.lock + tauri.conf.json to

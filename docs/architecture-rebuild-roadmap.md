@@ -41,7 +41,7 @@ The two original complaints trace here:
 
 ## Sub-projects (in order)
 
-### SP1 — Remove AI assist  ·  status: specced
+### SP1 — Remove AI assist  ·  status: merged to master (PR #96, 2026-06-11); releases as 0.22.0
 
 Full-stack delete of the AI palette feature (frontend `ai.ts` / `AISettingsPanel` /
 `useAIAssist` / `WebKeyWarning` + `mode === 'ai'`; Rust `ai_config.rs` + `plugin-http`
