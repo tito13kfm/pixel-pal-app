@@ -37,18 +37,25 @@ glob matches nothing that's expected, not an error:
 
 ---
 
-## Code Exploration
+## Code Navigation & Edits: use Serena
 
-This repo is indexed by **Serena** (LSP semantic tools, TypeScript). Prefer Serena over
-reading whole files. `App.tsx` is ~6,700 lines and string-match edits there are fragile:
-- `get_symbols_overview` / `find_symbol`: locate a component/function by name or path.
-- `find_referencing_symbols`: exact "who uses this" before a change.
-- `replace_symbol_body` / `insert_after_symbol`: surgical edits addressed by symbol, not
-  by quoting a unique string out of a huge file.
+This repo is indexed by **Serena** (`.serena/project.yml`, TypeScript LSP). **For any
+`src/**` code file use Serena tools, not the built-in Read/Edit** (`App.tsx` is ~5,100
+lines; string-match edits there are fragile). A `PreToolUse` hook **hard-blocks the
+built-in Edit tool on `src/**/*.ts(x)`**, it is enforced, not advisory.
 
-Fall back to `Read` with `offset`+`limit` for non-symbol context, Grep for literal matches.
-Note: `App.tsx` + `color.ts` carry `// @ts-nocheck`, so Serena's symbol nav still works but
-the LSP won't surface type errors there, so grep remains the real gate for dangling refs.
+- **Navigate/read:** `get_symbols_overview` → `find_symbol` (`include_body`). No
+  Read-for-discovery on code files. Fall back to `Read` with `offset`+`limit` for
+  non-symbol context, `Grep` for literal matches.
+- **Edit:** `replace_content` (regex, a few lines inside a big symbol) /
+  `replace_symbol_body` / `insert_before_symbol` / `insert_after_symbol`.
+- **Cross-refs:** `find_referencing_symbols` first; keep `grep` as a backup completeness
+  check (some refs in untyped files aren't type-linked).
+
+`@ts-nocheck` does **not** blind Serena, the LSP still parses symbol structure (it only
+suppresses *type diagnostics*), so Serena navigates `App.tsx`/`color.ts` fine. But
+`get_diagnostics_for_file` is muted there, so the **`sed`-strip-nocheck + `tsc` type-gate +
+grep stays the correctness gate**, Serena replaces navigation/edits, not verification.
 
 `npm run deadcode` (ts-prune) complements grep from the other direction: it lists exported
 symbols nobody imports. During the `App.tsx` decomposition this catches helpers extracted to
@@ -110,28 +117,6 @@ git branch -d <name> 2>$null; if ($LASTEXITCODE) { git branch -D <name> }
 
 ---
 
-## Code Navigation & Edits: use Serena
-
-This repo has Serena (`.serena/project.yml`, TypeScript LSP) activated. **For any
-`src/**` code file, use Serena tools, not the built-in Read/Edit:**
-
-- **Navigate/read:** `get_symbols_overview` → `find_symbol` (`include_body`). No
-  Read-for-discovery on code files.
-- **Edit:** `replace_content` (regex, for a few lines inside a big symbol) /
-  `replace_symbol_body` / `insert_before_symbol` / `insert_after_symbol`. **A
-  `PreToolUse` hook hard-blocks the built-in Edit tool on `src/**/*.ts(x)`**, it
-  is enforced, not advisory.
-- **Cross-refs:** `find_referencing_symbols` first; keep `grep` as a *backup*
-  completeness check (some refs in untyped files aren't type-linked).
-
-`@ts-nocheck` does **not** blind Serena, the LSP still parses symbol structure
-(it only suppresses *type diagnostics*). So Serena navigates `App.tsx`/`color.ts`
-fine. But `get_diagnostics_for_file` is muted by `@ts-nocheck`, so the
-**`sed`-strip-nocheck + `tsc` type-gate + grep stays the correctness gate**, Serena
-replaces navigation/edits, not verification.
-
----
-
 ## Architecture
 
 **Build target:** Vite → `dist/`. `base: './'` for Tauri (file://) or
@@ -149,7 +134,7 @@ fallbacks.
 **Persistence:** Tauri plugin-store for desktop settings; localStorage for palette
 list, theme. The `window.storage` shim in `src/App.tsx` bridges the
 artifact's async storage API to localStorage, **do not remove**. (Typed globally in
-`vite-env.d.ts`.)
+`src/vite-env.d.ts`.)
 
 ---
 
