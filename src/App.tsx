@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, Monitor, MonitorOff, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Moon, Contrast, Cpu, Eye, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
 import {
   hexToHsl, hslToHex, hexToRgb, rgbToHex,
@@ -1152,7 +1152,7 @@ export default function PixelPalGenerator() {
     setTimeout(() => setAddBaseFeedback(''), 2000);
   };
 
-  const addHarmonyColor = (hex, name) => {
+  const addHarmonyColor = useCallback((hex, name) => {
     if (baseColors.includes(hex)) return;
     setBaseColors(prev => [...prev, hex]);
     setAiColorNames(prev => {
@@ -1161,9 +1161,9 @@ export default function PixelPalGenerator() {
       padded.push(name);
       return padded;
     });
-  };
+  }, [baseColors, setBaseColors, setAiColorNames]);
 
-  const addHarmonyPair = (hex1, hex2, name1, name2) => {
+  const addHarmonyPair = useCallback((hex1, hex2, name1, name2) => {
     const toAdd = [], namesToAdd = [];
     if (!baseColors.includes(hex1)) { toAdd.push(hex1); namesToAdd.push(name1); }
     if (!baseColors.includes(hex2) && hex1 !== hex2) { toAdd.push(hex2); namesToAdd.push(name2); }
@@ -1174,12 +1174,12 @@ export default function PixelPalGenerator() {
       while (padded.length < baseColors.length) padded.push('');
       return [...padded, ...namesToAdd];
     });
-  };
+  }, [baseColors, setBaseColors, setAiColorNames]);
 
   // N-ary version for tetradic/square which add 3 derived colors (the base
   // itself is already a ramp). Skips any color that's already in baseColors
   // and any duplicate among the input pairs.
-  const addHarmonyMany = (pairs) => {
+  const addHarmonyMany = useCallback((pairs) => {
     const toAdd = [], namesToAdd = [];
     for (const { hex, name } of pairs) {
       if (baseColors.includes(hex)) continue;
@@ -1194,7 +1194,7 @@ export default function PixelPalGenerator() {
       while (padded.length < baseColors.length) padded.push('');
       return [...padded, ...namesToAdd];
     });
-  };
+  }, [baseColors, setBaseColors, setAiColorNames]);
 
   const removeRamp = (index) => {
     setBaseColors(prev => prev.filter((_, i) => i !== index));
@@ -1662,15 +1662,7 @@ export default function PixelPalGenerator() {
   // lightness preserved per base. Mode controls the slot pattern used.
   // On first press the current base colors are saved as a baseline so
   // the user can restore pre-harmonize hues without relying on undo.
-  const HARMONIZE_MODE_SLOTS = {
-    complement:         [180],
-    analogous:          [30, 330, 15, 345, 45, 315, 20, 340, 60, 300, 10],
-    triadic:            [120, 240, 60, 180, 300, 30, 90, 150, 210, 270, 330],
-    'split-complement': [150, 210, 30, 330, 120, 240, 60, 180, 90, 270, 45],
-    square:             [90, 180, 270, 45, 135, 225, 315, 30, 60, 120, 150],
-    tetradic:           [60, 240, 180, 120, 300, 30, 90, 150, 210, 270, 330],
-  };
-  const harmonize = () => {
+  const harmonize = useCallback(() => {
     if (baseColors.length < 2) {
       setExportFeedback('Need at least 2 ramps to harmonize');
       setTimeout(() => setExportFeedback(''), 2000);
@@ -1692,6 +1684,14 @@ export default function PixelPalGenerator() {
       return;
     }
     if (!harmonizeBaseline) setHarmonizeBaseline(baseColors.slice());
+    const HARMONIZE_MODE_SLOTS = {
+      complement:         [180],
+      analogous:          [30, 330, 15, 345, 45, 315, 20, 340, 60, 300, 10],
+      triadic:            [120, 240, 60, 180, 300, 30, 90, 150, 210, 270, 330],
+      'split-complement': [150, 210, 30, 330, 120, 240, 60, 180, 90, 270, 45],
+      square:             [90, 180, 270, 45, 135, 225, 315, 30, 60, 120, 150],
+      tetradic:           [60, 240, 180, 120, 300, 30, 90, 150, 210, 270, 330],
+    };
     const slots = HARMONIZE_MODE_SLOTS[harmonizeMode] || HARMONIZE_MODE_SLOTS.complement;
     const newBaseColors = baseColors.slice();
     for (let k = 0; k < targets.length; k++) {
@@ -1708,8 +1708,8 @@ export default function PixelPalGenerator() {
     setCompareResult(null);
     setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'}: ${modeLabel}`);
     setTimeout(() => setExportFeedback(''), 2000);
-  };
-  const restoreHarmonizeBaseline = () => {
+  }, [baseColors, safeAnchor, lockedRamps, harmonizeBaseline, harmonizeMode, setExportFeedback, setHarmonizeBaseline, tagNextLabel, setBaseColors, setCompareAnchor, setCompareResult]);
+  const restoreHarmonizeBaseline = useCallback(() => {
     if (!harmonizeBaseline) return;
     tagNextLabel('Restore pre-harmonize hues');
     setBaseColors(harmonizeBaseline.slice());
@@ -1718,7 +1718,7 @@ export default function PixelPalGenerator() {
     setCompareResult(null);
     setExportFeedback('Restored original hues');
     setTimeout(() => setExportFeedback(''), 2000);
-  };
+  }, [harmonizeBaseline, tagNextLabel, setBaseColors, setHarmonizeBaseline, setCompareAnchor, setCompareResult, setExportFeedback]);
 
   // Toggle compare mode on/off. Turning OFF clears any in-flight anchor
   // and result so the next time the user enters compare mode they get a
