@@ -36,3 +36,21 @@ describe('phase-a memo: panel render isolation', () => {
     expect(getRenderCount('PlaygroundPanel')).toBeGreaterThan(0);
   });
 });
+
+describe('phase-b memo: HarmonyPanel render isolation', () => {
+  beforeEach(() => disableRenderCounts());
+
+  it('HarmonyPanel does not re-render on an orthogonal (Tips) toggle', () => {
+    enableRenderCounts();
+    render(<App />);
+    resetRenderCounts();
+    fireEvent.click(screen.getByTitle('Expand Tips'));
+    expect(getRenderCount('HarmonyPanel')).toBe(0);
+  });
+
+  it('HarmonyPanel renders at least once on mount (memo is not over-aggressive)', () => {
+    enableRenderCounts();
+    render(<App />);
+    expect(getRenderCount('HarmonyPanel')).toBeGreaterThan(0);
+  });
+});
