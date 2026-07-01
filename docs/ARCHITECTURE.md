@@ -47,7 +47,9 @@ src/
       HarmonyPanel.tsx  props-only (14 props: baseColors, aiColorNames, safeAnchor,
                         lockedRamps, harmonizeMode, harmonizeBaseline, harmony,
                         handlers); HarmonySwatch + PairCard as internal components;
-                        reads ThemeContext for vizDataBorder only
+                        reads ThemeContext for vizDataBorder only.
+                        React.memo-wrapped (SP2 phase b): skips re-render when its
+                        props are unchanged.
       RampsPanel.tsx    props-only (~73 props: baseColors, rampsPunchy/Balanced/Muted,
                         style/size/sat overrides, per-ramp advanced curve state,
                         hardware/compare/pin state, all ramp action callbacks);
@@ -179,6 +181,16 @@ History (undo/redo) lives in `useHistory`: whole-state snapshots, 50-entry cap,
 deliberately omits `lightnessCurvePerRamp` / `satCurvePerRamp` (preserved verbatim, do
 not "complete" it to 19). `usePaletteState` owns the document core (20 snapshot fields
 + 6 editor/compare fields) and the three snapshot helpers `useHistory` consumes.
+
+**State slicing (SP2 phase b):** `usePaletteState`'s ramps-domain fields are now
+backed by a Zustand store, `src/store/rampsStore.ts` (`useRampsStore`), rather than
+local `useState`. The hook's public shape (the 20 snapshot fields + 6 editor/compare
+fields, and the three snapshot helpers above) is unchanged, so `useHistory`, the
+`buildSnapshot`/`applySnapshotFields` pair, and every consumer of `usePaletteState`
+still work against the same interface; only the storage mechanism moved. `HarmonyPanel`
+is `React.memo`-wrapped as of this PR (joining `HistoryPanel` and `PlaygroundPanel`,
+see File Map above); `RampsPanel` is NOT yet memoized, pending direct-store-subscription
+work to let it read ramps state straight from `useRampsStore` instead of via props.
 
 ---
 
