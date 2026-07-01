@@ -3568,19 +3568,6 @@ export default function PixelPalGenerator() {
   };
 
 
-  // Theme token map. Centralizes every theme-aware className and color
-  // value used by the chrome. The principle: section accent hues
-  // (cyan/pink/yellow/green/purple) stay recognizable across all three
-  // themes, but their lightness/saturation are adjusted so they remain
-  // legible against the corresponding background and don't vibrate.
-  //
-  // Color data (swatches, sprites, harmony swatches, mosaic, chromatic plot
-  // dots) is NEVER themed because those are the data being judged. Only
-  // chrome adapts.
-  //
-  // Each token returns a Tailwind className string or a raw CSS value. We
-  // use raw values for inline styles where we need rgba alpha or computed
-  // shadows that Tailwind can't easily express.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- THEME_TOKENS is pure static; deps=[theme] is correct
   const t = useMemo(() => THEME_TOKENS[theme] || THEME_TOKENS.dark, [theme]);
 
