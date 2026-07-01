@@ -1,7 +1,39 @@
 # SP2 Phase c: Logic Extraction (lib/hooks) Design
 
-Status: approved, ready for implementation plan.
+Status: approved for slice 1; slices 2-5 re-scoped 2026-07-01 (see "Second correction" below)
+after per-function verification found the domain-breakdown table imprecise. Ready for
+implementation plan on the reduced scope.
 Parent: `docs/architecture-rebuild-roadmap.md` (SP2 phase c, corrected 2026-07-01).
+
+## Second correction (2026-07-01, pre-plan verification)
+
+Writing the implementation plan required pulling every function's actual body and closure
+list (grep, not just line-count estimates). Three of the five findings-table rows turned out
+wrong:
+
+- **Export (row 2):** not "pure formatting reading params." Every handler calls
+  `setExportFeedback`/`setCopiedHex`/`setLastSavedPath`/`setSessionRampGplFolder`. Those setters
+  already live in `useExportSettings` (Tier B), so this is a `useExport` **hook** wrapping
+  existing state, not a pure `lib/export.ts` module. Still clean, just a different shape than
+  planned.
+- **Ramp core (row 3):** the 291-1665 line range is not one domain. Grepped function list
+  shows tour setup (671-737), pixel-picker (738-801), and image-import (582-670) interleaved
+  inside it, on top of the already-flagged harmony/compare tangle. Only the pure helper
+  cluster (~291-485: `shadeLabelsFor`/`labelsForRamp`/`applyOverrides`/`filterHidden`/
+  `resolveBaseForRamp`/`resolveSizeForRamp`/`resolveHueShiftForRamp`/`generateRamp`) is
+  actually clean; the ramp-editing handlers (pin/override/shuffle/lock/reset, 1355-1665) are
+  not verified clean and are pulled from this spec's scope pending their own dig.
+- **Sprite import (row 4) and image remap (row 5):** both `hooks/useSpriteImport.ts` and
+  `hooks/useImageRemap.ts` already exist (Tier B), already hold all the domain's *state*. Each
+  file's own doc comment states its handlers deliberately stay in App.tsx: remap because they
+  "read the live working palette + canvas refs," sprite because they "reach into the
+  export-feedback domain." Moving the handlers into the hooks now would reverse a documented
+  Tier-B decision, not perform a mechanical extraction, that's a design call (does the hook
+  take the ramp-computation surface as injected params, or does the wiring stay in App.tsx),
+  not a bite-sized clean-extract task. Pulled from this spec's mechanical scope.
+
+Slices 4 and 5 as originally specified are dropped. Slice 3 is narrowed to the verified-pure
+helper cluster only. See the revised Decision section below.
 
 ## Problem
 
@@ -40,32 +72,72 @@ design: `slugify` (App.tsx:1953 duplicates `lib/palette.ts:62`) and `isTauri`
 import-swaps; folded into slice 1 below rather than a separate PR, since they're
 trivial and touch no design decisions.
 
-## Decision: 5-slice sequence, thin vertical slices (same pattern as phase b)
+## Decision: 3-slice sequence, thin vertical slices (same pattern as phase b)
 
 Each slice is its own small PR: move one domain to `lib/` (pure functions) or
 `hooks/` (stateful), update `App.tsx` call sites in the same PR, zero behavior
 change. Order chosen for ascending risk/coupling, so the pattern is validated on
 the safest slice first:
 
-1. **`themeTokens` → `lib/theme.ts`.** Pure data literal, ~350 lines. Fold in the
-   `slugify`/`isTauri` duplicate-import fixes here (unrelated but trivial,
-   touches App.tsx imports in the same PR anyway).
-2. **Export → `lib/export.ts`** (+ a thin `useExport` hook only if any function
-   turns out to hold local UI-feedback state that can't be a plain param). ~500
-   lines, 7 functions, pure formatting/file-write, params-in.
-3. **Ramp core → `lib/` pure functions**, extending the phase-b ramps store
-   where these are thin wrappers around store setters. ~600 lines. Natural
-   continuation of phase b's ramps-domain work.
-4. **Sprite import → `hooks/useSpriteImport.ts`.** ~120 lines, small and
-   self-contained.
-5. **Image remap preview → `hooks/useImageRemap.ts`.** ~890 lines, the largest
-   and most involved slice (state + handlers + canvas work); saved for last so
-   the extraction pattern is well-proven on smaller slices first.
+1. **`themeTokens` → `lib/theme.ts`.** Pure data literal, ~350 lines,
+   line-verified zero state closures. Fold in the `slugify` duplicate-import
+   fix here (unrelated but trivial, touches App.tsx imports in the same PR
+   anyway; the spec's original `isTauri` duplicate claim was checked and does
+   not exist, dropped).
+2. **Export → `lib/export.ts` + a thin `useExport` hook.** Verified: every
+   export handler (`copyHex`, `buildPaletteText`, `exportPalette`,
+   `exportLightnessPng`, `exportMosaicPng`, `exportMatrixPng`,
+   `exportDitherPng`, `copyPaletteToClipboard`, `collectPaletteEntries`,
+   `buildPaletteGpl`, `exportPaletteGpl`, `exportPalettePal`,
+   `exportPaletteAse`, `exportPaletteStripPng`, `exportActiveFormat`,
+   `revealLastSaved`, `_selectRampsForStyle`, `_filteredRamp`,
+   `buildSingleRampText`, `buildSingleRampGpl`, `copyRampToClipboard`,
+   `downloadSingleRampGpl`; App.tsx:3089-3585) calls
+   `setExportFeedback`/`setCopiedHex`/`setLastSavedPath`/
+   `setSessionRampGplFolder`, all already owned by `useExportSettings()`
+   (Tier B). The hook takes the read-only ramp/palette values it needs as
+   params (`baseColors`, `aiColorNames`, `rampsPunchy`/`rampsBalanced`/
+   `rampsMuted`, `harmony`, `resolveBaseForRamp`, `labelsForRamp`,
+   `filterHidden`, `buildRampsForSnapshot`, plus the `useExportSettings()`
+   values/setters) and returns the handler functions.
+3. **Ramp pure-helper cluster → `lib/ramp-helpers.ts`.** Narrowed from the
+   original "ramp core" domain after finding tour/pixel-picker/image-import
+   handlers interleaved in the same line range. Only the verified-pure
+   cluster moves: `shadeLabelsFor`, `labelsForRamp`, `applyOverrides`,
+   `filterHidden`, `resolveBaseForRamp`, `resolveSizeForRamp`,
+   `resolveHueShiftForRamp`, `generateRamp` (App.tsx:291-521). These take
+   ramp/base/style values as params and return computed data, no state
+   closures. `generateRamp` wraps the already-extracted
+   `generateRamp as generateRampNew` from `lib/ramp-engine.ts` (App.tsx:8);
+   confirm the wrap is a thin pass-through when moving, not a second
+   implementation.
 
-Each slice must re-verify its "clean" classification with a full-body read
-before moving code, not just trust the table above: the same caution that
-caught phase b's tangled handlers applies here (a domain that looks clean from
-function names alone can still closure over foreign state).
+## Dropped from mechanical scope (design questions, not clean-extract)
+
+- **Ramp-editing handlers** (pin/override/shuffle/lock/reset/duplicate/remove,
+  App.tsx ~1116-1665, minus the harmony/compare portion already flagged
+  tangled): not verified clean, closures span ramps state, history
+  (`tagNextLabel`), and highlight/scroll timers. Needs its own dig before a
+  future slice.
+- **Sprite import handlers** (`handleSpriteFile`, `handleSpriteDragOver/Leave/
+  Drop`, `importSprite`, `removeCustomSprite`, `copySpriteSource`, App.tsx
+  1766-1839): `hooks/useSpriteImport.ts` already exists and already owns all
+  state for this domain (Tier B). Its own doc comment states handlers stay in
+  App.tsx because they "reach into the export-feedback domain." Moving them
+  now reverses a documented Tier-B decision and requires deciding whether the
+  hook takes `setExportFeedback` as an injected param, that is a design
+  decision for a future brainstorm, not a mechanical task here.
+- **Image remap handlers** (`getActiveRemapPalette`, `buildRemapSignature`,
+  `handleRemapImageUpload`, `clearRemapImage`, `refreshRemap`, `downloadRemap`,
+  App.tsx ~802-1114): same situation. `hooks/useImageRemap.ts` already exists
+  and already owns all state; its doc comment states handlers stay in App.tsx
+  because they "read the live working palette + canvas refs." Same
+  design-decision blocker as sprite import.
+
+Each slice below was already re-verified with a full-body read (not just the
+findings-table line counts) before being written into this spec; the same
+caution that caught phase b's tangled handlers applies to any future slice
+added to this domain.
 
 ## Explicitly out of scope (carried forward, not forgotten)
 
@@ -85,12 +157,13 @@ attempt mechanical extraction on these three domains under this spec.
   deadcode`.
 - `docs/ARCHITECTURE.md` updated in the same PR each slice lands (existing
   project convention for any JSX/logic that moves out of `App.tsx`).
-- Branch-per-slice, not one branch for all 5 (small reviewable diffs, matches
+- Branch-per-slice, not one branch for all 3 (small reviewable diffs, matches
   phase b's PR-per-chunk pattern).
 
 ## Out of scope for this design doc
 
-- The 3 tangled domains (above).
+- The 3 tangled/blocked domains above (ramp-editing handlers, sprite import
+  handlers, image remap handlers).
 - Phase d (trunk JSX extraction, ~970 lines, now much smaller than originally
   scoped): separate future design.
 - Phase e (`@ts-nocheck` removal).

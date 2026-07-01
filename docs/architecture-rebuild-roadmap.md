@@ -74,14 +74,17 @@ decided at SP2's own brainstorm; they interleave):
   subscription and the other 3 unmemoized panels deliberately deferred, not this
   PR. See `docs/superpowers/specs/2026-06-30-sp2-phase-b-state-slicing-design.md`.
 - **Phase c: extract logic to `lib/`/`hooks/`.** NEXT (renamed/inserted
-  2026-07-01, corrects the original phase-c framing below). A structural dig found
-  the ~4016-line logic block in `App.tsx` (not the JSX) is the real remaining
-  bulk, and ~2500-2700 of those lines split into 5 independently clean-extract
-  domains (themeTokens, export, ramp core, sprite import, image remap), same
-  thin-vertical-slice pattern as phase b. ~1300-1500 lines (harmony/compare,
-  saved-palette CRUD, hardware-lock bake) are tangled cross-domain handlers,
-  explicitly out of scope here, carried forward. See
-  `docs/superpowers/specs/2026-07-01-sp2-phase-c-logic-extraction-design.md`.
+  2026-07-01, corrects the original phase-c framing below; re-scoped again
+  2026-07-01 after per-function verification). A structural dig found the
+  ~4016-line logic block in `App.tsx` (not the JSX) is the real remaining
+  bulk. Per-function verification (not just line counts) found only ~1000
+  lines are genuinely clean-extract across 3 slices (themeTokens,
+  export+hook, a narrow ramp pure-helper cluster); the rest of the original
+  5-domain estimate turned out either interleaved with unrelated handlers
+  (tour/pixel-picker/image-import inside "ramp core") or blocked by an
+  existing Tier-B decision to keep sprite-import/image-remap handlers in
+  `App.tsx` (those hooks already exist and already own the domain's state).
+  See `docs/superpowers/specs/2026-07-01-sp2-phase-c-logic-extraction-design.md`.
 - **Phase d: extract the trunk JSX.** Break the remaining `return` block (~970
   lines, not the ~4211 originally estimated: most of it already delegates to the
   7 Tier C panels) into layout sub-components. Much smaller than originally
