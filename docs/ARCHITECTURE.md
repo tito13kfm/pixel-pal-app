@@ -86,6 +86,13 @@ src/
     tauri-bridge.ts     Tauri IPC, updater, plugin-store
     history-snapshot.ts pure inferLabel + SNAPSHOT_FIELDS (undo-history kernel)
     snapshot-ramps.ts   buildRampsForSnapshot (RampSnapshot → rendered ramps)
+    ramp-helpers.ts     ramp pure-helper cluster extracted from App.tsx (SP2 phase c):
+                        shadeLabelsFor, labelsForRamp, applyOverrides, filterHidden,
+                        resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp,
+                        generateRamp. 4 of these (filterHidden, resolveBaseForRamp,
+                        resolveSizeForRamp, resolveHueShiftForRamp) used to read App.tsx
+                        state via closure; that state is now an explicit trailing
+                        parameter, so any caller must pass it in.
   vite-env.d.ts         incl. global Window.storage type
 
 src-tauri/
@@ -288,6 +295,15 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
   passed in as params. `lib/export.ts` also exports `copyTextToClipboard`, a
   shared Clipboard-API-then-textarea-fallback helper factored out of the three
   copy handlers (does not touch `copySpriteSource`, which stays inline in App.tsx).
+- **Ramp pure-helper cluster moved (SP2 phase c, task 3):** `resolveBaseForRamp`,
+  `filterHidden`, `resolveSizeForRamp`, `resolveHueShiftForRamp`, `generateRamp`,
+  `applyOverrides`, `labelsForRamp`, `shadeLabelsFor` live in `lib/ramp-helpers.ts`.
+  `lib/export.ts` and `hooks/useExport.ts` keep their original fixed-arity parameter
+  types for `resolveBaseForRamp`/`filterHidden` (2-arg / 3-arg); App.tsx binds the
+  extra state (`rampSatOverrides` / `hiddenShades`) into local wrapper functions
+  (`boundResolveBaseForRamp`, `boundFilterHidden`) before passing them into
+  `useExport({...})` and into `RampsPanel`'s props, so consumer signatures don't need
+  to change when `lib/ramp-helpers.ts`'s closures become explicit parameters.
 - **Single source of palette entries:** `collectPaletteEntries(style)` in
   `lib/export.ts` (via `useExport`)
   (every visible ramp shade + the harmony colors, deduped by hex). `buildGpl` /
