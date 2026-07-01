@@ -65,6 +65,9 @@ src/
                         recordRender(name) / getRenderCount(name). No-op in prod
                         (enabled=false by default). Used by tests/unit/render-isolation.spec.tsx.
     color.ts            15 color math fns, // @ts-nocheck intentional
+    theme.ts            THEME_TOKENS (dark/neutral/light chrome tokens) + ThemeName /
+                        ThemeTokens types; typed, extracted verbatim from App.tsx's old
+                        `themeTokens` const
     oklch.ts            OKLab/OKLCH conversion, ΔE_OK distance, gamut mapping
     ramp-engine.ts      perceptual base-anchored generateRamp (reach/chroma falloff)
     curve.ts            Catmull-Rom evalCurve, curve presets
@@ -194,12 +197,15 @@ work to let it read ramps state straight from `useRampsStore` instead of via pro
 
 ---
 
-## Theme system (`themeTokens` in App.tsx)
+## Theme system (`THEME_TOKENS` in `src/lib/theme.ts`)
 
 Three themes: `dark` (vaporwave neon), `neutral` (18% gray reference for unbiased color
-judgment), `light` (cream "Jazz cup" SVG pattern). `const t = themeTokens[theme]` is the
-single token source; every chrome color / className reads from `t`. **Color DATA
-(swatches, sprites, mosaic, chromatic plot) is never themed: only chrome adapts.**
+judgment), `light` (cream "Jazz cup" SVG pattern). The token data (`THEME_TOKENS`, a typed
+`Record<ThemeName, ThemeTokens>`) lives in `src/lib/theme.ts`, no longer inline in App.tsx.
+App.tsx imports it and derives `const t = useMemo(() => THEME_TOKENS[theme] ||
+THEME_TOKENS.dark, [theme])` as the single token source; every chrome color / className
+reads from `t`. **Color DATA (swatches, sprites, mosaic, chromatic plot) is never themed:
+only chrome adapts.**
 
 - `glowStrong` (1.0 / 0.3 / 0.2) gates neon: `accentGlow` / `accentTextGlow` return
   `'none'` when < 0.5. Many call sites branch on `t.glowStrong > 0.5` for the
