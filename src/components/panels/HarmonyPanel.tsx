@@ -1,5 +1,7 @@
+import { memo } from 'react';
 import { Sparkles, RotateCcw } from 'lucide-react';
 import { useTheme } from '../../contexts';
+import { recordRender } from '../../lib/renderCount';
 import type { HarmonySet } from '../../lib/harmony';
 
 export interface HarmonyPanelProps {
@@ -19,7 +21,7 @@ export interface HarmonyPanelProps {
   addHarmonyColor: (hex: string, name: string) => void;
 }
 
-export function HarmonyPanel({
+function HarmonyPanelImpl({
   baseColors,
   aiColorNames,
   safeAnchor,
@@ -35,6 +37,7 @@ export function HarmonyPanel({
   setHarmonyAnchor,
   addHarmonyColor,
 }: HarmonyPanelProps) {
+  recordRender('HarmonyPanel');
   const { t } = useTheme();
 
   const HarmonySwatch = ({ hex, name, tourId }: { hex: string; name: string; tourId?: string }) => {
@@ -239,3 +242,5 @@ export function HarmonyPanel({
     </div>
   );
 }
+
+export const HarmonyPanel = memo(HarmonyPanelImpl);
