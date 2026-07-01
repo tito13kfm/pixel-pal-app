@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { inferLabel } from '../lib/history-snapshot';
 
 /**
@@ -52,7 +52,7 @@ export function useHistory({
   const historyDebounceRef = useRef<any>(null);
   const pendingLabelRef = useRef<any>(null);
 
-  const tagNextLabel = (label: string) => { pendingLabelRef.current = label; };
+  const tagNextLabel = useCallback((label: string) => { pendingLabelRef.current = label; }, []);
 
   // The dependencies of the watcher are the SNAPSHOT INPUTS, not
   // historyEntries/historyIndex (which would loop). We read those two via refs
