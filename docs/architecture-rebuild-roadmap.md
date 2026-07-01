@@ -28,13 +28,18 @@ The app was ported whole from a ~7820-line single-file Claude artifact
 1. **`@ts-nocheck`** on `App.tsx` + `color.ts`: the type checker is blindfolded on
    the most-edited file. Every refactor is grep-gated, not compiler-gated (the exact
    hand-guarding the AI-removal spec has to do).
-2. **One monolithic component**: `PixelPalGenerator` (~5000 lines: ~678 logic +
-   ~4211 JSX) holding centralized state, with **0 `React.memo` / 0 `useCallback`**.
-   Any state change re-renders all panels.
+2. **One monolithic component**: `PixelPalGenerator` (~4986 lines: ~4016 logic +
+   ~970 JSX) holding centralized state, with **0 `React.memo` / 0 `useCallback`**
+   (true when this doc was first written; phase a/b have since added both, see SP2
+   below). Any state change re-renders all panels.
 
 The two original complaints trace here:
-- **"Size goal underdelivered"**: the decomposition pulled *leaves* into files but
-  left the *trunk* (the orchestration JSX) in `App.tsx`.
+- **"Size goal underdelivered"**: the decomposition pulled *leaves* (panels/hooks/
+  lib helpers) into files but left the *logic* (handlers, effects, static data) in
+  `App.tsx`. **Corrected 2026-06-30/07-01** (see SP2 phase c below): the JSX
+  `return` block is only ~970 lines and already delegates to the 7 extracted
+  panels; the actual remaining bulk is ~4016 lines of inline handler logic, most
+  of it never covered by Tier A/B despite that tier being marked done.
 - **"Perf goal underdelivered"**: file boundaries are not render boundaries. Moving
   JSX to another file does nothing for re-renders; that needs memoization + sliced
   state, which the decomposition never included.
@@ -54,35 +59,52 @@ rebuilds. Low risk, your firm directive.
 Spec: `docs/superpowers/specs/2026-06-10-remove-ai-assist-design.md`
 Ships as: **0.22.0** (MINOR, feature removal).
 
-### SP2: Properly built (perf + size + types)  ·  status: not started
+### SP2: Properly built (perf + size + types)  ·  status: active, phases a+b done
 
 The umbrella that reaches the north star. Decomposes into phases (exact ordering is
 decided at SP2's own brainstorm; they interleave):
 
-- **Phase a: stabilize callbacks + memoize panels.** Add `useCallback` to handlers
-  passed down; wrap extracted panels in `React.memo`. Cheap, low-risk perf floor.
-  Precondition for everything else (memo is useless while every handler is a fresh
-  closure).
-- **Phase b: slice hot state.** The biggest lever and biggest decision (see Open
-  Decisions). Move the hot editing state (ramps, per-ramp HSV, colors) out of the
-  centralized `useState` block into per-domain slices that panels subscribe to.
-  Fixes perf (scoped re-renders) AND size (collapses prop-drilling) together.
-- **Phase c: extract the trunk.** Break the ~4211-line JSX `return` into layout
-  sub-components. Much easier once state is sliced (panels pull their own slice
-  instead of being threaded 10-20 props).
-- **Phase d: drop `@ts-nocheck`.** Once `App.tsx` is small, remove the directive and
+- **Phase a: stabilize callbacks + memoize panels.** DONE, merged PR #102
+  (2026-06-11). `useCallback` on handlers passed down; `HistoryPanel` +
+  `PlaygroundPanel` wrapped in `React.memo`. Precondition for everything else
+  (memo is useless while every handler is a fresh closure).
+- **Phase b: slice hot state.** DONE, merged to master 2026-06-30. Zustand ramps
+  store (`src/store/rampsStore.ts`); `usePaletteState` rewritten as a thin wrapper;
+  `HarmonyPanel` callback-stabilized + memoized. `RampsPanel` direct-store-
+  subscription and the other 3 unmemoized panels deliberately deferred, not this
+  PR. See `docs/superpowers/specs/2026-06-30-sp2-phase-b-state-slicing-design.md`.
+- **Phase c: extract logic to `lib/`/`hooks/`.** NEXT (renamed/inserted
+  2026-07-01, corrects the original phase-c framing below). A structural dig found
+  the ~4016-line logic block in `App.tsx` (not the JSX) is the real remaining
+  bulk, and ~2500-2700 of those lines split into 5 independently clean-extract
+  domains (themeTokens, export, ramp core, sprite import, image remap), same
+  thin-vertical-slice pattern as phase b. ~1300-1500 lines (harmony/compare,
+  saved-palette CRUD, hardware-lock bake) are tangled cross-domain handlers,
+  explicitly out of scope here, carried forward. See
+  `docs/superpowers/specs/2026-07-01-sp2-phase-c-logic-extraction-design.md`.
+- **Phase d: extract the trunk JSX.** Break the remaining `return` block (~970
+  lines, not the ~4211 originally estimated: most of it already delegates to the
+  7 Tier C panels) into layout sub-components. Much smaller than originally
+  scoped; likely ~200-300 lines of genuine extraction (theme/CVD/zoom control
+  cluster, floating overlays) once phase c lands.
+- **Phase e: drop `@ts-nocheck`.** Once `App.tsx` is small, remove the directive and
   fix the residual type errors (few by then, most code already moved to typed files).
   Then the same for `color.ts`.
 
 ### Background (already done)
 
-The leaf-extraction is largely complete and IS properly built; those files are typed:
+The leaf-extraction pulled real weight into typed files, but **did not cover
+`App.tsx`'s handler logic** as thoroughly as originally believed (corrected
+2026-07-01, see SP2 phase c above: a structural dig found ~4016 lines of
+inline handlers/effects/static-data still in `App.tsx`, only partially
+overlapping with Tier A/B's scope):
 - Tier A: pure helpers → `lib/` (31 modules).
 - Tier B: 14 stateful hooks → `hooks/`.
 - Tier C: 7 panels → `components/` + a thin memoized context layer
   (Theme/Layout/Palette/Editor).
 
-What remains is the trunk + state model + de-`nocheck`, i.e. SP2.
+What remains is the logic block + the (much smaller than believed) trunk JSX +
+state model + de-`nocheck`, i.e. SP2 phases c-e.
 
 ## Guardrails
 
@@ -104,10 +126,12 @@ What remains is the trunk + state model + de-`nocheck`, i.e. SP2.
 
 ## Open decisions (resolved at each sub-project's brainstorm, not now)
 
-- **SP2 phase b, state-slicing mechanism:** selector-based React Context vs a store
-  (Zustand / Jotai). The real fork; pull advisor in there.
-- **SP2 phase ordering:** a → b → c → d is the likely shape, but b (slicing) may need
-  to precede parts of c (trunk extraction). Settled at SP2 brainstorm.
+- **SP2 phase b, state-slicing mechanism:** RESOLVED, Zustand. See
+  `docs/superpowers/specs/2026-06-30-sp2-phase-b-state-slicing-design.md`.
+- **SP2 phase ordering:** RESOLVED as a → b → c → d → e (see phase list above,
+  corrected 2026-07-01). c (logic extraction) precedes d (trunk JSX extraction)
+  because most of d's original scope turned out to already be delegated to Tier C
+  panels; c is now the bigger lever.
 - **Stack revisit:** out of scope unless SP2 surfaces a hard ceiling.
 
 ## Where things live
