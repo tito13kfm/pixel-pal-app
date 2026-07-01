@@ -277,7 +277,19 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
 
 ## Export & visualization
 
-- **Single source of palette entries:** `collectPaletteEntries(style)` in App.tsx
+- **Handlers extracted (SP2 phase c):** the 22 export/clipboard/download handlers
+  (`copyHex`, `buildPaletteText`, `exportPalette`, the 4 viz PNG exporters,
+  `collectPaletteEntries`, `buildPaletteGpl`, the .gpl/.pal/.ase/.png-strip
+  exporters, `exportActiveFormat`, `revealLastSaved`, and the per-ramp
+  text/gpl/copy/download helpers) no longer live inline in App.tsx. Pure formatting
+  (no state, no side effects beyond `saveFile`) lives in `lib/export.ts`; the
+  stateful wrapper is `hooks/useExport.ts`, which reads/writes through
+  `useExportSettings()` state plus a handful of ramp-core and viz-settings values
+  passed in as params. `lib/export.ts` also exports `copyTextToClipboard`, a
+  shared Clipboard-API-then-textarea-fallback helper factored out of the three
+  copy handlers (does not touch `copySpriteSource`, which stays inline in App.tsx).
+- **Single source of palette entries:** `collectPaletteEntries(style)` in
+  `lib/export.ts` (via `useExport`)
   (every visible ramp shade + the harmony colors, deduped by hex). `buildGpl` /
   `buildJascPal` / `buildAse` (`lib/palette-export.ts`) all consume it, so the three
   file formats cannot describe different color sets (mirror rule). `.ase` is big-endian
