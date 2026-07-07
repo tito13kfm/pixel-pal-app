@@ -40,7 +40,7 @@ glob matches nothing that's expected, not an error:
 ## Code Navigation & Edits: use Serena
 
 This repo is indexed by **Serena** (`.serena/project.yml`, TypeScript LSP). **For any
-`src/**` code file use Serena tools, not the built-in Read/Edit** (`App.tsx` is ~5,100
+`src/**` code file use Serena tools, not the built-in Read/Edit** (`App.tsx` is ~3,900
 lines; string-match edits there are fragile). A `PreToolUse` hook **hard-blocks the
 built-in Edit tool on `src/**/*.ts(x)`**, it is enforced, not advisory.
 
