@@ -92,8 +92,9 @@ convention:
 - **PixelSprite**: `import { PixelSprite } from './RampsPanel'`. It's
   already an exported function there, no lift required for this slice.
 - **Icons**: component imports its own lucide-react icons (Dice5, Plus,
-  Upload, Pipette, Sparkles, RotateCcw, Copy), already app dependencies,
-  no new package.
+  Upload, Pipette, Sparkles, Copy), already app dependencies, no new
+  package. `RotateCcw` (Reset Layout button) stays in App.tsx, out of scope
+  for this slice.
 - Component owns its whole card as the JSX root (border/glow wrapper div
   included), same shape as `VizComparePanel` (SectionCard included
   internally), not the App.tsx-owns-the-SectionCard-wrapper shape used by
