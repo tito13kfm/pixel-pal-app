@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 if (window.__TAURI_INTERNALS__) {
   // Dynamic import: Tauri runtime is only loaded when actually inside a
@@ -13,6 +14,8 @@ if (window.__TAURI_INTERNALS__) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )
