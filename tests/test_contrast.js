@@ -1,7 +1,7 @@
 // WCAG 2.1 AA contrast lint for theme tokens.
 //
-// Hand-mirrors a subset of `themeTokens` from `src/App.tsx`. KEEP IN SYNC:
-// when you add or change a theme bg/text token that's listed in PAIRS,
+// Hand-mirrors a subset of `THEME_TOKENS` from `src/lib/theme.ts`. KEEP IN
+// SYNC: when you add or change a theme bg/text token that's listed in PAIRS,
 // update the THEMES + TAILWIND maps below. CI runs this with `node` from
 // the repo root, no test framework. Failures exit 1; success exits 0.
 //
@@ -50,7 +50,7 @@ const TAILWIND = {
   'text-green-900': '#14532d',
 };
 
-// -------- Theme token mirror (KEEP IN SYNC with src/App.tsx themeTokens)
+// -------- Theme token mirror (KEEP IN SYNC with src/lib/theme.ts THEME_TOKENS)
 //
 // Only the tokens consumed by PAIRS below need to be mirrored. Add more if
 // you extend PAIRS. Values are either:
@@ -202,12 +202,14 @@ for (const themeName of Object.keys(THEMES)) {
   }
 }
 
-// -------- Drift detection: re-read App.tsx and verify each mirrored token
-// still appears literally in the source. This catches the case where someone
-// renames a token in App.tsx but forgets to update this file.
+// -------- Drift detection: re-read src/lib/theme.ts and verify each
+// mirrored token still appears literally in the source. This catches the
+// case where someone renames a token in theme.ts but forgets to update this
+// file. (Token definitions moved out of src/App.tsx into src/lib/theme.ts
+// during the SP2 phase c logic extraction; this check must follow them.)
 
-const appPath = path.join(__dirname, '..', 'src', 'App.tsx');
-const appSrc = fs.readFileSync(appPath, 'utf8');
+const themePath = path.join(__dirname, '..', 'src', 'lib', 'theme.ts');
+const themeSrc = fs.readFileSync(themePath, 'utf8');
 const driftErrors = [];
 
 const MIRRORED_LITERALS = [
@@ -225,8 +227,8 @@ const MIRRORED_LITERALS = [
 ];
 
 for (const [, literal] of MIRRORED_LITERALS) {
-  if (!appSrc.includes(literal)) {
-    driftErrors.push(`MISSING in App.tsx: ${literal}`);
+  if (!themeSrc.includes(literal)) {
+    driftErrors.push(`MISSING in theme.ts: ${literal}`);
   }
 }
 
