@@ -56,6 +56,10 @@ src/
                         Swatch + PixelSprite as internal components; reads ThemeContext
                         for themedAccent + accentTextGlow; accentTextGlow cast to
                         (hex, px?) signature to match 2-arg usage in ramp headers
+      InputPanel.tsx    props-only (54 props: mode/color/image/sprite input
+                        state and handlers); reads ThemeContext for
+                        t/themedAccentBorder/accentGlow; reuses PixelSprite
+                        exported from RampsPanel.tsx (SP2 phase d slice 1)
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
                         useExportSettings, useTour, useSpriteImport,
                         useImageExtract, useImageRemap, useSideBySide,

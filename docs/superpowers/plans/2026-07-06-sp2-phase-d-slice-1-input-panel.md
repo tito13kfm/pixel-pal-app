@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Extract the input/mode card (`App.tsx:3356-3556`, hex/image/sprite
+**Goal:** Extract the input/mode card (`App.tsx:3356-3557`, hex/image/sprite
 input UI) into a new typed component, `src/components/panels/InputPanel.tsx`,
 with zero behavior change.
 
@@ -84,29 +84,31 @@ Expected: `Switched to a new branch 'feat/sp2-phase-d-slice-1-input-panel'`
 `Read` is blocked on `src/**.tsx`, and the block is long enough that
 `Grep`'s default line-preview truncates several lines as "[Omitted long
 matching line]". Use this exact command, which pages through every line
-in range 3356 to 3556 (inclusive) using a match-everything pattern, and
+in range 3356 to 3557 (inclusive) using a match-everything pattern, and
 redirect the persisted-output file (NOT a `src/*.tsx` path, so `Read` works
 on it) back through `Read` to get the untruncated text:
 
 ```
-Grep(pattern=".?", path="src/App.tsx", output_mode="content", -n=true, offset=3355, head_limit=201)
+Grep(pattern=".?", path="src/App.tsx", output_mode="content", -n=true, offset=3355, head_limit=202)
 ```
 
 Then `Read` the tool result's persisted-output file path (the tool result
 tells you the path; it lives under the session's `tool-results` directory,
 not under `src/`). This gives you the verbatim, untruncated text of
-`App.tsx:3356-3556`. Do not alter a single character of this block when you
+`App.tsx:3356-3557`. Do not alter a single character of this block when you
 paste it into the new file in Step 3, it is a straight copy.
 
-- [ ] **Step 2: Confirm nothing outside 3356-3556 leaked in**
+- [ ] **Step 2: Confirm nothing outside 3356-3557 leaked in**
 
 The retrieved block must start with:
 ```
 <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" style={{ background: t.cardBgPinkBright, borderColor: themedAccentBorder('#ff00ff'), ...
 ```
-and end with the matching closing `</div>` at line 3556 (the "Reset Layout"
-button block starting at 3559 must NOT be included). If the range is off,
-re-run Step 1 with an adjusted `offset`/`head_limit` until it matches exactly.
+and end with the matching closing `</div>` at line 3557 (the card's outer
+wrapper div opened at 3356 closes one line later than its last inner
+`</div>` at 3556; both belong in the block). The "Reset Layout" button block
+starting at 3559 must NOT be included. If the range is off, re-run Step 1
+with an adjusted `offset`/`head_limit` until it matches exactly.
 
 - [ ] **Step 3: Write the new file**
 
@@ -212,7 +214,7 @@ export function InputPanel(props: InputPanelProps) {
 
 Note `sectionHeadColor` and `accentTextGlow` are destructured from
 `useTheme()` even though the current card body does not call them (grep in
-the design spec did not find a direct call inside 3356-3556). Keep them
+the design spec did not find a direct call inside 3356-3557). Keep them
 destructured only if TypeScript's `noUnusedLocals` (check `tsconfig.json`)
 would error on unused destructured variables, if it's off, destructure only
 `t`, `themedAccentBorder`, `accentGlow` since those are the ones actually
@@ -243,7 +245,7 @@ git commit -m "refactor: create InputPanel.tsx (SP2 phase d slice 1, not yet wir
 ### Task 2: Wire `InputPanel` into `App.tsx`, remove the old inline JSX
 
 **Files:**
-- Modify: `src/App.tsx:3356-3556` (delete), plus one import line near the
+- Modify: `src/App.tsx:3356-3557` (delete), plus one import line near the
   other panel imports, plus one new `<InputPanel .../>` call site
 - Modify: `docs/ARCHITECTURE.md` (File Map, panels/ list)
 
@@ -268,7 +270,7 @@ import { InputPanel } from './components/panels/InputPanel';
 
 Use Serena's `replace_content` to replace the exact text span from
 `App.tsx:3356` (`<div className="rounded-lg p-6 mb-6 border-2
-backdrop-blur-sm" ...`) through `App.tsx:3556` (its matching closing
+backdrop-blur-sm" ...`) through `App.tsx:3557` (its matching closing
 `</div>`) with:
 
 ```tsx
