@@ -60,6 +60,10 @@ src/
                         state and handlers); reads ThemeContext for
                         t/themedAccentBorder/accentGlow; reuses PixelSprite
                         exported from RampsPanel.tsx (SP2 phase d slice 1)
+      HeaderControls.tsx  props-only (7 props: launcher/theme/CRT/CVD state
+                        and setters); reads ThemeContext for t; renders the
+                        title, CRT toggle, theme selector, and CVD selector
+                        (SP2 phase d slice 2)
   hooks/                Tier B domain hooks (useDisplaySettings, useVizSettings,
                         useExportSettings, useTour, useSpriteImport,
                         useImageExtract, useImageRemap, useSideBySide,
