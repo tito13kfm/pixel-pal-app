@@ -7,6 +7,8 @@
 // file-type slot via plugin-store (Tauri only; browser has no
 // concept of "last folder" since the OS picks the Downloads dir).
 
+import { isTauri } from './env';
+
 export type SaveData = { text: string } | { bytes: Uint8Array | Blob };
 export type SaveFilter = { name: string; extensions: string[] };
 export type FolderKey = 'txt' | 'gpl' | 'png' | 'pal' | 'ase';
@@ -28,9 +30,6 @@ export interface SaveResult {
   folder?: string;
   error?: string;
 }
-
-const isTauri = (): boolean =>
-  typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 function dirname(p: string): string {
   const lastSlash = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));

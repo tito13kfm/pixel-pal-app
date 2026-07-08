@@ -84,6 +84,10 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: npm run lint:hooks
 
+      - name: Lint - no new dead-code exports
+        if: matrix.platform == 'ubuntu-latest'
+        run: npm run deadcode:ci
+
       - name: Cargo check
         working-directory: src-tauri
         run: cargo check

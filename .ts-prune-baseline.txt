@@ -1,0 +1,12 @@
+# Pre-existing dead-code exports grandfathered when the CI gate (#114) was
+# added. New orphans fail CI; these do not until cleaned up separately.
+# Format: exact line as printed by `npm run deadcode` (minus the "(used in
+# module)" ones, which check-deadcode.mjs always excludes), path separators
+# normalized to forward slashes since the gate runs on ubuntu-latest.
+src/lib/history-snapshot.ts:1 - SNAPSHOT_FIELDS
+src/lib/palette-export.ts:16 - dedupeEntries
+src/lib/palette.ts:8 - CurvePresetSerialized
+src/lib/palette.ts:78 - savePaletteToStorage
+src/lib/palette.ts:92 - deletePaletteFromStorage
+src/lib/palette.ts:107 - loadAllPaletteIndexEntries
+src/lib/randomizer.ts:6 - buildRandomDescription
