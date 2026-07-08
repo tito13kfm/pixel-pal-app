@@ -308,7 +308,7 @@ export default function PixelPalGenerator() {
   // buildWorkingSnapshot (viz/export/compare) below. Both must carry the same
   // buildRamp inputs to stay in sync (#36, #37) - extend this, not either
   // call site, when a new render input is added (#62).
-  const workingRenderInputs = () => ({
+  const workingRenderInputs = useCallback(() => ({
     baseColors,
     rampSize,
     overrides,
@@ -323,9 +323,9 @@ export default function PixelPalGenerator() {
     shuffleSeed,
     rampShuffleOffsets,
     stylePresets,
-  });
+  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
 
-  const liveRampSnapshot = useMemo(() => workingRenderInputs(), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+  const liveRampSnapshot = useMemo(() => workingRenderInputs(), [workingRenderInputs]);
 
   const rampsPunchy = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'punchy', i)), [liveRampSnapshot]);
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
