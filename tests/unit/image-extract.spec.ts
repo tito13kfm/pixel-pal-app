@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractDominantColors, quantizeToPalette } from '../../src/lib/image-extract';
+import { extractDominantColors, quantizeToPaletteOklch, buildPaletteOklchCache } from '../../src/lib/image-extract';
 
 // Build an ImageData-shaped fixture (jsdom lacks a real ImageData ctor).
 function fakeImageData(pixels: Array<[number, number, number, number]>): ImageData {
@@ -10,19 +10,31 @@ function fakeImageData(pixels: Array<[number, number, number, number]>): ImageDa
   return { data, width: pixels.length, height: 1, colorSpace: 'srgb' } as ImageData;
 }
 
-describe('quantizeToPalette', () => {
+describe('quantizeToPaletteOklch', () => {
   it('returns the input hex when the palette is empty', () => {
-    expect(quantizeToPalette('#ff0000', [])).toBe('#ff0000');
+    expect(quantizeToPaletteOklch('#ff0000', [])).toBe('#ff0000');
   });
   it('returns an exact palette match', () => {
-    expect(quantizeToPalette('#ff0000', ['#ff0000', '#00ff00'])).toBe('#ff0000');
+    expect(quantizeToPaletteOklch('#ff0000', ['#ff0000', '#00ff00'])).toBe('#ff0000');
   });
   it('snaps a near-red to red, not to a far hue', () => {
-    expect(quantizeToPalette('#f51008', ['#ff0000', '#0000ff'])).toBe('#ff0000');
+    expect(quantizeToPaletteOklch('#f51008', ['#ff0000', '#0000ff'])).toBe('#ff0000');
   });
-  it('snaps a gray toward gray, not a nearby hue (hue weight fades at low saturation)', () => {
-    // Gray (S=0) must not be pulled to chromatic red; hue weight fades to zero.
-    expect(quantizeToPalette('#808080', ['#ff0000', '#7f7f7f'])).toBe('#7f7f7f');
+  it('snaps a gray toward gray, not a nearby hue', () => {
+    expect(quantizeToPaletteOklch('#808080', ['#ff0000', '#7f7f7f'])).toBe('#7f7f7f');
+  });
+  it('picks the perceptually nearest candidate over a merely hue-closer one', () => {
+    // Verified case (#72): the retired weighted-HSL matcher picked the
+    // hue-closer saturated red here; OKLCH DeltaE correctly picks the
+    // perceptually closer muted brown instead.
+    expect(quantizeToPaletteOklch('#186eae', ['#a61d14', '#78583e'])).toBe('#78583e');
+  });
+  it('buildPaletteOklchCache produces a cache that yields the same result as computing inline', () => {
+    const palette = ['#ff0000', '#00ff00', '#0000ff', '#78583e'];
+    const cache = buildPaletteOklchCache(palette);
+    expect(cache.length).toBe(palette.length);
+    const src = '#186eae';
+    expect(quantizeToPaletteOklch(src, palette, cache)).toBe(quantizeToPaletteOklch(src, palette));
   });
 });
 
