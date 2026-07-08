@@ -3180,7 +3180,7 @@ export default function PixelPalGenerator() {
 
       <div className="max-w-5xl mx-auto relative z-10">
         {!compareMode && (
-          <BaseColorDock baseColors={baseColors} onDelete={removeRamp} onJump={scrollToRamp} />
+          <BaseColorDock baseColors={baseColors} onDelete={removeRamp} onJump={scrollToRamp} cvdMode={cvdMode} />
         )}
         <V2EngineNotice show={v2NoticePending} />
         <HeaderControls

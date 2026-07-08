@@ -89,10 +89,6 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
     drag.current = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
     localStorage.setItem(POS_KEY, JSON.stringify(dock));
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.log('[base-dock] DEFAULT_DOCK_POS candidate:', JSON.stringify(dock));
-    }
   };
 
   // A touch cancel / OS gesture takeover ends a drag without firing pointerup.
@@ -102,9 +98,5 @@ export function useBaseDock(ref: React.RefObject<HTMLElement | null>) {
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
   };
 
-  // Dev-only live readout of the card anchor, so the default can be calibrated by
-  // dragging and reading the dock face (no devtools needed). Null in prod.
-  const devCandidate = import.meta.env.DEV ? dock : null;
-
-  return { pos: display, collapsed, setCollapsed, devCandidate, didDrag, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
+  return { pos: display, collapsed, setCollapsed, didDrag, dragHandlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } };
 }
