@@ -47,12 +47,12 @@ describe('remapImageToPalette', () => {
     expect(out.width).toBe(1);
     expect(Array.from(out.data.slice(0, 3))).toEqual([255, 0, 0]);
   });
-  it('error diffusion flips pixel 1 below-midpoint (diverges from no-dither)', () => {
+  it('error diffusion flips pixel 2 below-midpoint (diverges from no-dither)', () => {
     const src = new Uint8ClampedArray([245,245,245,255, 128,128,128,255, 128,128,128,255]);
     const palette = ['#ffffff', '#000000'];
     const fs = remapImageToPalette({ width: 3, height: 1, data: src }, palette, { dither: 'floyd-steinberg' });
     const nd = remapImageToPalette({ width: 3, height: 1, data: src }, palette, { dither: 'none' });
-    expect(Array.from(fs.data)).toEqual([255,255,255,255, 0,0,0,255, 255,255,255,255]);
+    expect(Array.from(fs.data)).toEqual([255,255,255,255, 255,255,255,255, 0,0,0,255]);
     expect(Array.from(nd.data)).toEqual([255,255,255,255, 255,255,255,255, 255,255,255,255]);
   });
   it.each(['atkinson', 'stucki'] as const)('%s dithers a flat mid-gray run into a palette-only mix (diverges from no-dither)', (mode) => {

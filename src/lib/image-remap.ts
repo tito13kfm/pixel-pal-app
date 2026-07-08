@@ -1,4 +1,4 @@
-import { quantizeToPalette } from './image-extract';
+import { quantizeToPaletteOklch, buildPaletteOklchCache } from './image-extract';
 
 export interface RemapImage {
   width: number;
@@ -79,11 +79,11 @@ export const remapImageToPalette = (
     return { width: w, height: h, data: out };
   }
   // Pre-compute palette RGB tuples once to avoid re-parsing hex per pixel.
-  // quantizeToPalette internally calls hexToHsl on every candidate per call;
-  // for image-scale work we want a cheaper per-pixel inner loop. Instead of
-  // duplicating the HSL math here, we keep using quantizeToPalette (so the
-  // perceptual weights stay in lockstep with the hardware lock) but cache
-  // its output per unique source color in the no-dither path.
+  // quantizeToPaletteOklch converts every candidate to OKLCH per call; for
+  // image-scale work we precompute that conversion once per remap (not per
+  // pixel, see paletteOklchCache) and additionally cache its output per
+  // unique source color in the no-dither path.
+  const paletteOklchCache = buildPaletteOklchCache(paletteColors);
 
   // Helper: pack RGB into a small integer cache key. Faster than hex
   // strings and produces identical hits.
@@ -140,7 +140,7 @@ export const remapImageToPalette = (
         if (eg < 0) eg = 0; else if (eg > 255) eg = 255;
         if (eb < 0) eb = 0; else if (eb > 255) eb = 255;
         const srcHex = toHex(Math.round(er), Math.round(eg), Math.round(eb));
-        const dstHex = quantizeToPalette(srcHex, paletteColors);
+        const dstHex = quantizeToPaletteOklch(srcHex, paletteColors, paletteOklchCache);
         const [dr, dg, db] = hexToTuple(dstHex);
         out[i] = dr; out[i + 1] = dg; out[i + 2] = db; out[i + 3] = a;
         // Compute quantization error and diffuse to neighbors that have
@@ -186,7 +186,7 @@ export const remapImageToPalette = (
     let dstHex = cache.get(key);
     if (dstHex === undefined) {
       const srcHex = toHex(r, g, b);
-      dstHex = quantizeToPalette(srcHex, paletteColors);
+      dstHex = quantizeToPaletteOklch(srcHex, paletteColors, paletteOklchCache);
       cache.set(key, dstHex);
     }
     const [dr, dg, db] = hexToTuple(dstHex);
