@@ -304,7 +304,11 @@ export default function PixelPalGenerator() {
   // presets are migrated into lightnessCurvePerRamp on load; the live memo never
   // re-migrated, so passing it would double-apply. hardwareLock is the id string
   // (buildRamp re-finds the palette, exactly as activeHardware does).
-  const liveRampSnapshot = useMemo(() => ({
+  // Shared render-input field set for liveRampSnapshot (main grid) and
+  // buildWorkingSnapshot (viz/export/compare) below. Both must carry the same
+  // buildRamp inputs to stay in sync (#36, #37) - extend this, not either
+  // call site, when a new render input is added (#62).
+  const workingRenderInputs = () => ({
     baseColors,
     rampSize,
     overrides,
@@ -319,7 +323,9 @@ export default function PixelPalGenerator() {
     shuffleSeed,
     rampShuffleOffsets,
     stylePresets,
-  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+  });
+
+  const liveRampSnapshot = useMemo(() => workingRenderInputs(), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
 
   const rampsPunchy = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'punchy', i)), [liveRampSnapshot]);
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
@@ -1926,23 +1932,9 @@ export default function PixelPalGenerator() {
   //                          while loading or on error.
   const buildWorkingSnapshot = () => {
     return {
-      baseColors,
-      rampSize,
-      shuffleSeed,
-      overrides,
-      rampSizeOverrides,
-      rampSatOverrides,
-      rampShuffleOffsets,
-      hiddenShades,
-      hardwareLock,
-      hueShiftStrength,
-      hueShiftStrengthPerRamp, // per-ramp hue-shift overrides, mirror the main
-                               // grid; without this viz/export/compare fall back
-                               // to the global hueShiftStrength only (#37)
-      lightnessCurvePerRamp,
-      satCurvePerRamp,
-      gamutPerRamp,
-      stylePresets,
+      ...workingRenderInputs(),
+      hiddenShades, // working-only: the live grid hides at the display
+                    // boundary instead (see liveRampSnapshot comment above)
     };
   };
   // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
