@@ -1,4 +1,4 @@
-import { generateRamp as generateRampNew } from './ramp-engine';
+import { generateRamp as generateRampNew, isValidRampSize } from './ramp-engine';
 import { presetToPoints, LIGHTNESS_PRESETS, SAT_PRESETS } from './curve';
 import type { CurvePoints } from './curve';
 import type { GamutStrategy } from './oklch';
@@ -69,7 +69,7 @@ export function buildRamp(snapshot: RampSnapshot, style: string, baseIndex: numb
 
   // resolveSize: per-ramp shade-count override, else global rampSize.
   const sizeOverride = (rampSizeOverrides as Record<number, number>)[i];
-  const size = (sizeOverride && [4, 5, 6, 7, 8].includes(sizeOverride)) ? sizeOverride : rampSize;
+  const size = isValidRampSize(sizeOverride) ? sizeOverride : rampSize;
 
   // resolveHueShift: per-ramp override, else global. Mirrors the live
   // resolveHueShiftForRamp. Snapshots that never stored a per-ramp value fall

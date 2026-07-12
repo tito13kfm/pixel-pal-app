@@ -32,10 +32,10 @@ export const seededHueDelta = (effectiveSeed: number, rampIdx: number): number =
 
 // Snapshot fields used (all optional except baseColors):
 //   baseColors: string[]                 required
-//   rampSize: 4|5|6|7|8                  default 5
+//   rampSize: 2..64                      default 5
 //   shuffleSeed: number                  default 0
 //   overrides: { [baseIdx]: { [shadeIdx]: { punchy?, balanced?, muted? } } }
-//   rampSizeOverrides: { [baseIdx]: 4..8 }
+//   rampSizeOverrides: { [baseIdx]: 2..64 }
 //   rampSatOverrides: { [baseIdx]: number (saturation multiplier) }
 //   rampShuffleOffsets: { [baseIdx]: number }
 //   hiddenShades: { [baseIdx]: number[] }

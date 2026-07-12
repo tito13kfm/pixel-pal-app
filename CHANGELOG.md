@@ -33,6 +33,15 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - `npm run lint:hooks` (`eslint.hooks.config.js`): blocking
   `react-hooks/exhaustive-deps` gate; 18 pre-existing violations grandfathered
   inline with `TODO(sp2-d)` tags for cleanup when `@ts-nocheck` drops (phase d).
+- Ramp sizes now span the engine's full **2-64 shade** range everywhere (#41):
+  the global and per-ramp shade-count selectors are a slider + number input
+  (replacing the 4-8 button rows), and all load/validation gates
+  (`ui:rampSize`, saved-palette `rampSize`, `rampSizeOverrides`, pipeline size
+  override) accept 2-64 via a shared `isValidRampSize` check in
+  `src/lib/ramp-engine.ts`. Ramps larger than 8 shades use numeric slot labels
+  (`shade 1..N`); sizes 2-3 get small semantic label tables.
+- `src/components/ShadeCountControl.tsx`: shared shade-count picker used by
+  `InputPanel` (global) and `RampsPanel` (per-ramp override).
 
 ## [0.22.0] - 2026-06-11
 

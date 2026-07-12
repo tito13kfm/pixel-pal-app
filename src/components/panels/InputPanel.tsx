@@ -1,6 +1,7 @@
 import { Dice5, Plus, Upload, Pipette, Sparkles, Copy, Image as ImageIcon } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import { PixelSprite } from './RampsPanel';
+import ShadeCountControl from '../ShadeCountControl';
 import { DEFAULT_SPRITE_LIBRARY } from '../../lib/constants';
 
 type SpriteLibrary = Record<string, { name: string; pattern: string[]; numShades: number }>;
@@ -232,9 +233,14 @@ export function InputPanel(props: InputPanelProps) {
             <div className="flex flex-wrap gap-4 items-center justify-center text-cyan-100 mt-3 pt-3 border-t border-cyan-700/20">
               <div className="flex gap-2 items-center">
                 <span className="text-sm font-bold uppercase tracking-wider">Shades:</span>
-                {[4, 5, 6, 7, 8].map(n => (
-                  <button key={n} onClick={() => setRampSize(n)} title={`Use ${n} shades per ramp (default for new and unset ramps)`} className={`w-9 h-9 rounded font-bold border-2 transition-all ${rampSize === n ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampSize === n ? { boxShadow: '0 0 10px #00ffff' } : {}}>{n}</button>
-                ))}
+                <ShadeCountControl
+                  value={rampSize}
+                  onCommit={setRampSize}
+                  accentClassName="accent-cyan-300"
+                  inputClassName={`w-14 h-9 rounded font-bold text-center border-2 bg-transparent tabular-nums ${t.controlBtnDefault}`}
+                  ariaLabel="Shades per ramp"
+                  title={`Shades per ramp, 2-64 (default for new and unset ramps). Currently ${rampSize}.`}
+                />
               </div>
               <div className="flex gap-2 items-center" title="Scales the warm/cool hue shifts applied to shadows and highlights. 0% is flat, 100% is the default, 200% is painterly. Affects all styles.">
                 <span className="text-sm font-bold uppercase tracking-wider">Hue Shift:</span>

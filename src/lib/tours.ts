@@ -45,7 +45,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     },
     {
       title: 'Palette ramps',
-      body: 'Generate a palette to see ramps here. Each ramp shows 4-8 shades, rendered in your choice of three contrast styles (Punchy, Balanced, Muted).',
+      body: 'Generate a palette to see ramps here. Each ramp shows 2-64 shades, rendered in your choice of three contrast styles (Punchy, Balanced, Muted).',
       target: 'ramp-area',
       advance: 'next',
       placement: 'auto',

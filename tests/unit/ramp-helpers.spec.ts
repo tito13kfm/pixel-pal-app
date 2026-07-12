@@ -10,6 +10,26 @@ describe('shadeLabelsFor', () => {
     expect(labels).toHaveLength(6);
     expect(labels[3]).toBe('base');
   });
+
+  it('returns semantic labels for the tiny sizes 2 and 3', () => {
+    expect(shadeLabelsFor(2)).toEqual(['base', 'highlight']);
+    expect(shadeLabelsFor(3)).toEqual(['shadow', 'base', 'highlight']);
+  });
+
+  it('returns numeric labels past 8 shades', () => {
+    const labels9 = shadeLabelsFor(9);
+    expect(labels9).toHaveLength(9);
+    expect(labels9[0]).toBe('shade 1');
+    expect(labels9[8]).toBe('shade 9');
+    const labels64 = shadeLabelsFor(64);
+    expect(labels64).toHaveLength(64);
+    expect(labels64[63]).toBe('shade 64');
+    expect(labels64).not.toContain('base');
+  });
+
+  it('returns a single label for a hardware-deduped 1-shade ramp', () => {
+    expect(shadeLabelsFor(1)).toEqual(['base']);
+  });
 });
 
 describe('labelsForRamp', () => {
@@ -81,8 +101,17 @@ describe('resolveSizeForRamp', () => {
     expect(resolveSizeForRamp(0, { 0: 8 }, 6)).toBe(8);
   });
 
-  it('falls back to global rampSize when the override is not a valid size', () => {
-    expect(resolveSizeForRamp(0, { 0: 3 } as any, 6)).toBe(6);
+  it('accepts the full engine range 2..64', () => {
+    expect(resolveSizeForRamp(0, { 0: 2 }, 6)).toBe(2);
+    expect(resolveSizeForRamp(0, { 0: 3 }, 6)).toBe(3);
+    expect(resolveSizeForRamp(0, { 0: 64 }, 6)).toBe(64);
+  });
+
+  it('falls back to global rampSize when the override is out of range or not an integer', () => {
+    expect(resolveSizeForRamp(0, { 0: 1 } as any, 6)).toBe(6);
+    expect(resolveSizeForRamp(0, { 0: 65 } as any, 6)).toBe(6);
+    expect(resolveSizeForRamp(0, { 0: 4.5 } as any, 6)).toBe(6);
+    expect(resolveSizeForRamp(0, { 0: NaN } as any, 6)).toBe(6);
   });
 });
 

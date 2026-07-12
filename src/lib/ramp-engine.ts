@@ -3,6 +3,16 @@ import type { Oklch, GamutStrategy } from './oklch';
 import { evalCurve, LIGHTNESS_PRESETS, SAT_PRESETS } from './curve';
 import type { CurvePoints } from './curve';
 
+// Ramp-size bounds the engine supports. The v2 allocator is tested across
+// this whole range (tiny-N side allocation through N=64 balance guarantee);
+// UI and load-validation gates must accept exactly this range, no more.
+export const MIN_RAMP_SIZE = 2;
+export const MAX_RAMP_SIZE = 64;
+
+export function isValidRampSize(n: unknown): n is number {
+  return typeof n === 'number' && Number.isInteger(n) && n >= MIN_RAMP_SIZE && n <= MAX_RAMP_SIZE;
+}
+
 export interface GenerateRampOpts {
   reach: number;          // 0..1, lightness spread from base (wider = more contrast)
   chromaFalloff: number;  // 0..1, gray-out rate toward the ends
