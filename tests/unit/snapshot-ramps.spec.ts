@@ -34,4 +34,20 @@ describe('buildRampsForSnapshot', () => {
       { baseColors: ['#cc3344'], rampSize: 5, hiddenShades: { 0: [0, 4] } }, 'balanced');
     expect(withHidden[0]).toEqual([full[0][1], full[0][2], full[0][3]]);
   });
+  it('honors rampSize across the full 2..64 range', () => {
+    for (const size of [2, 3, 16, 64]) {
+      const ramps = buildRampsForSnapshot({ baseColors: ['#3366cc'], rampSize: size }, 'balanced');
+      expect(ramps[0]).toHaveLength(size);
+    }
+  });
+  it('honors per-ramp size overrides in the full range and drops out-of-range ones', () => {
+    const ramps = buildRampsForSnapshot({
+      baseColors: ['#3366cc', '#cc6633', '#33cc66'],
+      rampSize: 5,
+      rampSizeOverrides: { 0: 2, 1: 64, 2: 65 },
+    }, 'balanced');
+    expect(ramps[0]).toHaveLength(2);
+    expect(ramps[1]).toHaveLength(64);
+    expect(ramps[2]).toHaveLength(5); // 65 is out of range -> global
+  });
 });

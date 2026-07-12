@@ -47,6 +47,7 @@ import { extractDominantColors } from './lib/image-extract';
 import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 import { buildRampsForSnapshot } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
+import { isValidRampSize } from './lib/ramp-engine';
 import { shadeLabelsFor, labelsForRamp, applyOverrides, filterHidden, resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp, generateRamp } from './lib/ramp-helpers';
 import { permuteStringKeyMap } from './lib/permute-indexed-state';
 import { ThemeProvider, LayoutProvider, PaletteProvider, EditorProvider } from './contexts';
@@ -1680,7 +1681,7 @@ export default function PixelPalGenerator() {
   // hueShiftStrength is per-palette (saved in the payload, default 1.0 per
   // palette); persisting it as a session pref would conflict with that role.
 
-  // rampSize: persisted at ui:rampSize. Valid values 4..8.
+  // rampSize: persisted at ui:rampSize. Valid values 2..64.
   useEffect(() => {
     (async () => {
       if (typeof window === 'undefined' || !window.storage) return;
@@ -1688,7 +1689,7 @@ export default function PixelPalGenerator() {
         const got = await window.storage.get('ui:rampSize');
         if (got && got.value) {
           const parsed = JSON.parse(got.value);
-          if (typeof parsed === 'number' && [4, 5, 6, 7, 8].includes(parsed)) {
+          if (isValidRampSize(parsed)) {
             setRampSize(parsed);
           }
         }
@@ -2249,7 +2250,7 @@ export default function PixelPalGenerator() {
       tagNextLabel(`Load: ${parsed.name || slug}`);
       setBaseColors(parsed.baseColors);
       setAiColorNames(Array.isArray(parsed.aiColorNames) ? parsed.aiColorNames : []);
-      if ([4, 5, 6, 7, 8].includes(parsed.rampSize)) setRampSize(parsed.rampSize);
+      if (isValidRampSize(parsed.rampSize)) setRampSize(parsed.rampSize);
       // hueShiftStrength: number in [0.0, 2.0]. Missing field (pre-E
       // saved palettes) restores to 1.0, which matches their original
       // generation behavior byte-for-byte. Invalid values silently clamp
@@ -2326,14 +2327,14 @@ export default function PixelPalGenerator() {
         setHarmonyAnchor(0);
       }
       // Restore per-ramp size overrides. Validate each entry: key must be a
-      // valid baseIndex, value must be 4..8. Drop anything that fails.
+      // valid baseIndex, value must be 2..64. Drop anything that fails.
       if (parsed.rampSizeOverrides && typeof parsed.rampSizeOverrides === 'object' && !Array.isArray(parsed.rampSizeOverrides)) {
         const cleaned = {};
         for (const k of Object.keys(parsed.rampSizeOverrides)) {
           const idx = Number(k);
           if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
           const n = parsed.rampSizeOverrides[k];
-          if ([4, 5, 6, 7, 8].includes(n)) cleaned[idx] = n;
+          if (isValidRampSize(n)) cleaned[idx] = n;
         }
         setRampSizeOverrides(cleaned);
       } else {

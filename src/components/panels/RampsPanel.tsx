@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import { RampAdvancedPanel } from '../RampAdvancedPanel';
+import ShadeCountControl from '../ShadeCountControl';
 import { hexToRgb } from '../../lib/color';
 import { wcagContrast, wcagAaTier } from '../../lib/wcag';
 import { LIGHTNESS_PRESETS, SAT_PRESETS } from '../../lib/curve';
@@ -481,24 +482,14 @@ export function RampsPanel(props: RampsPanelProps) {
                 <div className="mt-3 pt-3 border-t border-yellow-500/30 flex flex-col gap-2">
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-[11px] font-bold text-yellow-200 uppercase tracking-wider">Shades:</span>
-                    <div className="flex gap-1">
-                      {[4, 5, 6, 7, 8].map(n => {
-                        const effective = resolveSizeForRamp(i);
-                        const isOverride = rampSizeOverrides[i] !== undefined;
-                        const isActive = effective === n;
-                        return (
-                          <button
-                            key={n}
-                            onClick={() => setRampSizeOverrides(prev => ({ ...prev, [i]: n }))}
-                            className={`w-7 h-7 rounded text-xs font-bold border-2 transition-all ${isActive ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-100 border-yellow-700/50 hover:bg-purple-800/60'}`}
-                            style={isActive ? { boxShadow: '0 0 8px rgba(255, 255, 0, 0.5)' } : {}}
-                            title={isActive ? (isOverride ? `Currently overridden to ${n}` : `${n} (inheriting global)`) : `Override this ramp to ${n} shades`}
-                          >
-                            {n}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <ShadeCountControl
+                      value={resolveSizeForRamp(i)}
+                      onCommit={(n) => setRampSizeOverrides(prev => ({ ...prev, [i]: n }))}
+                      accentClassName="accent-yellow-400"
+                      inputClassName="w-12 h-7 rounded text-xs font-bold text-center border-2 bg-purple-900/60 text-yellow-100 border-yellow-700/50 tabular-nums"
+                      ariaLabel={`Shades for ramp ${i + 1}`}
+                      title={rampSizeOverrides[i] !== undefined ? `Shade count for this ramp, 2-64 (overridden to ${resolveSizeForRamp(i)})` : `Shade count for this ramp, 2-64 (inheriting global ${rampSize}); changing it sets a per-ramp override`}
+                    />
                     {rampSizeOverrides[i] !== undefined && (
                       <button onClick={() => setRampSizeOverrides(prev => { const n = { ...prev }; delete n[i]; return n; })} title={`Clear the per-ramp size override and use the global setting (${rampSize})`} className="text-[10px] px-2 py-1 rounded font-bold bg-purple-700 text-yellow-100 border-2 border-yellow-700/50 hover:bg-purple-600 transition-all uppercase tracking-wider">Inherit ({rampSize})</button>
                     )}

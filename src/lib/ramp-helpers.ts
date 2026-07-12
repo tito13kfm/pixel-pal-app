@@ -5,7 +5,7 @@
 // closure. They now take that state as explicit parameters, so any caller
 // must pass it in.
 import { hexToHsl, hslToHex } from './color';
-import { generateRamp as generateRampNew } from './ramp-engine';
+import { generateRamp as generateRampNew, isValidRampSize } from './ramp-engine';
 import { styleToScalars, type StylePresets } from './style-presets';
 import { seededHueDelta } from './snapshot-ramps';
 import { LIGHTNESS_PRESETS, SAT_PRESETS, type CurvePoints } from './curve';
@@ -15,12 +15,23 @@ import type { GamutStrategySerialized } from './palette';
 // (2/3 shades below base + 2/3 above) so they fit naturally between the
 // existing 4 and 8. Centralize the mapping so we only have to add new
 // sizes in one place.
+//
+// Pixel-art slot names (outline / shadow / base / highlight / bright) only
+// make sense at small N. Past 8 shades the names stop mapping to anything a
+// pixel artist would recognize, so ramps larger than 8 get numeric labels
+// ('shade 1'..'shade N', dark to light). Numeric tables carry no 'base'
+// entry, so labelsForRamp skips its re-centering pass and returns them
+// unchanged.
 export function shadeLabelsFor(n: number): string[] {
+  if (n <= 1) return ['base'];
+  if (n === 2) return ['base', 'highlight'];
+  if (n === 3) return ['shadow', 'base', 'highlight'];
   if (n === 4) return ['outline', 'shadow', 'base', 'highlight'];
   if (n === 5) return ['outline', 'shadow', 'base', 'highlight', 'bright'];
   if (n === 6) return ['outline', 'deep shadow', 'shadow', 'base', 'highlight', 'bright'];
   if (n === 7) return ['outline', 'deep shadow', 'shadow', 'base', 'mid highlight', 'highlight', 'bright'];
-  return ['outline', 'deep shadow', 'shadow', 'mid shadow', 'base', 'mid highlight', 'highlight', 'bright'];
+  if (n === 8) return ['outline', 'deep shadow', 'shadow', 'mid shadow', 'base', 'mid highlight', 'highlight', 'bright'];
+  return Array.from({ length: n }, (_, i) => `shade ${i + 1}`);
 }
 
 // labelsForRamp: returns labels positioned so 'base' lands on whatever
@@ -199,7 +210,7 @@ export function resolveBaseForRamp(hex: string, baseIndex: number, rampSatOverri
 // per-ramp override. Falls back to the global rampSize.
 export function resolveSizeForRamp(baseIndex: number, rampSizeOverrides: Record<number, number>, rampSize: number): number {
   const override = rampSizeOverrides[baseIndex];
-  if (override && [4, 5, 6, 7, 8].includes(override)) return override;
+  if (isValidRampSize(override)) return override;
   return rampSize;
 }
 
