@@ -81,7 +81,7 @@ export function ExportPanel({
               </span>
             </div>
             <div className="flex gap-3 flex-wrap items-center">
-              <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Locked:</span>
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sectionHeadColor('#ffff00') }}>Locked:</span>
               <span className="px-3 py-1.5 rounded font-bold border-2 text-xs uppercase tracking-wider bg-yellow-300 text-purple-900 border-yellow-100" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.6)' }}>
                 {HARDWARE_PALETTES.find(hw => hw.id === hardwareLock)?.name}
               </span>
@@ -109,7 +109,7 @@ export function ExportPanel({
       <div className="border-t border-white/10" />
       {/* GPL row */}
       <div className="flex gap-2 items-center flex-wrap">
-        <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">export style:</span>
+        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sectionHeadColor('#ffff00') }}>export style:</span>
         <button onClick={() => setGplStyle('punchy')} title="Export the .gpl using high-contrast Punchy ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
         <button onClick={() => setGplStyle('balanced')} title="Export the .gpl using mid-contrast Balanced ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={gplStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
         <button onClick={() => setGplStyle('muted')} title="Export the .gpl using low-contrast Muted ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>

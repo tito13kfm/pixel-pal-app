@@ -316,7 +316,7 @@ export function RampsPanel(props: RampsPanelProps) {
           {confirmReset ? 'Confirm?' : 'Reset to Defaults'}
         </button>
       </div>
-      <div className="mb-4 p-3 rounded border-2 border-cyan-700/40 bg-black/30">
+      <div className="mb-4 p-3 rounded border-2 border-cyan-700/40 bg-black/60">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style Tuning</span>
           {JSON.stringify(stylePresets) !== JSON.stringify(DEFAULT_STYLE_PRESETS) && (
@@ -350,10 +350,10 @@ export function RampsPanel(props: RampsPanelProps) {
         </div>
       </div>
       {activeHardware && (
-        <div className="mb-4 p-2 rounded border-2 border-yellow-400 bg-yellow-900/30 flex items-center gap-2 text-xs" style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.4)' }}>
-          <Cpu size={14} className="text-yellow-200 flex-shrink-0" />
-          <span className="text-yellow-100">
-            <strong className="text-yellow-200 uppercase tracking-wider">Locked to {(activeHardware as any).name}.</strong>
+        <div className={`mb-4 p-2 rounded border-2 flex items-center gap-2 text-xs ${t.alertWarnBg} ${t.alertWarnBorder}`} style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.4)' }}>
+          <Cpu size={14} className={`${t.alertWarnText} flex-shrink-0`} />
+          <span className={t.alertWarnText}>
+            <strong className={`${t.alertWarnText} uppercase tracking-wider`}>Locked to {(activeHardware as any).name}.</strong>
             {' '}Every generated shade snaps to one of the {activeHardware.colors.length} hardware-legal {activeHardware.colors.length === 1 ? 'color' : 'colors'}. Ramps with more requested shades than the palette supports will visually collapse to unique entries.
           </span>
         </div>
@@ -451,7 +451,7 @@ export function RampsPanel(props: RampsPanelProps) {
             </div>
 
             {editingIndex === i && (
-              <div className="mb-4 p-3 rounded border-2 border-yellow-500/60 bg-black/40" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.25)' }}>
+              <div className="mb-4 p-3 rounded border-2 border-yellow-500/60 bg-black/60" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.25)' }}>
                 <div className="flex flex-wrap items-center gap-3 mb-3">
                   <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">▸ Adjust Base</span>
                   <div className="flex items-center gap-2">
@@ -549,7 +549,7 @@ export function RampsPanel(props: RampsPanelProps) {
                   <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>Muted</span>
                   <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
                 </div>
-                <span className="self-center pl-1 text-cyan-200" aria-hidden="true">
+                <span className="self-center pl-1" style={{ color: themedAccent('#00ffff') }} aria-hidden="true">
                   {collapsedRamps.has(i) ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
                 </span>
               </div>
@@ -621,7 +621,7 @@ export function RampsPanel(props: RampsPanelProps) {
               const styleLabel = ps === 'balanced' ? 'Balanced' : ps === 'muted' ? 'Muted' : 'Punchy';
               const styleColor = ps === 'balanced' ? '#00ffff' : ps === 'muted' ? '#a855f7' : '#ff00ff';
               return (
-                <div className="mt-4 p-3 rounded border-2 border-yellow-500/60 bg-black/40" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.25)' }}>
+                <div className="mt-4 p-3 rounded border-2 border-yellow-500/60 bg-black/60" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.25)' }}>
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider flex items-center gap-1">
                       <Pin size={12} /> Pin Shade: <span style={{ color: styleColor }}>{styleLabel}</span> / <span className="text-pink-200">{shadeLabel}</span>

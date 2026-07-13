@@ -56,10 +56,10 @@ export function SavedPalettesPanel({
 
   return (
     <div className="p-6 pt-2 flex flex-col gap-4">
-      <p className="text-[11px] text-yellow-100/70 italic">▸ Palettes save locally to your browser. They persist across sessions but stay on this device.</p>
+      <p className="text-[11px] text-yellow-100/70 italic bg-black/60 rounded px-2 py-1">▸ Palettes save locally to your browser. They persist across sessions but stay on this device.</p>
 
       {/* Save current palette */}
-      <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-black/30 rounded border-2 border-yellow-500/40 p-3">
+      <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-black/60 rounded border-2 border-yellow-500/40 p-3">
         <input
           ref={saveNameInputRef}
           type="text"
@@ -116,7 +116,7 @@ export function SavedPalettesPanel({
 
       {/* List of saved palettes */}
       {savedPalettes.length === 0 ? (
-        <div className="text-center text-yellow-100/60 italic text-sm py-6 border-2 border-dashed border-yellow-700/40 rounded">
+        <div className="text-center text-yellow-100/60 italic text-sm py-6 border-2 border-dashed border-yellow-700/40 rounded bg-black/60">
           No saved palettes yet. Save your current palette above to get started.
         </div>
       ) : (() => {
@@ -124,7 +124,7 @@ export function SavedPalettesPanel({
         const visible = needle ? savedPalettes.filter(p => (p.name || '').toLowerCase().includes(needle)) : savedPalettes;
         if (visible.length === 0) {
           return (
-            <div className="text-center text-yellow-100/60 italic text-sm py-6 border-2 border-dashed border-yellow-700/40 rounded">
+            <div className="text-center text-yellow-100/60 italic text-sm py-6 border-2 border-dashed border-yellow-700/40 rounded bg-black/60">
               No saved palettes match "{savedFilter.trim()}". {savedPalettes.length} hidden.
             </div>
           );
@@ -136,7 +136,7 @@ export function SavedPalettesPanel({
               const isRenaming = renamingSlug === p.slug;
               const dateStr = p.savedAt ? new Date(p.savedAt).toLocaleString() : '';
               return (
-                <div key={p.slug} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-black/40 rounded border-2 border-yellow-700/40 p-2 hover:border-yellow-500/60 transition-colors">
+                <div key={p.slug} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-black/60 rounded border-2 border-yellow-700/40 p-2 hover:border-yellow-500/60 transition-colors">
                   {/* Thumbnail: mosaic of base colors */}
                   <div className="flex h-10 sm:h-12 rounded overflow-hidden border flex-shrink-0 sm:w-32" style={{ minWidth: '8rem', borderColor: t.vizDataBorder }}>
                     {p.baseColors.map((hex, i) => (
@@ -236,7 +236,7 @@ export function SavedPalettesPanel({
         const selectedClassic = CLASSIC_PALETTES.find(c => c.id === classicLoaderId) || CLASSIC_PALETTES[0];
         if (!selectedClassic) return null;
         return (
-          <div className="bg-black/30 rounded border-2 border-green-700/40 p-3 flex flex-col gap-2">
+          <div className="bg-black/60 rounded border-2 border-green-700/40 p-3 flex flex-col gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] text-green-100/80 font-bold uppercase tracking-wider whitespace-nowrap">Load classic:</span>
               <select
@@ -259,7 +259,7 @@ export function SavedPalettesPanel({
               </button>
             </div>
             {/* Preview row: swatch mosaic + tip text */}
-            <div className="flex items-center gap-2 bg-black/20 rounded border border-green-700/30 p-2">
+            <div className="flex items-center gap-2 bg-black/60 rounded border border-green-700/30 p-2">
               <div className="flex h-8 rounded overflow-hidden border flex-shrink-0 w-24" style={{ borderColor: t.vizDataBorder }}>
                 {selectedClassic.baseColors.map((hex, i) => (
                   <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />

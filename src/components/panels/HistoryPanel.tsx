@@ -10,7 +10,7 @@ function HistoryPanelImpl() {
       <p className="text-[11px] text-purple-100/70 italic mb-3">
         ▸ Click any entry to jump there. Cmd/Ctrl+Z and Cmd/Ctrl+Y also work. Session-only: closing the tab clears history.
       </p>
-      <div className="max-h-80 overflow-y-auto rounded border-2 border-purple-500/30 bg-black/20">
+      <div className="max-h-80 overflow-y-auto rounded border-2 border-purple-500/30 bg-black/60">
         {historyEntries.slice().reverse().map((entry, revIdx) => {
           const idx = historyEntries.length - 1 - revIdx;
           const isCurrent = idx === historyIndex;

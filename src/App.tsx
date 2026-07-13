@@ -3126,6 +3126,7 @@ export default function PixelPalGenerator() {
           .text-cyan-200:not([class*="bg-black/"]),
           .text-cyan-100:not([class*="bg-black/"]),
           .text-pink-200:not([class*="bg-black/"]),
+          .text-pink-300:not([class*="bg-black/"]),
           [class*="text-pink-300/"]:not([class*="bg-black/"]),
           .text-yellow-200:not([class*="bg-black/"]),
           .text-yellow-100:not([class*="bg-black/"]),
@@ -3145,11 +3146,12 @@ export default function PixelPalGenerator() {
           [class*="bg-black/"] .text-cyan-200 { color: #a5f3fc !important; }
           [class*="bg-black/"] .text-cyan-100 { color: #cffafe !important; }
           [class*="bg-black/"] .text-pink-200 { color: #fbcfe8 !important; }
+          [class*="bg-black/"] .text-pink-300 { color: #f9a8d4 !important; }
           [class*="bg-black/"] [class*="text-pink-300/"] { color: #f9a8d4 !important; }
           [class*="bg-black/"] .text-yellow-200 { color: #fef08a !important; }
           [class*="bg-black/"] .text-yellow-100 { color: #fef9c3 !important; }
           [class*="bg-black/"] .text-green-100 { color: #dcfce7 !important; }
-          input[class*="bg-black/"], textarea[class*="bg-black/"] {
+          input[class*="bg-black/"], textarea[class*="bg-black/"], select[class*="bg-black/"] {
             color: #e4e4e7 !important;
           }
         `}</style>
@@ -3637,10 +3639,10 @@ export default function PixelPalGenerator() {
               <button onClick={toggleCompareMode} title="Exit WCAG Check" className="w-6 h-6 bg-pink-500 text-white rounded-full border-2 border-pink-200 hover:bg-pink-400 hover:scale-110 transition-all flex items-center justify-center text-sm font-bold" style={{ boxShadow: '0 0 8px rgba(255, 0, 110, 0.6)' }}>×</button>
             </div>
             {!compareAnchor && (
-              <p className="text-xs text-cyan-100/80">Click any ramp swatch to set it as the anchor color.</p>
+              <p className="text-xs text-cyan-100/80 bg-black/60 rounded px-2 py-1">Click any ramp swatch to set it as the anchor color.</p>
             )}
             {compareAnchor && !compareResult && (
-              <div className="space-y-2">
+              <div className="space-y-2 bg-black/60 rounded p-2">
                 <p className="text-xs text-cyan-100/80">Anchor set. Click another swatch to compute the contrast ratio.</p>
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded border-2 border-yellow-300" style={{ background: compareAnchor.hex, boxShadow: '0 0 8px rgba(255, 255, 0, 0.6)' }} />
@@ -3650,12 +3652,12 @@ export default function PixelPalGenerator() {
             )}
             {compareAnchor && compareResult && (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 justify-center">
+                <div className="flex items-center gap-2 justify-center bg-black/60 rounded p-2">
                   <div className="flex flex-col items-center gap-1">
                     <div className="w-12 h-12 rounded border-2 border-yellow-300" style={{ background: compareResult.aHex, boxShadow: '0 0 8px rgba(255, 255, 0, 0.6)' }} />
                     <div className="text-[10px] text-cyan-100 font-mono">{compareResult.aHex.toUpperCase()}</div>
                   </div>
-                  <span className="text-cyan-200 text-lg font-bold">vs</span>
+                  <span className="text-lg font-bold" style={{ color: themedAccent('#00ffff') }}>vs</span>
                   <div className="flex flex-col items-center gap-1">
                     <div className="w-12 h-12 rounded border-2 border-cyan-300" style={{ background: compareResult.bHex, boxShadow: '0 0 8px rgba(0, 255, 255, 0.5)' }} />
                     <div className="text-[10px] text-cyan-100 font-mono">{compareResult.bHex.toUpperCase()}</div>
@@ -3678,7 +3680,7 @@ export default function PixelPalGenerator() {
                   <div className="rounded text-center py-2 text-sm font-bold" style={{ background: compareResult.aHex, color: compareResult.bHex }}>Sample text Sample text</div>
                   <div className="rounded text-center py-2 text-sm font-bold" style={{ background: compareResult.bHex, color: compareResult.aHex }}>Sample text Sample text</div>
                 </div>
-                <p className="text-[10px] text-cyan-100/60 text-center">Click anchor again to unlock. Click another swatch to compare against the anchor.</p>
+                <p className="text-[10px] text-cyan-100/60 text-center bg-black/60 rounded px-2 py-1">Click anchor again to unlock. Click another swatch to compare against the anchor.</p>
               </div>
             )}
           </div>
@@ -3697,15 +3699,15 @@ export default function PixelPalGenerator() {
               <h2 className="text-xl font-bold mb-2 uppercase tracking-widest" style={{ color: sectionHeadColor('#ffff00'), textShadow: accentTextGlow('#ffff00') }}>Import .GPL</h2>
               {gplImport.error ? (
                 <>
-                  <p className="text-sm mb-4 text-cyan-100/80">{gplImport.error}</p>
+                  <p className="text-sm mb-4 text-cyan-100/80 bg-black/60 rounded px-2 py-1">{gplImport.error}</p>
                   <div className="flex justify-end">
                     <button onClick={() => setGplImport(null)} title="Close this dialog" className={`px-4 py-2 rounded font-bold border-2 transition-all uppercase tracking-wider text-xs ${t.controlBtnDefault} ${t.controlBtnHover}`}>Close</button>
                   </div>
                 </>
               ) : (
                 <>
-                  <p className="text-sm mb-1 text-cyan-100/80">Loaded <span className="font-bold text-yellow-200">{gplImport.name}</span> with <span className="font-bold text-yellow-200">{gplImport.colors.length}</span> color{gplImport.colors.length === 1 ? '' : 's'}.</p>
-                  <p className="text-xs italic mb-4 text-cyan-100/60">This will replace your current palette. How should the imported colors be used?</p>
+                  <p className="text-sm mb-1 text-cyan-100/80 bg-black/60 rounded px-2 py-1">Loaded <span className="font-bold text-yellow-200">{gplImport.name}</span> with <span className="font-bold text-yellow-200">{gplImport.colors.length}</span> color{gplImport.colors.length === 1 ? '' : 's'}.</p>
+                  <p className="text-xs italic mb-4 text-cyan-100/60 bg-black/60 rounded px-2 py-1">This will replace your current palette. How should the imported colors be used?</p>
                   {/* Color preview strip */}
                   <div className="flex w-full rounded overflow-hidden border-2 mb-4" style={{ height: '24px', borderColor: t.vizDataBorder }}>
                     {gplImport.colors.slice(0, 32).map((hex, i) => (
