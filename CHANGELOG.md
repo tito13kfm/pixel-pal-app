@@ -18,6 +18,27 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-07-13
+
+### Fixed
+- Full WCAG AA contrast support for the **Neutral** and **Light** themes (#10).
+  Re-auditing the current codebase (issue #10's original audit predated the
+  `App.tsx` decomposition and its line numbers no longer applied) found
+  hardcoded Dark-tuned text colors left illegible on Neutral's flat gray
+  cards, which have no override mechanism, plus a couple of real gaps in
+  Light's existing CSS-override hack (a bare `text-pink-300` class and
+  `<select>` elements with a `bg-black/*` backing). Raised under-strength
+  `bg-black/20`/`/30`/`/40` scrim wrappers to `bg-black/60` (needed even on
+  Light's near-white cards, which a `/40` overlay doesn't actually darken
+  enough), routed short card labels through the existing `themedAccent()`
+  helper, added scrims to several previously-unwrapped paragraph captions,
+  and wired RampsPanel's hardware-lock banner to the existing
+  `alertWarnBg`/`Text`/`Border` tokens instead of literal classes.
+
+### Added
+- `tests/test_contrast.js`: new `cardBg*`, `themedAccent`, and `alertWarn*`
+  pairs locking in the Neutral/Light contrast fixes above.
+
 ## [0.23.0] - 2026-07-13
 
 ### Changed
@@ -505,6 +526,7 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   an Electron desktop app.
 
 [Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.22.0...HEAD
+[0.24.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.20.0...v0.21.0
