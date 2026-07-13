@@ -18,6 +18,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-07-13
+
 ### Changed
 - `HistoryPanel` and `PlaygroundPanel` wrapped in `React.memo`; these panels now
   skip re-renders when unrelated state changes (PR #102, SP2 phase a).
@@ -503,6 +505,7 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   an Electron desktop app.
 
 [Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.22.0...HEAD
+[0.23.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.19.0...v0.20.0
