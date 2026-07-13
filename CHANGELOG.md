@@ -18,6 +18,12 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Changed
+- Release workflow now builds macOS as a universal binary (`--target
+  universal-apple-darwin`) instead of Apple-Silicon-only, so tagged releases
+  ship an Intel-compatible `.dmg` and the updater's `latest.json` carries both
+  `darwin-aarch64` and `darwin-x86_64` targets (#24).
+
 ## [0.24.0] - 2026-07-13
 
 ### Fixed
