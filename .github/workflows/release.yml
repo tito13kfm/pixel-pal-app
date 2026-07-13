@@ -89,6 +89,10 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Add x86_64 Rust target (macOS universal binary)
+        if: matrix.platform == 'macos-latest'
+        run: rustup target add x86_64-apple-darwin
+
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -119,6 +123,7 @@ jobs:
           releaseDraft: true
           prerelease: false
           includeDebug: false
+          args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
 
       # Manual dispatch: build only (no Release entry). Installers + portable
       # exe are uploaded as workflow artifacts further below.
@@ -131,6 +136,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           includeDebug: false
+          args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
 
       - name: Upload portable Windows .exe to Release (tag push)
         if: matrix.platform == 'windows-latest' && github.event_name == 'push'
@@ -159,6 +165,7 @@ jobs:
         with:
           name: installers-${{ matrix.platform }}-${{ inputs.label }}
           path: |
+            src-tauri/target/universal-apple-darwin/release/bundle/**/*
             src-tauri/target/release/bundle/**/*
             src-tauri/target/release/pixel-pal-app.exe
           if-no-files-found: warn
