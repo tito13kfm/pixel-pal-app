@@ -66,7 +66,7 @@ function HarmonyPanelImpl({
   }) => {
     const allAdded = hexes.every(h => baseColors.includes(h));
     return (
-      <div className="flex flex-col items-center p-3 bg-black/30 rounded border border-pink-500/40">
+      <div className="flex flex-col items-center p-3 bg-black/60 rounded border border-pink-500/40">
         <span title={tip} className="text-xs font-bold text-pink-200 mb-2 uppercase tracking-wider cursor-help border-b border-dashed border-pink-400/40">{title}</span>
         <div className="flex gap-2 mb-2 flex-wrap justify-center">
           {hexes.map((hex, idx) => (
@@ -103,9 +103,9 @@ function HarmonyPanelImpl({
 
   return (
     <div className="px-6 pb-6">
-      <p className="text-xs text-pink-100/80 mb-4 italic">▸ Click any swatch to add a ramp, or "Add All" / "Add Both" for sets ◂ Hover a category name for tips ◂</p>
+      <p className="text-xs text-pink-100/80 mb-4 italic bg-black/60 rounded px-2 py-1">▸ Click any swatch to add a ramp, or "Add All" / "Add Both" for sets ◂ Hover a category name for tips ◂</p>
       {baseColors.length > 1 && (
-        <div className="mb-4 p-3 rounded border-2 border-pink-500/40 bg-black/30">
+        <div className="mb-4 p-3 rounded border-2 border-pink-500/40 bg-black/60">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs font-bold text-pink-200 uppercase tracking-wider">▸ Derive From:</span>
             <div className="flex gap-2 flex-wrap items-center">
@@ -201,7 +201,7 @@ function HarmonyPanelImpl({
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="flex flex-col items-center p-3 bg-black/30 rounded border border-pink-500/40">
+        <div className="flex flex-col items-center p-3 bg-black/60 rounded border border-pink-500/40">
           <span title={tips.complementary} className="text-xs font-bold text-pink-200 mb-2 uppercase tracking-wider cursor-help border-b border-dashed border-pink-400/40">Complementary</span>
           <HarmonySwatch hex={harmony.complementary} name="complementary" tourId="harmony-complementary-swatch" />
           <span className="text-[10px] font-mono text-cyan-200 mt-1">{harmony.complementary.toUpperCase()}</span>

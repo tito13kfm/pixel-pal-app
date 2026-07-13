@@ -82,7 +82,7 @@ export function InputPanel(props: InputPanelProps) {
     setSpriteImportText, spriteImportError, setSpriteImportError, importSprite,
     rampSize, setRampSize, hueShiftStrength, setHueShiftStrength,
   } = props;
-  const { t, themedAccentBorder, accentGlow } = useTheme();
+  const { t, themedAccent, themedAccentBorder, accentGlow } = useTheme();
 
   return (
         <div className="rounded-lg p-6 mb-6 border-2 backdrop-blur-sm" style={{ background: t.cardBgPinkBright, borderColor: themedAccentBorder('#ff00ff'), boxShadow: t.glowStrong > 0.5 ? '0 0 30px rgba(255, 0, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.2)' : accentGlow('#ff00ff', 0.5) }}>
@@ -107,7 +107,7 @@ export function InputPanel(props: InputPanelProps) {
             )}
             {mode === 'image' && (
               <div className="flex flex-col items-center gap-3 w-full">
-                <div onDragOver={handleDragOver} onDragEnter={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} data-tour-id="image-dropzone" className={`w-full rounded-lg border-4 border-dashed transition-all p-6 ${isDragging ? 'border-yellow-300 bg-yellow-500/20 scale-[1.02]' : 'border-yellow-500/60 bg-yellow-900/20 hover:bg-yellow-900/30'}`} style={isDragging ? { boxShadow: '0 0 30px #ffff00' } : {}}>
+                <div onDragOver={handleDragOver} onDragEnter={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} data-tour-id="image-dropzone" className={`w-full rounded-lg border-4 border-dashed transition-all p-6 ${isDragging ? 'border-yellow-300 bg-yellow-900/40 scale-[1.02]' : 'border-yellow-500/60 bg-yellow-900/30 hover:bg-yellow-900/40'}`} style={isDragging ? { boxShadow: '0 0 30px #ffff00' } : {}}>
                   <div className="flex flex-col items-center gap-3">
                     <Upload size={32} className={`transition-all ${isDragging ? 'text-yellow-200 scale-125' : 'text-yellow-300'}`} style={{ filter: 'drop-shadow(0 0 8px #ffff00)' }} />
                     <div className="text-center text-yellow-100">
@@ -123,7 +123,7 @@ export function InputPanel(props: InputPanelProps) {
                 {imageDataUrl && (
                   <>
                     <div className="flex flex-col sm:flex-row gap-3 items-center flex-wrap justify-center">
-                      <div className="flex gap-2 items-center text-yellow-100">
+                      <div className="flex gap-2 items-center" style={{ color: themedAccent('#ffff00') }}>
                         <span className="text-sm font-bold uppercase tracking-wider">Colors:</span>
                         {[3, 4, 5, 6].map(n => (
                           <button key={n} onClick={() => setImageColorCount(n)} title={`Extract ${n} base colors from this image`} className={`w-8 h-8 rounded font-bold border-2 text-sm transition-all ${imageColorCount === n ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-purple-900/60 text-yellow-200 border-yellow-700/50 hover:bg-purple-800/60'}`}>{n}</button>
@@ -142,13 +142,13 @@ export function InputPanel(props: InputPanelProps) {
                         image-rendering: pixelated so no resampling happens.
                         The wrapper scrolls when the zoomed image exceeds the
                         available width. */}
-                    <div className="flex gap-2 items-center justify-center text-cyan-100">
+                    <div className="flex gap-2 items-center justify-center" style={{ color: themedAccent('#00ffff') }}>
                       <span className="text-xs font-bold uppercase tracking-wider">Zoom:</span>
                       {[1, 2, 4, 8].map(n => (
                         <button key={n} onClick={() => setImageZoom(n)} title={`Display the image at ${n}x for finer eyedropper precision`} className={`w-9 h-8 rounded font-bold border-2 text-xs transition-all ${imageZoom === n ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={imageZoom === n ? { boxShadow: '0 0 8px #00ffff' } : {}}>{n}x</button>
                       ))}
                     </div>
-                    <div className={`relative flex items-center justify-center bg-black/40 rounded border-2 p-2 overflow-auto max-h-[600px] ${eyedropperActive ? 'border-cyan-300' : 'border-pink-500/50'}`}>
+                    <div className={`relative flex items-center justify-center bg-black/60 rounded border-2 p-2 overflow-auto max-h-[600px] ${eyedropperActive ? 'border-cyan-300' : 'border-pink-500/50'}`}>
                       {/* Zoom is applied by setting img width to naturalWidth
                           times the integer multiplier. Combined with
                           image-rendering: pixelated, the browser
@@ -202,7 +202,7 @@ export function InputPanel(props: InputPanelProps) {
 
 
           <div className="mt-4 pt-4 border-t border-cyan-700/30">
-            <div className="flex flex-wrap gap-2 items-center justify-center text-cyan-100 mb-3">
+            <div className="flex flex-wrap gap-2 items-center justify-center mb-3" style={{ color: themedAccent('#00ffff') }}>
               <span className="text-sm font-bold uppercase tracking-wider w-full sm:w-auto text-center">Preview Sprite:</span>
               {Object.entries(spriteLibrary).map(([key, sprite]) => {
                 const previewRamp = rampsPunchy?.[0] || ['#000', '#444', '#888', '#fff'];
@@ -210,7 +210,7 @@ export function InputPanel(props: InputPanelProps) {
                 return (
                   <div key={key} className="relative">
                     <button onClick={() => setSpriteKey(key)} className={`flex flex-col items-center gap-1 p-2 rounded border-2 transition-all ${spriteKey === key ? 'bg-cyan-300/30 border-cyan-300' : `${t.controlBtnDefault} ${t.controlBtnHover} hover:border-cyan-500/50`}`} style={spriteKey === key ? { boxShadow: '0 0 10px #00ffff' } : {}} title={sprite.name}>
-                      <div className="w-12 h-12 flex items-center justify-center bg-black/40 rounded overflow-hidden">
+                      <div className="w-12 h-12 flex items-center justify-center bg-black/60 rounded overflow-hidden">
                         <PixelSprite palette={previewRamp} scale={1.2} spriteKey={key} spriteLibrary={spriteLibrary} />
                       </div>
                       <span className={`text-[10px] uppercase tracking-wider ${spriteKey === key ? 'text-cyan-200' : t.bodyText}`}>{sprite.name}</span>
@@ -224,13 +224,13 @@ export function InputPanel(props: InputPanelProps) {
                   </div>
                 );
               })}
-              <button onClick={() => setShowSpriteImporter(!showSpriteImporter)} title="Open the sprite importer to add a custom preview sprite from a Piskel .c export" className="flex flex-col items-center gap-1 p-2 rounded border-2 border-dashed border-pink-400 bg-pink-900/30 hover:bg-pink-900/50 transition-all">
+              <button onClick={() => setShowSpriteImporter(!showSpriteImporter)} title="Open the sprite importer to add a custom preview sprite from a Piskel .c export" className="flex flex-col items-center gap-1 p-2 rounded border-2 border-dashed border-pink-400 bg-pink-900/40 hover:bg-pink-900/50 transition-all">
                 <div className="w-12 h-12 flex items-center justify-center text-pink-300 text-2xl font-bold">+</div>
                 <span className="text-[10px] uppercase tracking-wider text-pink-200">Import</span>
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-4 items-center justify-center text-cyan-100 mt-3 pt-3 border-t border-cyan-700/20">
+            <div className="flex flex-wrap gap-4 items-center justify-center mt-3 pt-3 border-t border-cyan-700/20" style={{ color: themedAccent('#00ffff') }}>
               <div className="flex gap-2 items-center">
                 <span className="text-sm font-bold uppercase tracking-wider">Shades:</span>
                 <ShadeCountControl
@@ -255,7 +255,7 @@ export function InputPanel(props: InputPanelProps) {
                   aria-label="Hue shift strength"
                   title={`Hue shift strength: ${Math.round(hueShiftStrength * 100)}%`}
                 />
-                <span className="text-sm font-mono text-cyan-200 w-12 text-right tabular-nums">{Math.round(hueShiftStrength * 100)}%</span>
+                <span className="text-sm font-mono w-12 text-right tabular-nums">{Math.round(hueShiftStrength * 100)}%</span>
                 {hueShiftStrength !== 1.0 && (
                   <button
                     onClick={() => setHueShiftStrength(1.0)}
@@ -267,10 +267,10 @@ export function InputPanel(props: InputPanelProps) {
             </div>
 
             {showSpriteImporter && (
-              <div className="mt-3 p-4 rounded border-2 border-pink-500/50 bg-black/40">
+              <div className="mt-3 p-4 rounded border-2 border-pink-500/50 bg-black/60">
                 <div className="flex flex-col gap-2">
                   <p className="text-xs text-pink-200 uppercase tracking-wider">▸ Import sprite from Piskel C file</p>
-                  <div onDragOver={handleSpriteDragOver} onDragEnter={handleSpriteDragOver} onDragLeave={handleSpriteDragLeave} onDrop={handleSpriteDrop} className={`rounded border-2 border-dashed transition-all p-3 ${spriteDragging ? 'border-cyan-300 bg-cyan-500/20 scale-[1.02]' : 'border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-900/30'}`}>
+                  <div onDragOver={handleSpriteDragOver} onDragEnter={handleSpriteDragOver} onDragLeave={handleSpriteDragLeave} onDrop={handleSpriteDrop} className={`rounded border-2 border-dashed transition-all p-3 ${spriteDragging ? 'border-cyan-300 bg-cyan-900/40 scale-[1.02]' : 'border-cyan-500/40 bg-cyan-900/30 hover:bg-cyan-900/40'}`}>
                     <div className="flex flex-col items-center gap-2">
                       <Upload size={24} className={`transition-all ${spriteDragging ? 'text-cyan-200 scale-125' : 'text-cyan-300'}`} />
                       <p className="text-xs text-cyan-100 text-center">{spriteDragging ? '>>> DROP IT <<<' : 'Drop .c file or paste below'}</p>

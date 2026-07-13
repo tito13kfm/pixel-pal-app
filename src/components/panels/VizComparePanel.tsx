@@ -112,7 +112,7 @@ export function VizComparePanel({
   exportLightnessPng, exportMosaicPng, exportMatrixPng, exportDitherPng,
   downloadRemap, clearRemapImage, handleRemapImageUpload,
 }: VizComparePanelProps) {
-  const { t } = useTheme();
+  const { t, themedAccent } = useTheme();
 
   const remapCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sbsLeftRemapCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -166,14 +166,14 @@ export function VizComparePanel({
     if (compact) {
       return (
         <div>
-          <h4 className="text-[11px] font-bold text-cyan-200 uppercase tracking-widest mb-1">{title}</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: themedAccent('#00ffff') }}>{title}</h4>
           {body}
         </div>
       );
     }
     const open = vizSubOpen[subKey] !== false;
     return (
-      <div className="rounded border-2 border-cyan-700/40 bg-black/20 overflow-hidden">
+      <div className="rounded border-2 border-cyan-700/40 bg-black/60 overflow-hidden">
         <div className="flex items-center justify-between gap-2 px-3 py-2">
           <button onClick={() => toggleVizSub(subKey)} title={open ? `Collapse ${title}` : `Expand ${title}`} className="flex items-center gap-2 flex-1 min-w-0 text-left">
             <span className="text-cyan-200 shrink-0">{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
@@ -192,7 +192,7 @@ export function VizComparePanel({
     const error = slotKey === 'left' ? sbsLeftError : sbsRightError;
     if (loading) {
       return (
-        <div className="text-center text-cyan-100/70 italic text-sm py-12 border-2 border-dashed border-cyan-700/40 rounded">
+        <div className="text-center text-cyan-100/70 italic text-sm py-12 border-2 border-dashed border-cyan-700/40 rounded bg-black/60">
           Loading {label}...
         </div>
       );
@@ -206,7 +206,7 @@ export function VizComparePanel({
     }
     if (!snap || !Array.isArray(snap.baseColors) || snap.baseColors.length === 0) {
       return (
-        <div className="text-center text-cyan-100/50 italic text-sm py-12 border-2 border-dashed border-cyan-700/40 rounded">
+        <div className="text-center text-cyan-100/50 italic text-sm py-12 border-2 border-dashed border-cyan-700/40 rounded bg-black/60">
           {slotValue === null ? 'Pick a palette above to compare' : 'No colors to show'}
         </div>
       );
@@ -227,7 +227,7 @@ export function VizComparePanel({
           const slotLetter = slotKey === 'left' ? 'A' : 'B';
           return vizSub('image', 'Image Preview', null, compact, (
             <>
-              <div className="flex justify-center bg-black/30 rounded border" style={{ borderColor: t.vizDataBorder, minHeight: '64px' }}>
+              <div className="flex justify-center bg-black/60 rounded border" style={{ borderColor: t.vizDataBorder, minHeight: '64px' }}>
                 {slotRemapLoading && !slotRemap && (
                   <div className="text-[11px] text-cyan-100/70 italic py-6">Computing...</div>
                 )}
@@ -242,7 +242,7 @@ export function VizComparePanel({
                   <div className="text-[11px] text-cyan-100/40 italic py-6">No preview</div>
                 )}
               </div>
-              <div className="text-[10px] text-cyan-100/60 italic text-center mt-1 font-mono truncate" title={`Slot ${slotLetter}: ${getSlotLabel(slotValue, slotPayload)}`}>
+              <div className="text-[10px] text-cyan-100/60 italic text-center mt-1 font-mono truncate bg-black/60 rounded px-1" title={`Slot ${slotLetter}: ${getSlotLabel(slotValue, slotPayload)}`}>
                 Slot {slotLetter}: {getSlotLabel(slotValue, slotPayload)}
               </div>
             </>
@@ -374,7 +374,7 @@ export function VizComparePanel({
           </div>
           </>
         ))}
-        {compact && <div className="text-[10px] text-cyan-100/50 text-center font-mono">{ramps.length} ramps, {allColors.length} unique colors</div>}
+        {compact && <div className="text-[10px] text-cyan-100/50 text-center font-mono bg-black/60 rounded px-1">{ramps.length} ramps, {allColors.length} unique colors</div>}
       </div>
     );
   };
@@ -433,7 +433,7 @@ export function VizComparePanel({
       icon={<BarChart3 size={22} />} title="Visualize & Compare"
     >
       <div className="p-6 pt-2 flex flex-col gap-6">
-        <div className="flex gap-2 items-center flex-wrap justify-center bg-black/30 rounded border-2 border-cyan-500/40 px-3 py-2">
+        <div className="flex gap-2 items-center flex-wrap justify-center bg-black/60 rounded border-2 border-cyan-500/40 px-3 py-2">
           <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style:</span>
           <button onClick={() => setVizStyle('punchy')} title="Show high-contrast Punchy ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={vizStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
           <button onClick={() => setVizStyle('balanced')} title="Show mid-contrast Balanced ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={vizStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
@@ -441,8 +441,8 @@ export function VizComparePanel({
           <span className="text-[10px] text-cyan-100/50 italic ml-1">Sets the style for all views below. Per-view options live in each section.</span>
         </div>
         <div>
-          <h3 className="text-sm font-bold text-cyan-200 uppercase tracking-widest mb-2">▸ Image Preview</h3>
-          <p className="text-[11px] text-cyan-100/70 italic mb-2">Upload an image. Every pixel snaps to the nearest color in the active palette (current style, hidden shades excluded, hardware lock honored). Auto-updates as you edit; 300ms debounce.</p>
+          <h3 className="text-sm font-bold uppercase tracking-widest mb-2" style={{ color: themedAccent('#00ffff') }}>▸ Image Preview</h3>
+          <p className="text-[11px] text-cyan-100/70 italic mb-2 bg-black/60 rounded px-2 py-1">Upload an image. Every pixel snaps to the nearest color in the active palette (current style, hidden shades excluded, hardware lock honored). Auto-updates as you edit; 300ms debounce.</p>
           {!remapImageDataUrl && (
             <div
               onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setRemapDragOver(true); }}
@@ -460,7 +460,7 @@ export function VizComparePanel({
                 const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
                 if (f) handleRemapImageUpload(f);
               }}
-              className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded p-6 transition-colors ${remapDragOver ? 'border-cyan-300 bg-cyan-900/40' : 'border-cyan-500/50 bg-black/30'}`}
+              className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded p-6 transition-colors ${remapDragOver ? 'border-cyan-300 bg-cyan-900/40' : 'border-cyan-500/50 bg-black/60'}`}
               style={remapDragOver ? { boxShadow: '0 0 12px rgba(0, 255, 255, 0.5)' } : {}}
             >
               <ImageIcon size={28} className={remapDragOver ? 'text-cyan-200' : 'text-cyan-300/60'} />
@@ -476,7 +476,7 @@ export function VizComparePanel({
           )}
           {remapImageDataUrl && (
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+              <div className="flex items-center justify-between gap-2 flex-wrap text-xs bg-black/60 rounded px-2 py-1">
                 <span className="text-cyan-100/80 truncate" title={remapImageName}>
                   Source: <span className="text-cyan-200 font-bold">{remapImageName || 'image'}</span>
                   {remapImageNaturalSize && (
@@ -496,7 +496,7 @@ export function VizComparePanel({
                 <p className="text-xs text-red-300">{remapError}</p>
               )}
               {!isTwoColumn && (
-                <div className="flex justify-center bg-black/30 rounded border-2 border-cyan-700/40 p-2">
+                <div className="flex justify-center bg-black/60 rounded border-2 border-cyan-700/40 p-2">
                   {!remapOutput && (
                     <div className="flex flex-col items-center gap-2 py-4">
                       <img src={remapImageDataUrl} alt="source" style={{ imageRendering: 'pixelated', maxWidth: '100%', maxHeight: '320px', height: 'auto' }} />
@@ -508,7 +508,7 @@ export function VizComparePanel({
                   )}
                 </div>
               )}
-              <div className="flex flex-wrap items-center gap-2 bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2 bg-black/60 rounded border-2 border-cyan-700/40 px-3 py-2">
                 <span className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">Dither:</span>
                 <button onClick={() => setRemapDither('none')} title="No dithering: every source pixel maps to its single nearest palette color" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'none' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>None</button>
                 <button onClick={() => setRemapDither('floyd-steinberg')} title="Floyd-Steinberg error diffusion: better gradient handling at the cost of a busier image" className={`px-2 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider ${remapDither === 'floyd-steinberg' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}>Floyd-Steinberg</button>
@@ -519,7 +519,7 @@ export function VizComparePanel({
                 const scaleOpts = computeRemapScaleOptions(remapImageNaturalSize.w, remapImageNaturalSize.h, 8192);
                 if (scaleOpts.length === 0) {
                   return (
-                    <div className="flex items-center gap-2 bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2 text-[11px] text-yellow-200">
+                    <div className={`flex items-center gap-2 rounded border-2 px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${t.alertWarnBg} ${t.alertWarnText} ${t.alertWarnBorder}`}>
                       ▲ Source image exceeds 8192px on at least one axis. Resize the upload to enable export.
                     </div>
                   );
@@ -534,7 +534,7 @@ export function VizComparePanel({
                 const willWarn = projectedCost > 50000000;
                 return (
                   <div className="flex flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-2 justify-between bg-black/30 rounded border-2 border-cyan-700/40 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2 justify-between bg-black/60 rounded border-2 border-cyan-700/40 px-3 py-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[11px] font-bold text-cyan-200 uppercase tracking-wider">Export scale:</span>
                         <select
@@ -585,7 +585,7 @@ export function VizComparePanel({
         </div>
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
-            <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Slot A</span>
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: themedAccent('#00ffff') }}>Slot A</span>
             <select
               value={sbsLeft === null ? 'working' : sbsLeft}
               onChange={(e) => setSbsLeft(e.target.value)}
@@ -597,7 +597,7 @@ export function VizComparePanel({
           </div>
           <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Slot B</span>
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: themedAccent('#00ffff') }}>Slot B</span>
               {sbsRight && (
                 <button onClick={() => setSbsRight(null)} title="Clear slot B to return to single-column view" className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500 text-white border border-pink-200 hover:bg-pink-400 uppercase tracking-wider">Clear</button>
               )}
@@ -614,11 +614,11 @@ export function VizComparePanel({
         </div>
         {isTwoColumn ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-3 bg-black/30 rounded border-2 border-cyan-500/40 p-3">
+            <div className="flex flex-col gap-3 bg-black/60 rounded border-2 border-cyan-500/40 p-3">
               <div className="text-[10px] text-cyan-100/60 font-mono truncate" title={getSlotLabel(sbsLeft, sbsLeftPayload)}>{getSlotLabel(sbsLeft, sbsLeftPayload)}</div>
               {renderSlotViz(leftSnap, 'Slot A', 'left', true)}
             </div>
-            <div className="flex flex-col gap-3 bg-black/30 rounded border-2 border-cyan-500/40 p-3">
+            <div className="flex flex-col gap-3 bg-black/60 rounded border-2 border-cyan-500/40 p-3">
               <div className="text-[10px] text-cyan-100/60 font-mono truncate" title={getSlotLabel(sbsRight, sbsRightPayload)}>{getSlotLabel(sbsRight, sbsRightPayload)}</div>
               {renderSlotViz(rightSnap, 'Slot B', 'right', true)}
             </div>
@@ -628,7 +628,7 @@ export function VizComparePanel({
             {renderSlotViz(leftSnap, 'Slot A', 'left', false)}
           </div>
         )}
-        <p className="text-[10px] text-cyan-100/40 italic text-center">Style applies to all views. Hidden shades are filtered out.</p>
+        <p className="text-[10px] text-cyan-100/40 italic text-center bg-black/60 rounded px-2 py-1">Style applies to all views. Hidden shades are filtered out.</p>
       </div>
     </SectionCard>
   );

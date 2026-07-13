@@ -43,6 +43,10 @@ const TAILWIND = {
   'text-pink-100': '#fce7f3',
   'text-pink-200': '#fbcfe8',
   'text-pink-300': '#f9a8d4',
+  'text-yellow-100': '#fef9c3',
+  'text-yellow-200': '#fef08a',
+  'text-yellow-900': '#713f12',
+  'text-green-100': '#dcfce7',
   'text-purple-200': '#e9d5ff',
   'text-purple-300': '#d8b4fe',
   'text-purple-900': '#581c87',
@@ -67,20 +71,54 @@ const THEMES = {
     panelBg: { rgba: [0, 0, 0, 0.4] },            // over pageBg
     controlPanelBg: { rgba: [88, 28, 135, 0.4] }, // bg-purple-900/40 over pageBg
     panelTextInactive: 'text-cyan-200',
+    // cardBgCyan/Pink/Yellow/Green/Viz are all rgba-over-pageBg gradients in
+    // Dark; approximated as flat hex end-stops (same simplification pageBg
+    // itself uses above) since Dark always passes these checks by a wide
+    // margin: precision here matters far less than for Neutral/Light.
+    cardBgCyan: { gradient: ['#110021', '#2a004d'] },
+    themedAccentCyanLabel: '#00ffff', // themedAccent('#00ffff') when glowStrong > 0.5
+    alertWarnText: 'text-yellow-200',
+    alertWarnBg: { rgba: [113, 63, 18, 0.2] }, // bg-yellow-900/20 over pageBg
   },
   neutral: {
     pageBg: { gradient: ['#707070', '#7e7e7e'] },
     panelBg: { rgba: [0, 0, 0, 0.4] },
     controlPanelBg: { rgba: [39, 39, 42, 0.3] }, // bg-zinc-800/30
     panelTextInactive: 'text-zinc-100',
+    // cardBgCyan/Pink/Yellow/Green/Viz are identical flat gray gradients in
+    // Neutral (theme.ts THEME_TOKENS.neutral): accent identity comes from
+    // card border color only, not fill.
+    cardBgCyan: { gradient: ['#707070', '#7e7e7e'] },
+    themedAccentCyanLabel: '#cffafe', // ACCENT_MAP['#00ffff'].neutralText (App.tsx)
+    alertWarnText: 'text-yellow-900',
+    alertWarnBg: { rgba: [254, 249, 195, 0.7] }, // bg-yellow-100/70 over pageBg
   },
   light: {
     pageBg: { gradient: ['#fafafa', '#f5f5f5'] },
     panelBg: '#ffffff',
     controlPanelBg: '#fafafa', // bg-zinc-50
     panelTextInactive: 'text-zinc-700',
+    // cardBgCyan/Pink/Yellow/Green/Viz are identical flat near-white
+    // gradients in Light (theme.ts THEME_TOKENS.light).
+    cardBgCyan: { gradient: ['#f5f5f5', '#e0e0e0'] },
+    themedAccentCyanLabel: '#155e75', // ACCENT_MAP['#00ffff'].light (App.tsx)
+    alertWarnText: 'text-yellow-900',
+    alertWarnBg: '#fefce8', // bg-yellow-50, solid
   },
 };
+
+// scrimOnCardCyan: the bg-black/60 scrim wrapper used throughout the panels
+// (VizComparePanel, HarmonyPanel, RampsPanel, SavedPalettesPanel,
+// HistoryPanel) to darken caption text sitting on a cardBgCyan-family
+// gradient enough to clear the 4.5:1 normal-text bar. Composited here as
+// rgba over cardBgCyan per theme. Must be /60, not /40: on Light's
+// near-white card (#f5f5f5/#e0e0e0), a /40 black overlay only reaches
+// ~mid-gray (composite ~#87-93), which fails 4.5:1 against the forced
+// light-cyan text the override restores for any bg-black/* ancestor. /60
+// reaches ~#5a-62, which clears it comfortably in all three themes.
+for (const themeName of Object.keys(THEMES)) {
+  THEMES[themeName].scrimOnCardCyan = { rgba: [0, 0, 0, 0.6] };
+}
 
 // -------- Pairs to verify
 //
@@ -95,6 +133,21 @@ const THEMES = {
 const PAIRS = [
   ['panelTextInactive', 'panelBg', 'pageBg', 3.0, 'panel inactive button (theme switcher + CVD selector)'],
   ['panelTextInactive', 'controlPanelBg', 'pageBg', 4.5, 'ramp export label on control panel'],
+  // Issue #10: short bold/uppercase card labels (Style Tuning, Locked:,
+  // Slot A/B, chevrons, ...) routed through themedAccent() directly on a
+  // cardBgCyan-family gradient. Large-text/UI-component treatment: 3:1.
+  ['themedAccentCyanLabel', 'cardBgCyan', null, 3.0, 'themedAccent() card label directly on card gradient'],
+  // Issue #10: paragraph-style captions (VizComparePanel descriptions,
+  // HarmonyPanel intro, SavedPalettesPanel hints, ...) wrapped in the
+  // bg-black/40 scrim over a cardBgCyan-family gradient. Normal-text: 4.5:1.
+  ['text-cyan-100', 'scrimOnCardCyan', 'cardBgCyan', 4.5, 'caption text on bg-black/40 scrim over card gradient'],
+  // Issue #10: hardware-lock warning banner (RampsPanel, VizComparePanel
+  // oversized-image warning) routed through the existing alertWarn* tokens.
+  // Parent is cardBgCyan (not pageBg): both real call sites nest this banner
+  // inside a cardBgCyan-family SectionCard, not directly on the raw page bg.
+  // Using pageBg's brightest Dark gradient stop (the hot-pink bottom) as
+  // parent would test a compositing scenario that never actually occurs.
+  ['alertWarnText', 'alertWarnBg', 'cardBgCyan', 4.5, 'hardware-lock / oversized-image warning banner'],
 ];
 
 // -------- WCAG ratio math
@@ -210,6 +263,8 @@ for (const themeName of Object.keys(THEMES)) {
 
 const themePath = path.join(__dirname, '..', 'src', 'lib', 'theme.ts');
 const themeSrc = fs.readFileSync(themePath, 'utf8');
+const appPath = path.join(__dirname, '..', 'src', 'App.tsx');
+const appSrc = fs.readFileSync(appPath, 'utf8');
 const driftErrors = [];
 
 const MIRRORED_LITERALS = [
@@ -224,11 +279,35 @@ const MIRRORED_LITERALS = [
   ["dark", "controlPanelBg: 'bg-purple-900/40'"],
   ["neutral", "controlPanelBg: 'bg-zinc-800/30'"],
   ["light", "controlPanelBg: 'bg-zinc-50'"],
+  // Issue #10: cardBgCyan is identical across cardBgCyan/Pink/Yellow/Green/Viz
+  // per theme in Neutral and Light (Dark is approximated, see THEMES comment).
+  ["neutral", "cardBgCyan: 'linear-gradient(135deg, #707070 0%, #7e7e7e 100%)'"],
+  ["light", "cardBgCyan: 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)'"],
+  // Issue #10: alertWarnText/alertWarnBg per theme.
+  ["dark", "alertWarnBg: 'bg-yellow-900/20'"],
+  ["dark", "alertWarnText: 'text-yellow-200'"],
+  ["neutral", "alertWarnBg: 'bg-yellow-100/70'"],
+  ["neutral", "alertWarnText: 'text-yellow-900'"],
+  ["light", "alertWarnBg: 'bg-yellow-50'"],
+  ["light", "alertWarnText: 'text-yellow-900'"],
 ];
 
 for (const [, literal] of MIRRORED_LITERALS) {
   if (!themeSrc.includes(literal)) {
     driftErrors.push(`MISSING in theme.ts: ${literal}`);
+  }
+}
+
+// Issue #10: themedAccentCyanLabel mirrors App.tsx's ACCENT_MAP['#00ffff']
+// entry (themedAccent() source of truth), not a theme.ts token, so it's
+// checked against App.tsx separately since that's where it actually lives.
+const MIRRORED_LITERALS_APP = [
+  "'#00ffff': { neutralText: '#cffafe', neutralBorder: '#083344', light: '#155e75' }",
+];
+
+for (const literal of MIRRORED_LITERALS_APP) {
+  if (!appSrc.includes(literal)) {
+    driftErrors.push(`MISSING in App.tsx: ${literal}`);
   }
 }
 
