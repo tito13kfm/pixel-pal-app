@@ -306,3 +306,14 @@ test('no Reset Styles button when presets equal defaults', () => {
   wrap({ stylePresets: DEFAULT_STYLE_PRESETS });
   expect(screen.queryByText('Reset Styles')).not.toBeInTheDocument();
 });
+
+test('base editor rounds fractional HSV only for display, not the slider value', () => {
+  // editorHsv holds exact (unrounded) HSV; rounding must happen at render time
+  // only, so a single-slider drag doesn't snap the other two channels.
+  wrap({ editingIndex: 0, editorHsv: { h: 127.34, s: 45.62, v: 78.91 } });
+  expect(screen.getByText('127°')).toBeInTheDocument();
+  expect(screen.getByText('46%')).toBeInTheDocument();
+  expect(screen.getByText('79%')).toBeInTheDocument();
+  const hueSlider = screen.getByTitle('Hue: 127°') as HTMLInputElement;
+  expect(hueSlider.value).toBe('127.34');
+});

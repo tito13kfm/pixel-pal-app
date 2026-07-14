@@ -1179,9 +1179,13 @@ export default function PixelPalGenerator() {
     }
     const hex = baseColors[index];
     if (hex) {
-      const hsv = hexToHsv(hex);
-      // Round H/S/V for display so the sliders show clean integers initially.
-      setEditorHsv({ h: Math.round(hsv.h), s: Math.round(hsv.s), v: Math.round(hsv.v) });
+      // Keep the exact (unrounded) HSV as the live editing state. Rounding
+      // here used to bake into editorHsv permanently: the next single-slider
+      // drag would spread the other two rounded channels back into baseColors,
+      // silently snapping hue/saturation by up to +/-0.5 even though the user
+      // only touched one slider. Rounding now happens only at render time for
+      // the numeric labels (see RampsPanel).
+      setEditorHsv(hexToHsv(hex));
     }
     setEditingIndex(index);
     // If the ramp card is collapsed, auto-expand so the editor's effect
@@ -1213,8 +1217,7 @@ export default function PixelPalGenerator() {
   // numbers, so we let the displayed HSV show the actual derived values.
   const updateEditorHex = (hex) => {
     if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
-    const hsv = hexToHsv(hex);
-    setEditorHsv({ h: Math.round(hsv.h), s: Math.round(hsv.s), v: Math.round(hsv.v) });
+    setEditorHsv(hexToHsv(hex));
     if (editingIndex === null) return;
     setBaseColors(prev => prev.map((c, i) => i === editingIndex ? hex : c));
   };
