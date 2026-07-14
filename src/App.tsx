@@ -45,7 +45,8 @@ import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
 import { extractDominantColors } from './lib/image-extract';
-import { remapImageToPalette, computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
+import { computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
+import { requestRemap } from './lib/remap-worker-client';
 import { buildRampsForSnapshot } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
 import { isValidRampSize } from './lib/ramp-engine';
@@ -718,13 +719,13 @@ export default function PixelPalGenerator() {
   // The actual remap: loads the data URL into an Image, draws to a
   // canvas (downsampling if needed with imageSmoothingEnabled=false to
   // preserve pixel-art aesthetics), reads ImageData, and calls
-  // remapImageToPalette. The result is stored in remapOutput and a fresh
-  // signature is captured.
+  // requestRemap (runs remapImageToPalette in a worker, see
+  // src/workers/remap.worker.ts and src/lib/remap-worker-client.ts, issue
+  // #110). The result is stored in remapOutput and a fresh signature is
+  // captured.
   //
-  // Wrapped in setTimeout(..., 0) so React renders the "Computing..."
-  // badge before the synchronous remap work begins. Otherwise the loading
-  // flag would only render AFTER the work finished (the work blocks the
-  // main thread).
+  // Still wrapped in setTimeout(..., 0) so React renders the "Computing..."
+  // badge before work begins.
   const refreshRemap = () => {
     if (!remapImageDataUrl) {
       setRemapError('No image loaded');
@@ -735,7 +736,7 @@ export default function PixelPalGenerator() {
     setTimeout(() => {
       try {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
           try {
             const palette = getActiveRemapPalette();
             // Downsample to REMAP_MAX_DIMENSION on the longer axis.
@@ -752,7 +753,9 @@ export default function PixelPalGenerator() {
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(img, 0, 0, w, h);
             const source = ctx.getImageData(0, 0, w, h);
-            const result = remapImageToPalette(source, palette, { dither: remapDither });
+            // Runs in a worker (src/workers/remap.worker.ts) so the
+            // per-pixel dithering loop doesn't block the main thread.
+            const result = await requestRemap(source, palette, { dither: remapDither });
             setRemapOutput(result);
             setRemapOutputSignature(buildRemapSignature(palette, remapDither));
             setRemapLoading(false);
@@ -797,12 +800,12 @@ export default function PixelPalGenerator() {
   //   - We do NOT use the cached remapOutput. That is the downsampled
   //     PREVIEW; export does its own full-res computation so the user
   //     gets pixel-accurate output for their actual upload size.
-  //   - For very large outputs (e.g. 4K Floyd-Steinberg), the work
-  //     happens synchronously on the main thread and can freeze the tab.
-  //     The warn-then-confirm guard exists precisely for this case.
-  //   - Wrapped in setTimeout(..., 0) for the same reason refreshRemap
-  //     is: gives React a chance to paint the "Computing..." badge
-  //     before the freeze.
+  //   - For very large outputs (e.g. 4K Floyd-Steinberg), the remap runs in
+  //     a worker (see requestRemap), so the main thread stays responsive;
+  //     the warn-then-confirm guard is now a "this may take a while" UX
+  //     hint rather than a correctness guard against freezing the tab.
+  //   - Still wrapped in setTimeout(..., 0) so React paints the
+  //     "Computing..." badge before the (now off-thread) work kicks off.
   const downloadRemap = () => {
     if (!remapImageDataUrl || !remapImageNaturalSize) {
       setRemapError('No image loaded');
@@ -840,7 +843,7 @@ export default function PixelPalGenerator() {
     setTimeout(() => {
       try {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
           try {
             // Draw the upload into a canvas at the EXPORT dimensions with
             // nearest-neighbor scaling. This produces the source for the
@@ -856,8 +859,9 @@ export default function PixelPalGenerator() {
             sourceCtx.drawImage(img, 0, 0, exportW, exportH);
             const sourceImageData = sourceCtx.getImageData(0, 0, exportW, exportH);
 
-            // Run the SAME remap helper on the export-resolution source.
-            const result = remapImageToPalette(sourceImageData, activePalette, { dither: remapDither });
+            // Run the SAME remap helper on the export-resolution source, in
+            // a worker (this is the largest cost site: up to 8192px/axis).
+            const result = await requestRemap(sourceImageData, activePalette, { dither: remapDither });
 
             // Write the result to a fresh canvas and export.
             const exportCanvas = document.createElement('canvas');
@@ -2063,10 +2067,10 @@ export default function PixelPalGenerator() {
   // Per-slot remap effects. Each fires when the source, the slot
   // palette signature (vizStyle is baked into the signature via the
   // snapshot ramps), or the dither mode changes. Empty palette or
-  // missing source -> clear the slot's output and bail. Heavy work
-  // wrapped in setTimeout(..., 0) so the "Computing..." badge paints
-  // before the synchronous remap begins, matching the main panel
-  // pattern.
+  // missing source -> clear the slot's output and bail. The remap itself
+  // runs in a worker via requestRemap (issue #110); the `cancelled` flag
+  // still guards against a stale response landing after a newer request
+  // for the same slot has been fired (e.g. rapid palette edits).
   const leftSnapForRemap = getSnapshotForSlot(sbsLeft, sbsLeftPayload);
   const rightSnapForRemap = getSnapshotForSlot(sbsRight, sbsRightPayload);
   const leftRemapPalette = leftSnapForRemap ? paletteFromSnapshotForRemap(leftSnapForRemap) : [];
@@ -2082,22 +2086,18 @@ export default function PixelPalGenerator() {
     }
     setSbsLeftRemapLoading(true);
     let cancelled = false;
-    const timer = setTimeout(() => {
-      if (cancelled) return;
-      try {
-        const result = remapImageToPalette(sbsRemapSource, leftRemapPalette, { dither: remapDither });
-        if (!cancelled) {
-          setSbsLeftRemap(result);
-          setSbsLeftRemapLoading(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setSbsLeftRemap(null);
-          setSbsLeftRemapLoading(false);
-        }
+    requestRemap(sbsRemapSource, leftRemapPalette, { dither: remapDither }).then((result) => {
+      if (!cancelled) {
+        setSbsLeftRemap(result);
+        setSbsLeftRemapLoading(false);
       }
-    }, 0);
-    return () => { cancelled = true; clearTimeout(timer); };
+    }).catch(() => {
+      if (!cancelled) {
+        setSbsLeftRemap(null);
+        setSbsLeftRemapLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
     // leftRemapPalette and remapDither are captured via closure; the
     // signature key in deps changes whenever either of them changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2111,22 +2111,18 @@ export default function PixelPalGenerator() {
     }
     setSbsRightRemapLoading(true);
     let cancelled = false;
-    const timer = setTimeout(() => {
-      if (cancelled) return;
-      try {
-        const result = remapImageToPalette(sbsRemapSource, rightRemapPalette, { dither: remapDither });
-        if (!cancelled) {
-          setSbsRightRemap(result);
-          setSbsRightRemapLoading(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setSbsRightRemap(null);
-          setSbsRightRemapLoading(false);
-        }
+    requestRemap(sbsRemapSource, rightRemapPalette, { dither: remapDither }).then((result) => {
+      if (!cancelled) {
+        setSbsRightRemap(result);
+        setSbsRightRemapLoading(false);
       }
-    }, 0);
-    return () => { cancelled = true; clearTimeout(timer); };
+    }).catch(() => {
+      if (!cancelled) {
+        setSbsRightRemap(null);
+        setSbsRightRemapLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sbsRemapSource, rightRemapKey]);
 
