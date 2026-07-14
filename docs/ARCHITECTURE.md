@@ -284,9 +284,18 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
    cleaner flats) / Stucki, error diffuses ONLY to α > 0 neighbors. The preview
    downsamples to 512 px longest axis (256 for SBS slots, which run two remaps); export
    re-runs at full resolution × scale. `computeRemapScaleOptions` caps output at
-   8192 px/axis; `estimateRemapCost` warns above 50 M ops behind a 5 s two-click confirm.
-   The active remap palette = current `vizStyle` ramps, hidden shades filtered, deduped,
-   the same set the chromatic plot dots come from.
+   8192 px/axis; `estimateRemapCost` warns above 50 M ops behind a 5 s two-click confirm
+   (now a UX hint, not a freeze guard: see below). The active remap palette = current
+   `vizStyle` ramps, hidden shades filtered, deduped, the same set the chromatic plot
+   dots come from.
+
+   The `remapImageToPalette` call itself runs off the main thread in a Web Worker
+   (`src/workers/remap.worker.ts`), invoked through `requestRemap` in
+   `src/lib/remap-worker-client.ts` (a lazily-created singleton worker), requests
+   matched to responses by an incrementing id so a stale in-flight request (e.g. from
+   rapid SBS palette edits) can't clobber a newer one. Canvas decode/draw and
+   `getImageData`/`putImageData` stay on the main thread (unavoidable without
+   OffscreenCanvas); only the O(pixels × paletteSize) dither loop is offloaded.
 
 ---
 

@@ -18,6 +18,13 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Fixed
+- Image remap (download export and side-by-side compare) no longer freezes
+  the UI on large images or heavy dither modes. The per-pixel
+  `remapImageToPalette` loop now runs in a dedicated Web Worker
+  (`src/workers/remap.worker.ts`, via `src/lib/remap-worker-client.ts`)
+  instead of on the main thread (#110).
+
 ### Changed
 - Release workflow now builds macOS as a universal binary (`--target
   universal-apple-darwin`) instead of Apple-Silicon-only, so tagged releases
