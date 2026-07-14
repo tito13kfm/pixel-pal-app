@@ -465,18 +465,18 @@ export function RampsPanel(props: RampsPanelProps) {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">
                     <span className="text-[11px] font-mono text-yellow-200 w-12">Hue</span>
-                    <input type="range" min={0} max={359} value={editorHsv.h} onChange={(e) => updateEditorHsv({ ...editorHsv, h: Number(e.target.value) })} title={`Hue: ${editorHsv.h}°`} className="flex-1 accent-yellow-400" />
-                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{editorHsv.h}°</span>
+                    <input type="range" min={0} max={359} value={editorHsv.h} onChange={(e) => updateEditorHsv({ ...editorHsv, h: Number(e.target.value) })} title={`Hue: ${Math.round(editorHsv.h)}°`} className="flex-1 accent-yellow-400" />
+                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.h)}°</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-[11px] font-mono text-yellow-200 w-12">Sat</span>
-                    <input type="range" min={0} max={100} value={editorHsv.s} onChange={(e) => updateEditorHsv({ ...editorHsv, s: Number(e.target.value) })} title={`Saturation: ${editorHsv.s}%`} className="flex-1 accent-yellow-400" />
-                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{editorHsv.s}%</span>
+                    <input type="range" min={0} max={100} value={editorHsv.s} onChange={(e) => updateEditorHsv({ ...editorHsv, s: Number(e.target.value) })} title={`Saturation: ${Math.round(editorHsv.s)}%`} className="flex-1 accent-yellow-400" />
+                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.s)}%</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-[11px] font-mono text-yellow-200 w-12">Value</span>
-                    <input type="range" min={0} max={100} value={editorHsv.v} onChange={(e) => updateEditorHsv({ ...editorHsv, v: Number(e.target.value) })} title={`Value: ${editorHsv.v}%`} className="flex-1 accent-yellow-400" />
-                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{editorHsv.v}%</span>
+                    <input type="range" min={0} max={100} value={editorHsv.v} onChange={(e) => updateEditorHsv({ ...editorHsv, v: Number(e.target.value) })} title={`Value: ${Math.round(editorHsv.v)}%`} className="flex-1 accent-yellow-400" />
+                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.v)}%</span>
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-yellow-500/30 flex flex-col gap-2">

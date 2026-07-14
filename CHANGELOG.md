@@ -19,6 +19,13 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 ## [Unreleased]
 
 ### Fixed
+- Base-color editor no longer snaps hue/saturation by up to ±0.5 when
+  adjusting a single HSV slider. `editorHsv` previously rounded to integers
+  on open (and on hex-picker input) and kept that rounded value as the live
+  editing state; the next single-slider drag then wrote the *other* two
+  rounded channels back into `baseColors`, silently drifting the color the
+  engine (`hexToOklch`) generates the ramp from. Rounding now happens only at
+  render time for the numeric slider labels (#112).
 - Image remap (download export and side-by-side compare) no longer freezes
   the UI on large images or heavy dither modes. The per-pixel
   `remapImageToPalette` loop now runs in a dedicated Web Worker
