@@ -26,6 +26,7 @@ import { CrossRampDither } from './components/CrossRampDither';
 import { DITHER_PATTERNS } from './lib/viz-interaction';
 import { THEME_TOKENS } from './lib/theme';
 import { V2EngineNotice, isPreV2Palette } from './components/V2EngineNotice';
+import { CvdActiveBadge } from './components/CvdActiveBadge';
 import { SectionCard } from './components/SectionCard';
 import { BaseColorDock } from './components/BaseColorDock';
 import { HistoryPanel } from './components/panels/HistoryPanel';
@@ -3565,6 +3566,8 @@ export default function PixelPalGenerator() {
           </div>}
         </div>
         </div>{/* end CVD filter wrapper */}
+
+        <CvdActiveBadge cvdMode={cvdMode} />
 
         {/* Update notification. Fixed bottom-right, outside CVD wrapper. */}
         {updateInfo && (
