@@ -94,6 +94,12 @@ reveal-in-folder / copy-as-palette handoff convenience.
 
 ## F: one-click "generate a palette" (harmonious, non-AI)
 
+**Resolved (2026-07-15): SHIPPED**, together with issue #135's mood preset
+envelopes, as "Surprise Me" / "Around This" on the Single Color tab. Spec:
+`2026-07-15-issue-135-mood-presets-and-generator-design.md`. The open
+questions below were answered there (5 bases, biased ranges not full gamut,
+placement under the hex-input row). Kept for history:
+
 **One-liner:** A single button that produces a whole multi-base palette either
 (a) seeded from one input color or (b) fully random, picking base colors that
 generally work together, Coolors-style. Each generated base still gets our

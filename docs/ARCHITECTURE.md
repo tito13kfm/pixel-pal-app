@@ -90,7 +90,13 @@ src/
                         nearest-edge calibration, grid-column count, parse
     tours.ts            tour step data + interactive guides
     tour-runtime.ts     tour geometry helpers (cutout + popover placement)
-    constants.ts        WORD_POOL, sprites, CLASSIC_PALETTES, HARDWARE_PALETTES
+    constants.ts        WORD_POOL, sprites, CLASSIC_PALETTES, HARDWARE_PALETTES,
+                        MOOD_PRESETS (hand-authored OKLCH mood envelopes, #135)
+    mood.ts             MoodPreset/MoodEnvelope types + hue-arc math +
+                        applyMoodToHex (clamp a hex into a mood envelope)
+    palette-generator.ts generatePalette: one-click multi-base generator
+                        (golden-angle hue walk, stratified lightness, dE_OK
+                        spacing repair; optional seed lock + mood bias)
     env.ts              IS_WEB build-time flag, isTauri() runtime check
     palette.ts          SavedPalettePayload, localStorage helpers
     save-file.ts        polymorphic save (Tauri native dialog OR browser anchor)

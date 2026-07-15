@@ -19,6 +19,18 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 ## [Unreleased]
 
 ### Added
+- One-click palette generator on the Single Color tab: "Surprise Me" replaces
+  the palette with 5 base colors picked to work together (golden-angle hue
+  spacing with perceptual ΔE_OK separation, pleasing lightness/chroma
+  ranges), and "Around This" does the same while keeping the current hex
+  verbatim as base 1. Non-AI, no key, instant; each base gets its own OKLCH
+  ramps as usual. (backlog item F)
+- Mood presets: six hand-authored genre envelopes (Cozy Farm, Cyberpunk Neon,
+  Gothic Horror, Sun-Bleached Desert, Deep Ocean, Candy Pop) that bias the
+  new generator and clamp Harmonize output into a hue/chroma/lightness range.
+  Curated data in the spirit of Hardware Lock (and composable with it),
+  deterministic, no AI. Selectable next to the generator buttons and next to
+  Harmonize; persisted per session as `ui:moodPreset`. (#135)
 - Cross-palette adjacency check: with two compare slots active, a rectangular
   ΔE_OK heatmap flags near-duplicate shades across slot A and slot B (rows =
   A, columns = B), with hover readout and closest-pair summary (#134).
