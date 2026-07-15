@@ -22,6 +22,8 @@ src/
     CurveEditor.tsx     SVG lightness/sat curve editor (drag anchors, presets)
     RampAdvancedPanel.tsx per-ramp Advanced disclosure: 2 CurveEditors + gamut
     PixelPlayground.tsx pixel drawing canvas (line/rect/ellipse/fill/eyedropper)
+    PaletteCycleEditor.tsx viz: palette-cycling designer (range select +
+                        rAF index-rotation preview + JSON sidecar export)
     TourOverlay.tsx     spotlight tour overlay (portal, SVG cutout, popover)
     TourPanel.tsx       help-center launcher modal
     BaseColorDock.tsx   floating draggable dock: delete a base / jump to its ramp
@@ -338,6 +340,13 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
 - **The PNG palette strip intentionally diverges** from the `.gpl` / `.pal` / `.ase`
   files: NO dedup (one cell per shade per ramp, it is positional) and NO harmony
   colors. Do not "align" it.
+- **Palette-cycle JSON sidecar** (`buildCycleJson`, `lib/palette-export.ts`;
+  UI in `PaletteCycleEditor.tsx`): PIXEL.PAL-specific `pixel-pal-cycle.json`
+  with a positional single-ramp `palette` + `cycles: [{low, high, rate,
+  reverse}]` (rate = fps). Like the PNG strip it deliberately does NOT go
+  through `collectPaletteEntries` (positional, un-deduped, one ramp). The
+  cycle selection is ephemeral viz UI state: not saved, not in undo, cleared
+  when the visualized rows change shape.
 - **Dither matrices** (`lib/viz-interaction.ts`): the `DITHER_PATTERNS` registry:
   Bayer 2×2 / 4×4 / 8×8 (4 / 16 / 64 levels), clustered-dot, scanline, cross-hatch.
   Adding a pattern is one matrix in the registry; it auto-wires the preview + PNG. The

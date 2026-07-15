@@ -22,6 +22,10 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Cross-palette adjacency check: with two compare slots active, a rectangular
   ΔE_OK heatmap flags near-duplicate shades across slot A and slot B (rows =
   A, columns = B), with hover readout and closest-pair summary (#134).
+- Palette Cycling designer in Visualize & Compare: mark a contiguous shade
+  range in a ramp, preview classic index-rotation animation (settable fps,
+  direction, sprite preview), and export the cycle as a
+  `pixel-pal-cycle.json` sidecar. (#131)
 
 ### Fixed
 - Base-color editor no longer snaps hue/saturation by up to ±0.5 when
