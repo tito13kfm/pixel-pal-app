@@ -11,7 +11,7 @@ import { saveFile } from './lib/save-file';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
-  HARDWARE_PALETTES,
+  HARDWARE_PALETTES, MOOD_PRESETS,
 } from './lib/constants';
 import { TourPanel } from './components/TourPanel'
 import { TourOverlay } from './components/TourOverlay'
@@ -41,6 +41,8 @@ import { HeaderControls } from './components/panels/HeaderControls';
 import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS } from './lib/style-presets';
 import { buildRandomHex } from './lib/randomizer';
+import { generatePalette } from './lib/palette-generator';
+import { applyMoodToHex } from './lib/mood';
 import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
@@ -290,6 +292,19 @@ export default function PixelPalGenerator() {
     if (!hardwareLock) return null;
     return HARDWARE_PALETTES.find(hw => hw.id === hardwareLock) || null;
   }, [hardwareLock]);
+
+  // Mood preset (#135): a MOOD_PRESETS id or null. Session-level setting like
+  // hardwareLock (survives resetPaletteState on purpose), but unlike
+  // hardwareLock it is NOT in the undo snapshot and NOT in saved payloads:
+  // it never changes currently rendered output, it only biases FUTURE
+  // Surprise Me / Around This / Harmonize actions. Composes with Hardware
+  // Lock (mood shapes base-color inputs; the lock quantizes rendered shades).
+  // Persisted as ui:moodPreset (see the effects near the other ui:* prefs).
+  const [moodPreset, setMoodPreset] = useState(null);
+  const activeMood = useMemo(() => {
+    if (!moodPreset) return null;
+    return MOOD_PRESETS.find(m => m.id === moodPreset) || null;
+  }, [moodPreset]);
 
 
   // Live ramps now flow through the SAME shared buildRamp pipeline that
@@ -937,6 +952,42 @@ export default function PixelPalGenerator() {
     setColorInput(buildRandomHex());
   };
 
+  // surpriseMe / buildAroundColor: backlog item F, the non-AI one-click
+  // multi-base generator. Both are full-palette-replace paths and follow the
+  // same contract as handleGenerate's 'color' branch: tag history, replace
+  // baseColors, resetPaletteState, then bump shuffleSeed DIRECTLY (locks were
+  // just cleared; bumpShuffleSeed reads the old lockedRamps closure and would
+  // take the wrong branch, see ARCHITECTURE.md rules 1-2). The active mood
+  // preset (#135) biases hue/chroma/lightness sampling when set.
+  const surpriseMe = () => {
+    const colors = generatePalette({ count: 5, mood: activeMood });
+    tagNextLabel(activeMood ? `Surprise Me (${activeMood.name})` : 'Surprise Me');
+    setColorInput(colors[0]);
+    setBaseColors(colors);
+    setAiColorNames([]);
+    setEditingIndex(null);
+    resetPaletteState();
+    setShuffleSeed(s => s + 1);
+  };
+
+  // Seeded variant: the current colorInput hex is kept VERBATIM as base 1
+  // (never mood-clamped; the user's pick wins) and 4 companions are derived
+  // around its hue.
+  const buildAroundColor = () => {
+    if (!/^#[0-9a-fA-F]{6}$/.test(colorInput)) {
+      setAddBaseFeedback('Invalid hex');
+      setTimeout(() => setAddBaseFeedback(''), 2000);
+      return;
+    }
+    const colors = generatePalette({ count: 5, seedHex: colorInput, mood: activeMood });
+    tagNextLabel(`Palette around ${colorInput.toLowerCase()}`);
+    setBaseColors(colors);
+    setAiColorNames([]);
+    setEditingIndex(null);
+    resetPaletteState();
+    setShuffleSeed(s => s + 1);
+  };
+
   // Add the current Single Color tab's colorInput to baseColors as a new
   // base, without leaving the Single Color tab. Lets users batch-build a
   // multi-base palette by picking colors one at a time. The colorInput
@@ -1410,8 +1461,8 @@ export default function PixelPalGenerator() {
   // full-palette-replace paths share. Callers are still responsible for
   // setting baseColors (or aiColorNames when applicable),
   // tagging the next history label via tagNextLabel, and bumping the shuffle seed if their path
-  // requires it. Preserves rampSize, hardwareLock, theme, CRT, CVD on
-  // purpose: those are session-level settings, not per-palette state.
+  // requires it. Preserves rampSize, hardwareLock, moodPreset, theme, CRT,
+  // CVD on purpose: those are session-level settings, not per-palette state.
   //
   // See ARCHITECTURE.md "Cross-cutting state-maintenance rules" rule 1.
   // If you add new base-keyed or per-palette state, add its setter here
@@ -1523,15 +1574,21 @@ export default function PixelPalGenerator() {
       const orig = hexToHsl(baseColors[i]);
       const newH = ((anchorHsl.h + slot) % 360 + 360) % 360;
       newBaseColors[i] = hslToHex({ h: newH, s: orig.s, l: orig.l });
+      // Mood bias (#135): clamp the rotated color into the active mood's
+      // hue/chroma/lightness envelope. Applied AFTER the rotation so the
+      // color-theory relationship drives placement and the mood constrains
+      // it. The anchor is untouched (it never enters this loop).
+      if (activeMood) newBaseColors[i] = applyMoodToHex(newBaseColors[i], activeMood);
     }
     const modeLabel = harmonizeMode.replace('-', ' ');
-    tagNextLabel(`Harmonize (${targets.length}, ${modeLabel})`);
+    const moodSuffix = activeMood ? `, ${activeMood.name}` : '';
+    tagNextLabel(`Harmonize (${targets.length}, ${modeLabel}${moodSuffix})`);
     setBaseColors(newBaseColors);
     setCompareAnchor(null);
     setCompareResult(null);
-    setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'}: ${modeLabel}`);
+    setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'}: ${modeLabel}${moodSuffix}`);
     setTimeout(() => setExportFeedback(''), 2000);
-  }, [baseColors, safeAnchor, lockedRamps, harmonizeBaseline, harmonizeMode, setExportFeedback, setHarmonizeBaseline, tagNextLabel, setBaseColors, setCompareAnchor, setCompareResult]);
+  }, [baseColors, safeAnchor, lockedRamps, harmonizeBaseline, harmonizeMode, activeMood, setExportFeedback, setHarmonizeBaseline, tagNextLabel, setBaseColors, setCompareAnchor, setCompareResult]);
   const restoreHarmonizeBaseline = useCallback(() => {
     if (!harmonizeBaseline) return;
     tagNextLabel('Restore pre-harmonize hues');
@@ -1715,6 +1772,35 @@ export default function PixelPalGenerator() {
       try { await window.storage.set('ui:rampSize', JSON.stringify(rampSize)); } catch {}
     })();
   }, [rampSize]);
+
+  // moodPreset: persisted at ui:moodPreset (#135). Session-level bias for
+  // Surprise Me / Around This / Harmonize; same load-once + mountRef-guarded
+  // persist shape as ui:rampSize. Valid values: a MOOD_PRESETS id or null.
+  useEffect(() => {
+    (async () => {
+      if (typeof window === 'undefined' || !window.storage) return;
+      try {
+        const got = await window.storage.get('ui:moodPreset');
+        if (got && got.value) {
+          const parsed = JSON.parse(got.value);
+          if (typeof parsed === 'string' && MOOD_PRESETS.some(m => m.id === parsed)) {
+            setMoodPreset(parsed);
+          }
+        }
+      } catch {
+        // No saved value or storage failed; keep default (null).
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot mount load, same as ui:rampSize
+  }, []);
+  const moodPresetMountRef = useRef(false);
+  useEffect(() => {
+    if (!moodPresetMountRef.current) { moodPresetMountRef.current = true; return; }
+    if (typeof window === 'undefined' || !window.storage) return;
+    (async () => {
+      try { await window.storage.set('ui:moodPreset', JSON.stringify(moodPreset)); } catch {}
+    })();
+  }, [moodPreset]);
 
   // Auto-open the visualization section when the user transitions from 1 to 2+
   // base colors, but never force it closed (user can collapse manually any time).
@@ -3235,6 +3321,8 @@ export default function PixelPalGenerator() {
           hoveredColor={hoveredColor} imageZoom={imageZoom} setImageZoom={setImageZoom} imageNaturalSize={imageNaturalSize} setImageNaturalSize={setImageNaturalSize}
           imageRef={imageRef} handleImageHover={handleImageHover} handleImageLeave={handleImageLeave} handleImageClick={handleImageClick} imageError={imageError}
           handleGenerate={handleGenerate}
+          surpriseMe={surpriseMe} buildAroundColor={buildAroundColor}
+          moodPreset={moodPreset} setMoodPreset={setMoodPreset}
           spriteLibrary={spriteLibrary} rampsPunchy={rampsPunchy} spriteKey={spriteKey} setSpriteKey={setSpriteKey}
           removeCustomSprite={removeCustomSprite} copySpriteSource={copySpriteSource} showSpriteImporter={showSpriteImporter} setShowSpriteImporter={setShowSpriteImporter}
           spriteDragging={spriteDragging} handleSpriteDragOver={handleSpriteDragOver} handleSpriteDragLeave={handleSpriteDragLeave} handleSpriteDrop={handleSpriteDrop}
@@ -3360,6 +3448,8 @@ export default function PixelPalGenerator() {
             harmonizeBaseline={harmonizeBaseline}
             restoreHarmonizeBaseline={restoreHarmonizeBaseline}
             harmonize={harmonize}
+            moodPreset={moodPreset}
+            setMoodPreset={setMoodPreset}
             harmony={harmony}
             addHarmonyPair={addHarmonyPair}
             addHarmonyMany={addHarmonyMany}

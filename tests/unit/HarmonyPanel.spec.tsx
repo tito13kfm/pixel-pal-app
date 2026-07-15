@@ -44,6 +44,8 @@ const baseProps: HarmonyPanelProps = {
   harmonizeBaseline: null,
   restoreHarmonizeBaseline: noop,
   harmonize: noop,
+  moodPreset: null,
+  setMoodPreset: noop,
   harmony,
   addHarmonyPair: noop as any,
   addHarmonyMany: noop,
@@ -173,4 +175,32 @@ test('Harmonize button disabled when all non-anchor ramps locked', () => {
     lockedRamps: new Set([1]),
   });
   expect(screen.getByText('Harmonize')).toBeDisabled();
+});
+
+test('renders the mood preset select with all presets', () => {
+  wrap({ baseColors: ['#112233', '#445566'], aiColorNames: ['A', 'B'] });
+  const select = screen.getByLabelText('Mood preset for Harmonize');
+  expect(select).toBeInTheDocument();
+  expect(screen.getByText('No mood')).toBeInTheDocument();
+  expect(screen.getByText('Cozy Farm')).toBeInTheDocument();
+  expect(screen.getByText('Cyberpunk Neon')).toBeInTheDocument();
+});
+
+test('calls setMoodPreset with the chosen id', () => {
+  const setMoodPreset = vi.fn();
+  wrap({ baseColors: ['#112233', '#445566'], aiColorNames: ['A', 'B'], setMoodPreset });
+  fireEvent.change(screen.getByLabelText('Mood preset for Harmonize'), { target: { value: 'cyberpunk' } });
+  expect(setMoodPreset).toHaveBeenCalledWith('cyberpunk');
+});
+
+test('calls setMoodPreset with null when No mood is chosen', () => {
+  const setMoodPreset = vi.fn();
+  wrap({ baseColors: ['#112233', '#445566'], aiColorNames: ['A', 'B'], moodPreset: 'cyberpunk', setMoodPreset });
+  fireEvent.change(screen.getByLabelText('Mood preset for Harmonize'), { target: { value: '' } });
+  expect(setMoodPreset).toHaveBeenCalledWith(null);
+});
+
+test('status line mentions the active mood clamp', () => {
+  wrap({ baseColors: ['#112233', '#445566'], aiColorNames: ['A', 'B'], moodPreset: 'deep-ocean' });
+  expect(screen.getByText(/clamped to Deep Ocean/)).toBeInTheDocument();
 });
