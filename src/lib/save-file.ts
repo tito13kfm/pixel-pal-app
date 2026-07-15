@@ -11,7 +11,7 @@ import { isTauri } from './env';
 
 export type SaveData = { text: string } | { bytes: Uint8Array | Blob };
 export type SaveFilter = { name: string; extensions: string[] };
-export type FolderKey = 'txt' | 'gpl' | 'png' | 'pal' | 'ase';
+export type FolderKey = 'txt' | 'gpl' | 'png' | 'pal' | 'ase' | 'json';
 
 export interface SaveOptions {
   defaultName: string;

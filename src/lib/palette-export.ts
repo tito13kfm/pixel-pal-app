@@ -90,3 +90,37 @@ export function buildAse(entries: PaletteEntry[]): Uint8Array {
   }
   return new Uint8Array(out);
 }
+
+// --- Palette-cycle sidecar (issue #131) ---
+//
+// PIXEL.PAL-specific JSON: no common palette format encodes index cycling,
+// so this is its own sidecar file. NOTE: unlike .gpl/.pal/.ase this
+// deliberately does NOT use collectPaletteEntries: the palette here is the
+// single marked ramp, positional and un-deduped (indices are the whole
+// point), the same way the PNG palette strip diverges. Do not "align" it.
+
+export interface CycleRangeMeta {
+  /** inclusive start index into `palette` */
+  low: number;
+  /** inclusive end index into `palette` */
+  high: number;
+  /** playback rate in frames (index steps) per second */
+  rate: number;
+  /** rotation direction; matches the preview's Forward/Reverse toggle */
+  reverse: boolean;
+}
+
+/** Serialize one ramp's shade list plus its cycle range(s) to pretty JSON.
+ *  `cycles` is an array for forward compatibility; v1 always writes one. */
+export function buildCycleJson(hexes: string[], cycles: CycleRangeMeta[]): string {
+  return JSON.stringify(
+    {
+      format: 'pixel-pal-cycle',
+      version: 1,
+      palette: hexes.map((h) => (h || '').toLowerCase()),
+      cycles,
+    },
+    null,
+    2,
+  ) + '\n';
+}
