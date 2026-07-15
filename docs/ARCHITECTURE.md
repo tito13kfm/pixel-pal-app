@@ -17,6 +17,7 @@ src/
   components/
     DesktopAppLink.tsx  web-only: footer link to releases page
     AdjacencyMatrix.tsx viz: pairwise ΔE_OK heatmap (canvas + hover readout)
+    CrossAdjacencyMatrix.tsx viz: rectangular cross-palette ΔE_OK heatmap (A rows × B cols)
     DitherBlend.tsx     viz: 2-color dither-blend preview (canvas)
     CurveEditor.tsx     SVG lightness/sat curve editor (drag anchors, presets)
     RampAdvancedPanel.tsx per-ramp Advanced disclosure: 2 CurveEditors + gamut
@@ -332,6 +333,8 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
   strip (markers placed by L on a 0→100 axis, so gaps read as missing tonal ranges),
   mosaic, adjacency matrix, dither-blend, palette strip. `computeVizData(ramps)` is the
   single derivation feeding both the on-screen views and the PNG exports.
+  `drawCrossAdjacencyMatrix` (rectangular, rows = palette A, columns = palette B) is
+  the cross-palette counterpart to `drawAdjacencyMatrix`; on-screen only, no PNG export.
 - **The PNG palette strip intentionally diverges** from the `.gpl` / `.pal` / `.ase`
   files: NO dedup (one cell per shade per ramp, it is positional) and NO harmony
   colors. Do not "align" it.

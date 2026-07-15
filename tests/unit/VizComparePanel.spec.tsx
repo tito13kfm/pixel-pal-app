@@ -185,3 +185,20 @@ test('calls setSbsRight(null) when Clear slot B clicked', () => {
   fireEvent.click(screen.getByTitle('Clear slot B to return to single-column view'));
   expect(setSbsRight).toHaveBeenCalledWith(null);
 });
+
+test('two-column mode shows the cross-palette adjacency section', () => {
+  const snap = { baseColors: ['#ff0000'], aiColorNames: [] };
+  wrap({ sbsRight: 'working', getSnapshotForSlot: () => snap });
+  expect(screen.getByText('Cross-Palette Adjacency (A × B)')).toBeInTheDocument();
+});
+
+test('single-column mode has no cross-palette adjacency section', () => {
+  const snap = { baseColors: ['#ff0000'], aiColorNames: [] };
+  wrap({ getSnapshotForSlot: () => snap });
+  expect(screen.queryByText('Cross-Palette Adjacency (A × B)')).toBeNull();
+});
+
+test('cross-palette section absent when a slot has no snapshot', () => {
+  wrap({ sbsRight: 'working', getSnapshotForSlot: () => null });
+  expect(screen.queryByText('Cross-Palette Adjacency (A × B)')).toBeNull();
+});

@@ -23,6 +23,23 @@ export function normalizeDeltaE(dE: number, max: number): number {
   return Math.max(0, Math.min(1, dE / max));
 }
 
+// Closest (most similar) cross-set pair between two hex lists: the headline
+// clash readout for the cross-palette adjacency view. Row-major first
+// occurrence wins ties (deterministic). Unparseable hexes are skipped; null
+// when either list is empty or no pair parses.
+export interface CrossPair { a: string; b: string; dE: number }
+export function closestCrossPair(as: string[], bs: string[]): CrossPair | null {
+  let best: CrossPair | null = null;
+  for (const a of as) {
+    for (const b of bs) {
+      const dE = adjacencyDeltaE(a, b);
+      if (dE === null) continue;
+      if (best === null || dE < best.dE) best = { a, b, dE };
+    }
+  }
+  return best;
+}
+
 // Hot/cold heat color for normalized 0..1. 0 = dark (near-duplicate), 1 = hot.
 export function heatColor(t: number): string {
   const x = Math.max(0, Math.min(1, t));
