@@ -18,6 +18,11 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Added
+- Cross-palette adjacency check: with two compare slots active, a rectangular
+  ΔE_OK heatmap flags near-duplicate shades across slot A and slot B (rows =
+  A, columns = B), with hover readout and closest-pair summary (#134).
+
 ### Fixed
 - Base-color editor no longer snaps hue/saturation by up to ±0.5 when
   adjusting a single HSV slider. `editorHsv` previously rounded to integers

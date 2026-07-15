@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { BarChart3, ChevronUp, ChevronDown, X, Upload, ImageIcon, Download } from 'lucide-react';
 import { SectionCard } from '../SectionCard';
 import { AdjacencyMatrix } from '../AdjacencyMatrix';
+import { CrossAdjacencyMatrix } from '../CrossAdjacencyMatrix';
 import { DitherBlend } from '../DitherBlend';
 import { CrossRampDither } from '../CrossRampDither';
 import { computeVizData, lightnessMarkers, LIGHTNESS_GRIDLINES } from '../../lib/strip-export';
@@ -628,6 +629,25 @@ export function VizComparePanel({
             {renderSlotViz(leftSnap, 'Slot A', 'left', false)}
           </div>
         )}
+        {isTwoColumn && (() => {
+          const okA = leftSnap && Array.isArray(leftSnap.baseColors) && leftSnap.baseColors.length > 0;
+          const okB = rightSnap && Array.isArray(rightSnap.baseColors) && rightSnap.baseColors.length > 0;
+          if (!okA || !okB) return null;
+          const colorsA = computeVizData(buildRampsForSnapshot(leftSnap, vizStyle)).allColors;
+          const colorsB = computeVizData(buildRampsForSnapshot(rightSnap, vizStyle)).allColors;
+          if (colorsA.length === 0 || colorsB.length === 0) return null;
+          return vizSub('crossAdjacency', 'Cross-Palette Adjacency (A × B)', null, false, (
+            <>
+              <p className="text-[11px] text-cyan-100/70 italic mb-2">Every slot-A shade paired with every slot-B shade (rows = A, columns = B). Dark cells are near-duplicates across the two palettes (e.g. a character outline melting into a background midtone). Within-palette pairs live in each slot&apos;s own Adjacency view. Hover for the exact pair.</p>
+              <div className="flex justify-center overflow-x-auto">
+                <CrossAdjacencyMatrix rowColors={colorsA} colColors={colorsB} borderColor={t.vizDataBorder} />
+              </div>
+              <div className="text-[10px] text-cyan-100/50 text-center font-mono mt-2 bg-black/60 rounded px-1">
+                A: {getSlotLabel(sbsLeft, sbsLeftPayload)} · B: {getSlotLabel(sbsRight, sbsRightPayload)}
+              </div>
+            </>
+          ));
+        })()}
         <p className="text-[10px] text-cyan-100/40 italic text-center bg-black/60 rounded px-2 py-1">Style applies to all views. Hidden shades are filtered out.</p>
       </div>
     </SectionCard>
