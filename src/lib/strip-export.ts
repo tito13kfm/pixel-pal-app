@@ -228,6 +228,54 @@ export function drawAdjacencyMatrix(
   }
 }
 
+// Rectangular cross-palette adjacency grid: rows = rowColors (palette A),
+// columns = colColors (palette B). Heatmap only, every cell is a cross-set
+// pair (no diagonal), shaded by ΔE_OK normalized to this grid's max: dark =
+// near-duplicate across the two palettes (the clash signal), bright = far
+// apart. Header strips show the actual swatches (top = B, left = A).
+export function drawCrossAdjacencyMatrix(
+  ctx: CanvasRenderingContext2D,
+  rowColors: string[],
+  colColors: string[],
+  opts: { cell: number; header?: number },
+): void {
+  const nRows = rowColors.length;
+  const nCols = colColors.length;
+  const cell = opts.cell;
+  const header = opts.header ?? 0;
+  ctx.imageSmoothingEnabled = false;
+
+  if (header > 0) {
+    ctx.fillStyle = MATRIX_DIAG; // neutral top-left corner
+    ctx.fillRect(0, 0, header, header);
+    for (let j = 0; j < nCols; j++) {
+      ctx.fillStyle = colColors[j];
+      ctx.fillRect(header + j * cell, 0, cell, header); // top strip = B
+    }
+    for (let i = 0; i < nRows; i++) {
+      ctx.fillStyle = rowColors[i];
+      ctx.fillRect(0, header + i * cell, header, cell); // left strip = A
+    }
+  }
+
+  // Same two-pass shape as drawAdjacencyMatrix: max pass, then fill pass.
+  let maxDE = 0;
+  for (let i = 0; i < nRows; i++) {
+    for (let j = 0; j < nCols; j++) {
+      const d = adjacencyDeltaE(rowColors[i], colColors[j]);
+      if (d !== null && d > maxDE) maxDE = d;
+    }
+  }
+
+  for (let i = 0; i < nRows; i++) {
+    for (let j = 0; j < nCols; j++) {
+      const d = adjacencyDeltaE(rowColors[i], colColors[j]);
+      ctx.fillStyle = d === null ? MATRIX_NA : heatColor(normalizeDeltaE(d, maxDE));
+      ctx.fillRect(header + j * cell, header + i * cell, cell, cell);
+    }
+  }
+}
+
 // Off-screen render of the matrix → PNG Blob. Cell size scales down with N so
 // large palettes stay bounded. Precondition: callers guard colors.length > 0.
 export function drawAdjacencyMatrixPng(

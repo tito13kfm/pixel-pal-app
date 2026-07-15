@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  adjacencyDeltaE, normalizeDeltaE, heatColor, matrixColors,
+  adjacencyDeltaE, normalizeDeltaE, heatColor, matrixColors, closestCrossPair,
 } from '../../src/lib/viz-interaction';
 import { BAYER_4X4, BAYER_8X8, DITHER_PATTERNS, ditherMatrix } from '../../src/lib/viz-interaction';
 
@@ -40,6 +40,33 @@ describe('heatColor', () => {
   it('red channel increases with t', () => {
     const r = (s: string) => Number(s.slice(4, s.indexOf(',')));
     expect(r(heatColor(0.8))).toBeGreaterThan(r(heatColor(0.2)));
+  });
+});
+
+describe('closestCrossPair', () => {
+  it('picks the minimum-ΔE cross pair', () => {
+    const result = closestCrossPair(['#000000', '#ff0000'], ['#fe0000', '#ffffff']);
+    expect(result?.a).toBe('#ff0000');
+    expect(result?.b).toBe('#fe0000');
+    expect(result?.dE).toBeLessThan(0.01);
+  });
+  it('is 0 for an identical color across sets', () => {
+    const result = closestCrossPair(['#123456'], ['#123456']);
+    expect(result?.dE).toBeCloseTo(0, 6);
+  });
+  it('breaks ties row-major first', () => {
+    const result = closestCrossPair(['#000000', '#000000'], ['#ffffff']);
+    expect(result).not.toBeNull();
+    expect(result?.dE).toBeCloseTo(adjacencyDeltaE('#000000', '#ffffff') as number, 6);
+  });
+  it('skips unparseable hexes', () => {
+    const result = closestCrossPair(['nope', '#000000'], ['#000000']);
+    expect(result).toEqual({ a: '#000000', b: '#000000', dE: 0 });
+  });
+  it('returns null when either list is empty or all-invalid', () => {
+    expect(closestCrossPair([], ['#000000'])).toBeNull();
+    expect(closestCrossPair(['#000000'], [])).toBeNull();
+    expect(closestCrossPair(['nope'], ['#000000'])).toBeNull();
   });
 });
 
