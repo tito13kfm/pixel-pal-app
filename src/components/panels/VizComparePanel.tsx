@@ -5,6 +5,7 @@ import { AdjacencyMatrix } from '../AdjacencyMatrix';
 import { CrossAdjacencyMatrix } from '../CrossAdjacencyMatrix';
 import { DitherBlend } from '../DitherBlend';
 import { CrossRampDither } from '../CrossRampDither';
+import { PaletteCycleEditor } from '../PaletteCycleEditor';
 import { computeVizData, lightnessMarkers, LIGHTNESS_GRIDLINES } from '../../lib/strip-export';
 import { buildRampsForSnapshot } from '../../lib/snapshot-ramps';
 import { DITHER_PATTERNS, type DitherPattern } from '../../lib/viz-interaction';
@@ -373,6 +374,12 @@ export function VizComparePanel({
               />
             )}
           </div>
+          </>
+        ))}
+        {!compact && vizSub('cycle', 'Palette Cycling', null, compact, (
+          <>
+          <p className="text-[11px] text-cyan-100/70 italic mb-2">Classic index-rotation animation: mark a contiguous shade range, then the range's colors rotate in place at the chosen rate, how water, lava and torch ramps are animated on indexed hardware. Smooth motion means the range cycles cleanly; a visible "pop" means the ramp ends don't meet. Export writes a PIXEL.PAL JSON sidecar (range + rate) alongside the palette files.</p>
+          <PaletteCycleEditor rows={mosaicRamps.map((r) => r.hexes)} borderColor={t.vizDataBorder} />
           </>
         ))}
         {compact && <div className="text-[10px] text-cyan-100/50 text-center font-mono bg-black/60 rounded px-1">{ramps.length} ramps, {allColors.length} unique colors</div>}

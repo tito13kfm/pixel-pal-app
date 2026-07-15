@@ -165,3 +165,34 @@ const DITHER_MATRIX_BY_ID = new Map(DITHER_PATTERNS.map((p) => [p.id, p.matrix])
 export function ditherMatrix(pattern: string): number[][] {
   return DITHER_MATRIX_BY_ID.get(pattern as DitherPattern) ?? BAYER_4X4;
 }
+
+// --- Palette cycling (issue #131) ---
+
+// Inclusive index range within a single ramp's shade list.
+export interface CycleRange {
+  low: number;
+  high: number;
+}
+
+// Rotate the colors inside hexes[low..high] (inclusive) by `offset` steps,
+// leaving everything outside the range untouched. Returns a new array.
+// Forward (reverse=false): the color at range position i comes from position
+// (i + offset) % len, so colors appear to flow toward the range start.
+// Degenerate ranges (len <= 1 after clamping) return an unmodified copy.
+export function rotateCycle(
+  hexes: string[], low: number, high: number, offset: number, reverse = false,
+): string[] {
+  const n = hexes.length;
+  const out = hexes.slice();
+  if (n === 0) return out;
+  const lo = Math.max(0, Math.min(low, high));
+  const hi = Math.min(n - 1, Math.max(low, high));
+  const len = hi - lo + 1;
+  if (len <= 1) return out;
+  const k = ((offset % len) + len) % len;
+  for (let i = 0; i < len; i++) {
+    const src = reverse ? (i - k + len + len) % len : (i + k) % len;
+    out[lo + i] = hexes[lo + src];
+  }
+  return out;
+}
