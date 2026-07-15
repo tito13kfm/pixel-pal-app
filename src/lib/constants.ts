@@ -1,3 +1,5 @@
+import type { MoodPreset } from './mood';
+
 // ---------- Sprite patterns ----------
 // Sprites use a single `pattern` array. Bake your lighting into the pattern itself.
 export const spriteVase = [
@@ -318,6 +320,67 @@ export const HARDWARE_PALETTES = [
       '#000000', '#ffffff', '#68372b', '#70a4b2', '#6f3d86', '#588d43', '#352879', '#b8c76f',
       '#6f4f25', '#433900', '#9a6759', '#444444', '#6c6c6c', '#9ad284', '#6c5eb5', '#959595',
     ],
+  },
+];
+
+// ---------- Mood presets (#135) ----------
+// Hand-authored genre/mood envelopes that bias the one-click generator and
+// Harmonize toward a chosen feel. Curated data in the same spirit as
+// HARDWARE_PALETTES: deterministic, no AI involvement. Envelopes are OKLCH
+// (L 0-1, C 0-~0.32, H degrees; see src/lib/mood.ts for the clamp math).
+// hueArcs are allowed hue ranges; start > end wraps through 360.
+// OKLCH hue anchors for orientation: red ≈ 25°, orange ≈ 55°, yellow ≈ 100°,
+// green ≈ 140°, cyan ≈ 195°, blue ≈ 264°, purple ≈ 300°, magenta ≈ 330°.
+// Chroma values above the sRGB ceiling for a given hue/lightness are fine:
+// everything is gamut-mapped ('auto', chroma-reducing) on the way out.
+export const MOOD_PRESETS: MoodPreset[] = [
+  {
+    id: 'cozy-farm',
+    name: 'Cozy Farm',
+    tip: 'Sunlit hay, leaf, and soil warmth. Soft saturation, mid-to-light tones. For farming sims, bakeries, autumn villages.',
+    hueArcs: [[30, 150]],          // warm red-orange through yellow to leaf green
+    chroma: [0.04, 0.12],
+    lightness: [0.45, 0.82],
+  },
+  {
+    id: 'cyberpunk',
+    name: 'Cyberpunk Neon',
+    tip: 'Cyan, electric blue, purple, magenta, chroma pushed toward the gamut edge. For rain-slick megacity streets and arcade glow.',
+    hueArcs: [[190, 350]],         // cyan → blue → purple → magenta
+    chroma: [0.10, 0.32],
+    lightness: [0.30, 0.80],
+  },
+  {
+    id: 'gothic-horror',
+    name: 'Gothic Horror',
+    tip: 'Cold desaturated darks with a blood-red arc. Low chroma, low light. For crypts, manors, and things best left buried.',
+    hueArcs: [[240, 320], [15, 40]], // blue-violet cold range + blood red
+    chroma: [0.02, 0.08],
+    lightness: [0.12, 0.50],
+  },
+  {
+    id: 'desert',
+    name: 'Sun-Bleached Desert',
+    tip: 'Sand, terracotta, washed-out highs. Low chroma, high lightness. For dunes, canyons, and noon heat shimmer.',
+    hueArcs: [[40, 95]],           // terracotta through sand
+    chroma: [0.03, 0.11],
+    lightness: [0.55, 0.90],
+  },
+  {
+    id: 'deep-ocean',
+    name: 'Deep Ocean',
+    tip: 'Teal to indigo depth column. Mid chroma, dark-to-mid light. For reefs, trenches, and bioluminescent gloom.',
+    hueArcs: [[180, 270]],         // teal → cyan → blue → indigo
+    chroma: [0.05, 0.16],
+    lightness: [0.20, 0.65],
+  },
+  {
+    id: 'candy-pop',
+    name: 'Candy Pop',
+    tip: 'Any hue, bright and sweet. High chroma, high lightness. For toy shops, match-3 boards, and storybook skies.',
+    hueArcs: [[0, 360]],           // full wheel
+    chroma: [0.10, 0.22],
+    lightness: [0.62, 0.88],
   },
 ];
 
