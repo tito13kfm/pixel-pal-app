@@ -10,3 +10,4 @@ src/lib/palette.ts:78 - savePaletteToStorage
 src/lib/palette.ts:92 - deletePaletteFromStorage
 src/lib/palette.ts:107 - loadAllPaletteIndexEntries
 src/lib/randomizer.ts:6 - buildRandomDescription
+src/lib/viz-interaction.ts:172 - CycleRange
