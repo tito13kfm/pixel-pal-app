@@ -1,0 +1,71 @@
+name: Tag release
+
+# Creates an annotated release tag via the GitHub API. Exists because remote
+# agent sessions (Claude Code on the web) cannot `git push` tags: the session
+# git proxy only permits branch pushes, which is how v0.23.0/v0.24.0 ended up
+# version-bumped on master but never tagged or released. Dispatching this
+# workflow is the sanctioned way to cut a tag from such a session.
+#
+# NOTE: tags created here use GITHUB_TOKEN, so GitHub deliberately does NOT
+# fire the usual tag-push triggers for them (workflow-to-workflow event
+# suppression). After this succeeds, dispatch the Release workflow AT the new
+# tag ref (workflow_dispatch with ref = the tag); release.yml treats any run
+# on a tag ref exactly like a tag push. Same for "Deploy web" if the tag is
+# the newest release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create (vX.Y.Z)'
+        required: true
+      sha:
+        description: 'Full 40-char commit SHA to tag. Empty = HEAD of the dispatched ref.'
+        required: false
+        default: ''
+      message:
+        description: 'Annotated tag message. Empty = "Release <tag>".'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create annotated tag
+        uses: actions/github-script@v8
+        env:
+          TAG_INPUT: ${{ inputs.tag }}
+          SHA_INPUT: ${{ inputs.sha }}
+          MSG_INPUT: ${{ inputs.message }}
+        with:
+          script: |
+            const tag = (process.env.TAG_INPUT || '').trim();
+            if (!/^v\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(tag)) {
+              core.setFailed(`Tag "${tag}" does not look like vX.Y.Z`);
+              return;
+            }
+            const sha = ((process.env.SHA_INPUT || '').trim() || context.sha).toLowerCase();
+            if (!/^[0-9a-f]{40}$/.test(sha)) {
+              core.setFailed(`SHA "${sha}" is not a full 40-char commit SHA`);
+              return;
+            }
+            const { owner, repo } = context.repo;
+            try {
+              await github.rest.git.getRef({ owner, repo, ref: `tags/${tag}` });
+              core.setFailed(`Tag ${tag} already exists; refusing to move it`);
+              return;
+            } catch (e) {
+              if (e.status !== 404) throw e;
+            }
+            const message = (process.env.MSG_INPUT || '').trim() || `Release ${tag}`;
+            const tagObj = await github.rest.git.createTag({
+              owner, repo, tag, message, object: sha, type: 'commit',
+            });
+            await github.rest.git.createRef({
+              owner, repo, ref: `refs/tags/${tag}`, sha: tagObj.data.sha,
+            });
+            core.notice(`Created annotated tag ${tag} at ${sha}`);

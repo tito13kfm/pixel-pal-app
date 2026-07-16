@@ -4,10 +4,17 @@ on:
   push:
     tags:
       - 'v*'
-  # Manual trigger for branch testing without creating a GitHub Release.
-  # Run from Actions tab → Release workflow → Run workflow. Installers land
-  # as downloadable workflow artifacts (14-day retention), not on the
-  # Releases page. Useful to smoke-test a PR build before merging.
+  # Manual trigger, two behaviors depending on the ref it runs on:
+  # - Dispatched on a BRANCH: build only, no GitHub Release. Installers land
+  #   as downloadable workflow artifacts (14-day retention). Useful to
+  #   smoke-test a PR build before merging.
+  # - Dispatched on a TAG ref (vX.Y.Z): identical to a tag push, including
+  #   the version-lockstep gate and the draft Release. This is the release
+  #   path for remote agent sessions, whose git proxy cannot push tags: they
+  #   create the tag via the "Tag release" workflow (which uses GITHUB_TOKEN
+  #   and therefore cannot fire the tag-push trigger), then dispatch this
+  #   workflow at the new tag. Every publish gate below keys on
+  #   startsWith(github.ref, 'refs/tags/'), not on the event name.
   workflow_dispatch:
     inputs:
       label:
@@ -32,8 +39,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Verify version + CHANGELOG consistency (tag push only)
-        if: github.event_name == 'push'
+      - name: Verify version + CHANGELOG consistency (tag refs only)
+        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: |
           set -euo pipefail
@@ -107,11 +114,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # Tag-push: build + create a DRAFT GitHub Release. Nothing reaches users
-      # (and the updater's latest.json stays unreachable) until you click Publish
-      # on the Releases page, so a tag can never auto-go-live past a manual check.
-      - name: Build and release (tag push)
-        if: github.event_name == 'push'
+      # Tag ref (push or dispatch-at-tag): build + create a DRAFT GitHub
+      # Release. Nothing reaches users (and the updater's latest.json stays
+      # unreachable) until you click Publish on the Releases page, so a tag
+      # can never auto-go-live past a manual check.
+      - name: Build and release (tag ref)
+        if: startsWith(github.ref, 'refs/tags/')
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -125,10 +133,10 @@ jobs:
           includeDebug: false
           args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
 
-      # Manual dispatch: build only (no Release entry). Installers + portable
+      # Branch dispatch: build only (no Release entry). Installers + portable
       # exe are uploaded as workflow artifacts further below.
-      - name: Build (manual dispatch)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Build (branch dispatch)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -138,8 +146,8 @@ jobs:
           includeDebug: false
           args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
 
-      - name: Upload portable Windows .exe to Release (tag push)
-        if: matrix.platform == 'windows-latest' && github.event_name == 'push'
+      - name: Upload portable Windows .exe to Release (tag ref)
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -156,11 +164,11 @@ jobs:
           cp "$EXE" "$OUT"
           gh release upload "${GITHUB_REF_NAME}" "$OUT" --repo "$GITHUB_REPOSITORY" --clobber
 
-      # Manual-dispatch artifact upload. Bundles installer output + Windows
+      # Branch-dispatch artifact upload. Bundles installer output + Windows
       # portable .exe into a per-platform workflow artifact for download from
       # the Actions tab.
-      - name: Upload installer artifacts (manual dispatch)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload installer artifacts (branch dispatch)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v7
         with:
           name: installers-${{ matrix.platform }}-${{ inputs.label }}
