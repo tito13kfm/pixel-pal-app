@@ -71,6 +71,8 @@ export interface RampsPanelProps {
   // base editor
   editingIndex: number | null;
   editorHsv: { h: number; s: number; v: number };
+  editorOklch: { L: number; C: number; H: number };
+  editorMode: 'hsv' | 'oklch';
   // pin editor
   pinEditor: PinEditor | null;
   setPinEditor: (e: PinEditor | null) => void;
@@ -120,6 +122,8 @@ export interface RampsPanelProps {
   toggleBaseEditor: (i: number) => void;
   updateEditorHex: (hex: string) => void;
   updateEditorHsv: (hsv: { h: number; s: number; v: number }) => void;
+  updateEditorOklch: (oklch: { L: number; C: number; H: number }) => void;
+  updateEditorMode: (mode: 'hsv' | 'oklch') => void;
   setEditingIndex: (i: number | null) => void;
   toggleRampCollapse: (i: number) => void;
   hideShade: (i: number, j: number, rampLen: number) => void;
@@ -181,7 +185,7 @@ export function RampsPanel(props: RampsPanelProps) {
     collapsedRamps, anyRampExpanded, lockedRamps,
     hiddenShades, rampSizeOverrides, setRampSizeOverrides, rampSize,
     rampSatOverrides, setRampSatOverrides,
-    editingIndex, editorHsv, pinEditor, setPinEditor,
+    editingIndex, editorHsv, editorOklch, editorMode, pinEditor, setPinEditor,
     advancedOpen, setAdvancedOpen, lightnessCurvePerRamp, setLightnessCurvePerRamp,
     satCurvePerRamp, setSatCurvePerRamp, gamutPerRamp, setGamutPerRamp,
     hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp,
@@ -194,7 +198,7 @@ export function RampsPanel(props: RampsPanelProps) {
     toggleAllRampsCollapse, resetToDefaults, resetStylePresets,
     toggleRampLock, shuffleRamp, duplicateRamp,
     copyRampToClipboard, downloadSingleRampGpl, resetHiddenShades, removeRamp,
-    toggleBaseEditor, updateEditorHex, updateEditorHsv, setEditingIndex,
+    toggleBaseEditor, updateEditorHex, updateEditorHsv, updateEditorOklch, updateEditorMode, setEditingIndex,
     toggleRampCollapse, hideShade, setOverride, clearOverride,
     pickCompareSwatch, copyHex, tagNextLabel, togglePinEditor, setBaseColors,
   } = props;
@@ -458,27 +462,51 @@ export function RampsPanel(props: RampsPanelProps) {
                     <input type="color" value={baseColors[i]} onChange={(e) => updateEditorHex(e.target.value)} title="Pick a new base color from the OS color picker" className="w-10 h-10 rounded border-2 border-yellow-400 cursor-pointer" style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.5)' }} />
                     <input type="text" value={baseColors[i]} onChange={(e) => { const v = e.target.value.trim(); if (/^#[0-9a-fA-F]{6}$/.test(v)) updateEditorHex(v); }} title="Type a hex color (e.g. #ff6b35)" className="px-2 py-1 rounded bg-black/60 text-yellow-100 font-mono text-sm border-2 border-yellow-400 w-24 focus:outline-none" />
                   </div>
+                  <div className="flex items-center rounded border-2 border-yellow-700/50 overflow-hidden text-[10px] font-bold uppercase tracking-wider">
+                    <button onClick={() => updateEditorMode('hsv')} title="Edit with HSV sliders" className={`px-2 py-1 transition-all ${editorMode === 'hsv' ? 'bg-yellow-400 text-purple-900' : 'bg-black/60 text-yellow-200 hover:bg-black/40'}`}>HSV</button>
+                    <button onClick={() => updateEditorMode('oklch')} title="Edit with perceptual OKLCH sliders (matches the ramp engine's color space)" className={`px-2 py-1 transition-all ${editorMode === 'oklch' ? 'bg-yellow-400 text-purple-900' : 'bg-black/60 text-yellow-200 hover:bg-black/40'}`}>OKLCH</button>
+                  </div>
                   <div className="ml-auto">
                     <button onClick={() => setEditingIndex(null)} title="Close the base color editor" className="text-xs px-2 py-1 rounded font-bold bg-purple-700 text-cyan-100 border-2 border-cyan-500 hover:bg-purple-600 transition-all uppercase tracking-wider">Done</button>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] font-mono text-yellow-200 w-12">Hue</span>
-                    <input type="range" min={0} max={359} value={editorHsv.h} onChange={(e) => updateEditorHsv({ ...editorHsv, h: Number(e.target.value) })} title={`Hue: ${Math.round(editorHsv.h)}°`} className="flex-1 accent-yellow-400" />
-                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.h)}°</span>
+                {editorMode === 'hsv' ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-mono text-yellow-200 w-12">Hue</span>
+                      <input type="range" min={0} max={359} value={editorHsv.h} onChange={(e) => updateEditorHsv({ ...editorHsv, h: Number(e.target.value) })} title={`Hue: ${Math.round(editorHsv.h)}°`} className="flex-1 accent-yellow-400" />
+                      <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.h)}°</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-mono text-yellow-200 w-12">Sat</span>
+                      <input type="range" min={0} max={100} value={editorHsv.s} onChange={(e) => updateEditorHsv({ ...editorHsv, s: Number(e.target.value) })} title={`Saturation: ${Math.round(editorHsv.s)}%`} className="flex-1 accent-yellow-400" />
+                      <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.s)}%</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-mono text-yellow-200 w-12">Value</span>
+                      <input type="range" min={0} max={100} value={editorHsv.v} onChange={(e) => updateEditorHsv({ ...editorHsv, v: Number(e.target.value) })} title={`Value: ${Math.round(editorHsv.v)}%`} className="flex-1 accent-yellow-400" />
+                      <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.v)}%</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] font-mono text-yellow-200 w-12">Sat</span>
-                    <input type="range" min={0} max={100} value={editorHsv.s} onChange={(e) => updateEditorHsv({ ...editorHsv, s: Number(e.target.value) })} title={`Saturation: ${Math.round(editorHsv.s)}%`} className="flex-1 accent-yellow-400" />
-                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.s)}%</span>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-mono text-yellow-200 w-12">Light</span>
+                      <input type="range" min={0} max={100} value={editorOklch.L * 100} onChange={(e) => updateEditorOklch({ ...editorOklch, L: Number(e.target.value) / 100 })} title={`Lightness: ${Math.round(editorOklch.L * 100)}%`} className="flex-1 accent-yellow-400" />
+                      <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorOklch.L * 100)}%</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-mono text-yellow-200 w-12">Chroma</span>
+                      <input type="range" min={0} max={0.4} step={0.001} value={editorOklch.C} onChange={(e) => updateEditorOklch({ ...editorOklch, C: Number(e.target.value) })} title={`Chroma: ${editorOklch.C.toFixed(3)} (out-of-gamut values are clamped)`} className="flex-1 accent-yellow-400" />
+                      <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{editorOklch.C.toFixed(3)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-mono text-yellow-200 w-12">Hue</span>
+                      <input type="range" min={0} max={359} value={editorOklch.H} onChange={(e) => updateEditorOklch({ ...editorOklch, H: Number(e.target.value) })} title={`Hue: ${Math.round(editorOklch.H)}°`} className="flex-1 accent-yellow-400" />
+                      <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorOklch.H)}°</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] font-mono text-yellow-200 w-12">Value</span>
-                    <input type="range" min={0} max={100} value={editorHsv.v} onChange={(e) => updateEditorHsv({ ...editorHsv, v: Number(e.target.value) })} title={`Value: ${Math.round(editorHsv.v)}%`} className="flex-1 accent-yellow-400" />
-                    <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorHsv.v)}%</span>
-                  </div>
-                </div>
+                )}
                 <div className="mt-3 pt-3 border-t border-yellow-500/30 flex flex-col gap-2">
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-[11px] font-bold text-yellow-200 uppercase tracking-wider">Shades:</span>

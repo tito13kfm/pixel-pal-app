@@ -21,6 +21,8 @@
 import { useRef, useState } from 'react';
 import { usePaletteState } from './usePaletteState';
 import { hexToHsv, hsvToHex } from '../lib/color';
+import { hexToOklch, oklchToHex, gamutMap } from '../lib/oklch';
+import type { Oklch } from '../lib/oklch';
 import { wcagContrast, wcagAaTier } from '../lib/wcag';
 
 // Sparse per-shade pin map: overrides[baseIndex][shadeIndex] = { punchy?,
@@ -49,6 +51,7 @@ export function useRampEditing(p: UseRampEditingParams) {
     hiddenShades, setHiddenShades, setRampShuffleOffsets,
     lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
     editingIndex, setEditingIndex, setEditorHsv,
+    setEditorOklch, setEditorMode,
     pinEditor, setPinEditor,
     setCompareMode, compareAnchor, setCompareAnchor, setCompareResult,
   } = usePaletteState();
@@ -241,6 +244,8 @@ export function useRampEditing(p: UseRampEditingParams) {
       // only touched one slider. Rounding now happens only at render time for
       // the numeric labels (see RampsPanel).
       setEditorHsv(hexToHsv(hex));
+      const oklch = hexToOklch(hex);
+      if (oklch) setEditorOklch(oklch);
     }
     setEditingIndex(index);
     // If the ramp card is collapsed, auto-expand so the editor's effect
@@ -273,8 +278,38 @@ export function useRampEditing(p: UseRampEditingParams) {
   const updateEditorHex = (hex: string) => {
     if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
     setEditorHsv(hexToHsv(hex));
+    const oklch = hexToOklch(hex);
+    if (oklch) setEditorOklch(oklch);
     if (editingIndex === null) return;
     setBaseColors(prev => prev.map((c, i) => i === editingIndex ? hex : c));
+  };
+
+  // Commit an OKLCH update from the editor: mirrors updateEditorHsv, writing
+  // the live editorOklch state directly (never re-derived from hex mid-drag,
+  // for the same reason described above) and gamut-mapping ('auto', same
+  // default as the ramp engine) before converting to hex so an out-of-sRGB
+  // chroma/lightness/hue combination still produces a valid base color.
+  const updateEditorOklch = (next: Oklch) => {
+    setEditorOklch(next);
+    if (editingIndex === null) return;
+    const hex = oklchToHex(gamutMap(next, 'auto'));
+    setBaseColors(prev => prev.map((c, i) => i === editingIndex ? hex : c));
+  };
+
+  // Switch which color space the base-color editor sliders show. Re-seeds the
+  // *other* representation from the current base color hex at the switch
+  // point only (not on every drag), so neither cache drifts from the other.
+  const updateEditorMode = (mode: 'hsv' | 'oklch') => {
+    if (editingIndex !== null) {
+      const hex = baseColors[editingIndex];
+      if (mode === 'oklch') {
+        const oklch = hexToOklch(hex);
+        if (oklch) setEditorOklch(oklch);
+      } else {
+        setEditorHsv(hexToHsv(hex));
+      }
+    }
+    setEditorMode(mode);
   };
 
   // ---------- Per-shade override helpers ----------
@@ -552,6 +587,7 @@ export function useRampEditing(p: UseRampEditingParams) {
   return {
     removeRamp, duplicateRamp, scrollToRamp, highlightedRamp,
     toggleBaseEditor, updateEditorHsv, updateEditorHex,
+    updateEditorOklch, updateEditorMode,
     isShadePinned, togglePinEditor, setOverride, clearOverride,
     hideShade, resetHiddenShades,
     shuffleRamp, bumpShuffleSeed, toggleRampLock,

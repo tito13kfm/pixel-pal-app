@@ -63,6 +63,8 @@ const baseRampProps: RampsPanelProps = {
   setRampSatOverrides: noopDispatch,
   editingIndex: null,
   editorHsv: { h: 20, s: 80, v: 90 },
+  editorOklch: { L: 0.7, C: 0.15, H: 30 },
+  editorMode: 'hsv',
   pinEditor: null,
   setPinEditor: noop as any,
   advancedOpen: {},
@@ -104,6 +106,8 @@ const baseRampProps: RampsPanelProps = {
   toggleBaseEditor: noop,
   updateEditorHex: noop,
   updateEditorHsv: noop,
+  updateEditorOklch: noop,
+  updateEditorMode: noop,
   setEditingIndex: noop as any,
   toggleRampCollapse: noop,
   hideShade: noop,
@@ -316,4 +320,29 @@ test('base editor rounds fractional HSV only for display, not the slider value',
   expect(screen.getByText('79%')).toBeInTheDocument();
   const hueSlider = screen.getByTitle('Hue: 127°') as HTMLInputElement;
   expect(hueSlider.value).toBe('127.34');
+});
+
+test('OKLCH mode shows Light/Chroma/Hue sliders instead of HSV', () => {
+  wrap({ editingIndex: 0, editorMode: 'oklch', editorOklch: { L: 0.6432, C: 0.157, H: 42.6 } });
+  expect(screen.queryByText('Sat')).not.toBeInTheDocument();
+  expect(screen.queryByText('Value')).not.toBeInTheDocument();
+  expect(screen.getByText('Light')).toBeInTheDocument();
+  expect(screen.getByText('Chroma')).toBeInTheDocument();
+  expect(screen.getByText('64%')).toBeInTheDocument();
+  expect(screen.getByText('0.157')).toBeInTheDocument();
+  expect(screen.getByText('43°')).toBeInTheDocument();
+});
+
+test('clicking the OKLCH toggle calls updateEditorMode', () => {
+  const updateEditorMode = vi.fn();
+  wrap({ editingIndex: 0, updateEditorMode });
+  fireEvent.click(screen.getByTitle(/Edit with perceptual OKLCH sliders/));
+  expect(updateEditorMode).toHaveBeenCalledWith('oklch');
+});
+
+test('dragging the Chroma slider calls updateEditorOklch with the new value', () => {
+  const updateEditorOklch = vi.fn();
+  wrap({ editingIndex: 0, editorMode: 'oklch', editorOklch: { L: 0.6, C: 0.1, H: 30 }, updateEditorOklch });
+  fireEvent.change(screen.getByTitle(/Chroma: 0.100/), { target: { value: '0.2' } });
+  expect(updateEditorOklch).toHaveBeenCalledWith({ L: 0.6, C: 0.2, H: 30 });
 });
