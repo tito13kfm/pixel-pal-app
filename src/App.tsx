@@ -2,11 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Contrast, Cpu, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
 import { hexToHsl, hslToHex, hexToRgb } from './lib/color';
-import {
-  WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
-  spriteDiamond, DEFAULT_SPRITE_LIBRARY,
-  HARDWARE_PALETTES, MOOD_PRESETS,
-} from './lib/constants';
+import { HARDWARE_PALETTES, MOOD_PRESETS } from './lib/constants';
 import { TourPanel } from './components/TourPanel'
 import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
@@ -36,7 +32,6 @@ import { buildRandomHex } from './lib/randomizer';
 import { generatePalette } from './lib/palette-generator';
 import { applyMoodToHex } from './lib/mood';
 import { generateHarmony } from './lib/harmony';
-import { parsePiskelC } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
 import { buildRampsForSnapshot } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
@@ -101,8 +96,9 @@ if (typeof window !== 'undefined' && !(window as any).storage) {
 // slice 3).
 
 
-// Sprites, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES, HARDWARE_PALETTES:
-// imported from ./lib/constants (original definitions removed).
+// Sprites, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES, HARDWARE_PALETTES all
+// live in ./lib/constants (original definitions removed); App.tsx now only
+// imports what its remaining wiring reads directly.
 
 
 
@@ -158,12 +154,17 @@ export default function PixelPalGenerator() {
   // The snapshot/restore/start/exit orchestration stays below in App.tsx
   // because it spans other domains. See src/hooks/useTour.ts.
   const { tourOpen, setTourOpen, tourGuideId, setTourGuideId, tourStep, setTourStep, launcherOpen, setLauncherOpen } = useTour();
+  // Sprite state + import/drag/remove/copy handlers (#113) live in
+  // useSpriteImport; setExportFeedback is bound as a param (same pattern
+  // as useRampEditing).
   const {
     spriteKey, setSpriteKey, customSprites, setCustomSprites,
     showSpriteImporter, setShowSpriteImporter, spriteImportText, setSpriteImportText,
     spriteImportName, setSpriteImportName, spriteImportError, setSpriteImportError,
     spriteDragging, setSpriteDragging, spriteLibrary,
-  } = useSpriteImport();
+    handleSpriteFile, handleSpriteDragOver, handleSpriteDragLeave, handleSpriteDrop,
+    importSprite, removeCustomSprite, copySpriteSource,
+  } = useSpriteImport({ setExportFeedback });
 
   const {
     imageDataUrl, setImageDataUrl, imageColorCount, setImageColorCount,
@@ -724,86 +725,6 @@ export default function PixelPalGenerator() {
     setExportFeedback('Restored original hues');
     setTimeout(() => setExportFeedback(''), 2000);
   }, [harmonizeBaseline, tagNextLabel, setBaseColors, setHarmonizeBaseline, setCompareAnchor, setCompareResult, setExportFeedback]);
-
-  const handleSpriteFile = (file) => {
-    if (!file) return;
-    const baseName = file.name.replace(/\.[^/.]+$/, '');
-    if (!spriteImportName.trim()) setSpriteImportName(baseName);
-    const reader = new FileReader();
-    reader.onload = (e) => { setSpriteImportText(e.target.result); setSpriteImportError(''); };
-    reader.onerror = () => setSpriteImportError('Failed to read file');
-    reader.readAsText(file);
-  };
-
-  const handleSpriteDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setSpriteDragging(true); };
-  const handleSpriteDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setSpriteDragging(false); };
-  const handleSpriteDrop = (e) => {
-    e.preventDefault(); e.stopPropagation(); setSpriteDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleSpriteFile(file);
-  };
-
-  const importSprite = () => {
-    setSpriteImportError('');
-    if (!spriteImportName.trim()) { setSpriteImportError('Please give your sprite a name'); return; }
-    const parsed = parsePiskelC(spriteImportText);
-    if (!parsed) { setSpriteImportError('Could not parse. Paste the full C array text'); return; }
-    const key = spriteImportName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-    if (DEFAULT_SPRITE_LIBRARY[key]) { setSpriteImportError('Name conflicts with built-in sprite'); return; }
-    setCustomSprites(prev => ({
-      ...prev,
-      [key]: { name: spriteImportName.trim(), pattern: parsed.pattern, numShades: parsed.numShades }
-    }));
-    setSpriteKey(key);
-    setSpriteImportText(''); setSpriteImportName('');
-    setShowSpriteImporter(false);
-    setExportFeedback(`Imported ${parsed.width}×${parsed.height}, ${parsed.numShades} shades`);
-    setTimeout(() => setExportFeedback(''), 3000);
-  };
-
-  const removeCustomSprite = (key) => {
-    setCustomSprites(prev => { const n = { ...prev }; delete n[key]; return n; });
-    if (spriteKey === key) setSpriteKey('vase');
-  };
-
-  const copySpriteSource = (key) => {
-    const sprite = spriteLibrary[key];
-    if (!sprite || !sprite.pattern) return;
-    const width = sprite.pattern[0].length;
-    const height = sprite.pattern.length;
-    const lines = [];
-    lines.push('=== PIXEL.PAL SPRITE EXPORT ===');
-    lines.push(`name: ${sprite.name}`);
-    lines.push(`size: ${width}x${height}`);
-    lines.push(`shades: ${sprite.numShades}`);
-    lines.push('pattern:');
-    sprite.pattern.forEach(row => lines.push(row));
-    lines.push('=== END SPRITE ===');
-    const text = lines.join('\n');
-    const tryCopy = async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        setExportFeedback('Sprite source copied!');
-      } catch {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          ta.style.position = 'fixed';
-          ta.style.left = '-9999px';
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand('copy');
-          document.body.removeChild(ta);
-          setExportFeedback('Sprite source copied!');
-        } catch {
-          setExportFeedback('Copy failed: check console');
-          console.log(text);
-        }
-      }
-      setTimeout(() => setExportFeedback(''), 2500);
-    };
-    tryCopy();
-  };
 
   useEffect(() => {
     const randomHex = buildRandomHex();
