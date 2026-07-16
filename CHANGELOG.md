@@ -18,6 +18,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-07-16
+
 ### Added
 - One-click palette generator on the Single Color tab: "Surprise Me" replaces
   the palette with 5 base colors picked to work together (golden-angle hue
@@ -58,6 +60,14 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   universal-apple-darwin`) instead of Apple-Silicon-only, so tagged releases
   ship an Intel-compatible `.dmg` and the updater's `latest.json` carries both
   `darwin-aarch64` and `darwin-x86_64` targets (#24).
+- Release pipeline can now be driven from remote agent sessions, which can
+  push branches but not tags: a new "Tag release" workflow creates annotated
+  release tags from a signal branch (`release-tag/vX.Y.Z[/sha]` for tag-only,
+  `release-run/vX.Y.Z` for tag + build), and the Release workflow's publish
+  gates now key on the ref being a tag rather than on the push event, so a
+  dispatch at a tag ref behaves exactly like a tag push. This also unblocked
+  the v0.23.0 and v0.24.0 tags, which had been version-bumped on master but
+  never tagged or released. Draft-Release manual publish gate unchanged.
 
 ## [0.24.0] - 2026-07-13
 
@@ -566,7 +576,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.21.0...v0.22.0
