@@ -414,7 +414,7 @@ export default function PixelPalGenerator() {
     shuffleRamp, bumpShuffleSeed, toggleRampLock,
     toggleCompareMode, pickCompareSwatch,
     toggleRampCollapse, toggleAllRampsCollapse, anyRampExpanded,
-  } = useRampEditing({ tagNextLabel, setExportFeedback });
+  } = useRampEditing({ tagNextLabel, setExportFeedback, setGamutPerRamp });
 
 
   // Shared reset paths (#113): resetPaletteState (the customization wipe

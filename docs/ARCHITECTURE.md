@@ -206,11 +206,12 @@ Invariants that must hold across edits:
    `pinEditor` / `compareAnchor` / `harmonyAnchor`. `reorderRamps` does this via
    `permuteRampState` + `permuteStringKeyMap` (`gamutPerRamp` is permuted separately
    in App.tsx since the hook does not own it). `removeRamp` / `duplicateRamp` live in
-   `hooks/useRampEditing.ts` as of #113 slice 3. Known gap (pre-existing, tracked on
-   #113): `removeRamp` does not shift `hueShiftStrengthPerRamp` /
-   `lightnessCurvePerRamp` / `satCurvePerRamp` / `gamutPerRamp`, and `duplicateRamp`
-   does not carry them to the copy. Miss one and pins / locks attach to the
-   wrong ramp.
+   `hooks/useRampEditing.ts` as of #113 slice 3, and as of the #113 finish
+   they shift/carry `hueShiftStrengthPerRamp` / `lightnessCurvePerRamp` /
+   `satCurvePerRamp` / `gamutPerRamp` too (`gamutPerRamp` via the
+   `setGamutPerRamp` param, since the store does not own it); regression
+   coverage in `tests/unit/useRampEditing-rekey.spec.tsx`. Miss one and
+   pins / locks attach to the wrong ramp.
 4. **Live ↔ snapshot ramp mirror (the #30 invariant).** Live ramps: App.tsx
    synthesizes `liveRampSnapshot` from state and calls `buildRamp(snapshot, style, i)`
    per base/style: the SAME function `buildRampsForSnapshot` (compare / export / PNG)
