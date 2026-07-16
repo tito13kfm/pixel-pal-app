@@ -28,7 +28,11 @@ export interface RampsStoreState {
   stylePresets: typeof DEFAULT_STYLE_PRESETS;
   editingIndex: number | null;
   editorHsv: { h: number; s: number; v: number };
-  pinEditor: { baseIndex: number; shadeIndex: number } | null;
+  // style is which of punchy/balanced/muted the open pin editor targets.
+  // (The field was always present at runtime: togglePinEditor constructs
+  // { baseIndex, shadeIndex, style }, but the type omitted it while every
+  // consumer sat behind @ts-nocheck.)
+  pinEditor: { baseIndex: number; shadeIndex: number; style: string } | null;
   compareMode: boolean;
   compareAnchor: { baseIndex: number; shadeIndex: number; style: string; hex: string } | null;
   compareResult: { aHex: string; bHex: string; ratio: number; tier: string } | null;
@@ -53,7 +57,7 @@ export interface RampsStoreState {
   setStylePresets: (v: Updater<typeof DEFAULT_STYLE_PRESETS>) => void;
   setEditingIndex: (v: Updater<number | null>) => void;
   setEditorHsv: (v: Updater<{ h: number; s: number; v: number }>) => void;
-  setPinEditor: (v: Updater<{ baseIndex: number; shadeIndex: number } | null>) => void;
+  setPinEditor: (v: Updater<RampsStoreState['pinEditor']>) => void;
   setCompareMode: (v: Updater<boolean>) => void;
   setCompareAnchor: (v: Updater<RampsStoreState['compareAnchor']>) => void;
   setCompareResult: (v: Updater<RampsStoreState['compareResult']>) => void;

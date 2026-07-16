@@ -81,7 +81,13 @@ src/
                         loaders, gplImport modal state, two-click delete timer;
                         document state via the Zustand-backed usePaletteState,
                         the useSavedPalettes state bag + cross-domain setters
-                        bound as params)
+                        bound as params), useRampEditing (per-ramp/per-shade
+                        editing: remove/duplicate + base-keyed re-keying, dock
+                        scroll-highlight, base editor, pin/override cluster,
+                        hide/restore, shuffle + lock-aware bumpShuffleSeed,
+                        ramp lock, WCAG compare, collapse toggles; document
+                        state via usePaletteState, only tagNextLabel +
+                        setExportFeedback bound as params)
   lib/
     renderCount.ts      SP2 perf test harness (test-only). enableRenderCounts() /
                         recordRender(name) / getRenderCount(name). No-op in prod
@@ -199,7 +205,11 @@ Invariants that must hold across edits:
    `gamutPerRamp`, the Sets `lockedRamps` / `collapsedRamps`, plus `editingIndex` /
    `pinEditor` / `compareAnchor` / `harmonyAnchor`. `reorderRamps` does this via
    `permuteRampState` + `permuteStringKeyMap` (`gamutPerRamp` is permuted separately
-   in App.tsx since the hook does not own it). Miss one and pins / locks attach to the
+   in App.tsx since the hook does not own it). `removeRamp` / `duplicateRamp` live in
+   `hooks/useRampEditing.ts` as of #113 slice 3. Known gap (pre-existing, tracked on
+   #113): `removeRamp` does not shift `hueShiftStrengthPerRamp` /
+   `lightnessCurvePerRamp` / `satCurvePerRamp` / `gamutPerRamp`, and `duplicateRamp`
+   does not carry them to the copy. Miss one and pins / locks attach to the
    wrong ramp.
 4. **Live ↔ snapshot ramp mirror (the #30 invariant).** Live ramps: App.tsx
    synthesizes `liveRampSnapshot` from state and calls `buildRamp(snapshot, style, i)`
