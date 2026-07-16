@@ -87,7 +87,26 @@ src/
                         hide/restore, shuffle + lock-aware bumpShuffleSeed,
                         ramp lock, WCAG compare, collapse toggles; document
                         state via usePaletteState, only tagNextLabel +
-                        setExportFeedback bound as params)
+                        setExportFeedback + setGamutPerRamp bound as params),
+                        and the #113 finish set: useSideBySideCompute (SBS
+                        payload fetches, slot->snapshot resolution + labels,
+                        SBS remap pipeline), useImageExtractHandlers (From
+                        Image upload/drag/paste + re-extract + eyedropper),
+                        useHardwareLock (toggle + bake-to-pins),
+                        useGlobalShortcuts (Escape dismiss + S/H),
+                        useSessionPrefs (ui:rampSize + moodPreset/#135 +
+                        ui:moodPreset), useGenerationActions (New palette /
+                        random roller / Surprise Me / Around This /
+                        Add-to-Palette), usePaletteReset (shared 8-path
+                        reset + two-click Reset to defaults), useHarmony
+                        (also harmonize/restore-baseline + mode/baseline
+                        state), useTourOrchestration (tour start/exit +
+                        pre-tour snapshot/restore + setup staging),
+                        useThemeHelpers (theme tokens + accent chrome +
+                        ThemeContext value), useDragReorder.tsx
+                        (useSectionDrag + useRampDrag). App.tsx is now JSX
+                        layout + prop wiring + the live ramp memo pipeline
+                        (~1,300 lines; CI ratchet 1,350).
   lib/
     renderCount.ts      SP2 perf test harness (test-only). enableRenderCounts() /
                         recordRender(name) / getRenderCount(name). No-op in prod

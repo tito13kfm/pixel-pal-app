@@ -19,6 +19,14 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 ## [Unreleased]
 
 ### Fixed
+- Removing or duplicating a ramp now re-keys the per-ramp advanced settings
+  (`hueShiftStrengthPerRamp`, `lightnessCurvePerRamp`, `satCurvePerRamp`,
+  `gamutPerRamp`) like every other base-keyed structure. Previously,
+  removing ramp 1 of 3 while ramp 2 had a per-ramp hue shift, Advanced
+  curve, or gamut strategy silently attached those settings to the wrong
+  ramp, and a duplicated ramp rendered differently from its source when the
+  source used any of the four. (pre-existing, tracked on #113; regression
+  test in `tests/unit/useRampEditing-rekey.spec.tsx`)
 - Image Preview (Visualize & Compare) computes again: the debounced
   auto-remap effect was lost in the Tier-C `VizComparePanel` extraction, so
   an uploaded image sat on "Remapping..." forever. The effect is restored in
@@ -51,6 +59,24 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   App.tsx drops from 2,962 to 2,496 lines; the CI ratchet lowers to 2,550.
   New Playwright regression test covers duplicate → edit base → pin →
   hide → lock → remove.
+- App.tsx decomposition (#113, final slices): the remaining non-JSX logic
+  moved into typed hooks (no `@ts-nocheck`): `useSideBySideCompute`
+  (side-by-side payload fetches, slot → snapshot resolution, slot labels,
+  SBS image-remap pipeline), `useImageExtractHandlers` (From Image
+  upload/drag/paste decode + extract, re-extract, eyedropper),
+  `useSpriteImport` (gains the import/drag/remove/copy-source handlers),
+  `useHardwareLock` (toggle + bake-to-pins), `useGlobalShortcuts` (Escape
+  dismiss + S/H), `useSessionPrefs` (ui:rampSize persistence + moodPreset
+  state and ui:moodPreset persistence), `useGenerationActions` (New
+  palette, random roller, Surprise Me / Around This, Add-to-Palette),
+  `usePaletteReset` (shared 8-path reset + two-click Reset to defaults),
+  `useHarmony` (gains harmonize / restore-baseline + mode/baseline state),
+  `useTourOrchestration` (tour start/exit, pre-tour snapshot/restore,
+  setup staging, first-visit auto-start), `useThemeHelpers` (theme token
+  bag + accent chrome helpers + ThemeContext value), and `useDragReorder`
+  (section-card + ramp-card drag reorder). App.tsx drops from 2,496 to
+  1,298 lines (JSX layout + prop wiring plus the ramp memo pipeline); the
+  CI ratchet lowers to 1,350.
 
 ## [0.25.0] - 2026-07-16
 

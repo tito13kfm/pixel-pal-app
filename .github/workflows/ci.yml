@@ -96,7 +96,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         shell: bash
         run: |
-          BUDGET=2550
+          BUDGET=1350
           LINES=$(wc -l < src/App.tsx)
           echo "src/App.tsx is $LINES lines (budget: $BUDGET)"
           if [ "$LINES" -gt "$BUDGET" ]; then
