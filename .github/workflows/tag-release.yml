@@ -1,19 +1,38 @@
 name: Tag release
 
-# Creates an annotated release tag via the GitHub API. Exists because remote
-# agent sessions (Claude Code on the web) cannot `git push` tags: the session
-# git proxy only permits branch pushes, which is how v0.23.0/v0.24.0 ended up
-# version-bumped on master but never tagged or released. Dispatching this
-# workflow is the sanctioned way to cut a tag from such a session.
+# Creates an annotated release tag via the GitHub API, optionally chaining
+# into the Release + Deploy web workflows. Exists because remote agent
+# sessions (Claude Code on the web) can push BRANCHES but not TAGS (the
+# session git proxy rejects tag pushes), and their GitHub App token cannot
+# dispatch workflows either. That combination is how v0.23.0/v0.24.0 ended up
+# version-bumped on master but never tagged or released.
 #
-# NOTE: tags created here use GITHUB_TOKEN, so GitHub deliberately does NOT
-# fire the usual tag-push triggers for them (workflow-to-workflow event
-# suppression). After this succeeds, dispatch the Release workflow AT the new
-# tag ref (workflow_dispatch with ref = the tag); release.yml treats any run
-# on a tag ref exactly like a tag push. Same for "Deploy web" if the tag is
-# the newest release.
+# Trigger from an agent session by pushing a short-lived signal branch whose
+# NAME carries the request (the branch itself must contain this workflow
+# file, so point it at current master):
+#
+#   release-tag/vX.Y.Z            create annotated tag vX.Y.Z at the branch
+#                                 head; no build. Use with an explicit SHA
+#                                 segment for retro-tagging an older commit:
+#   release-tag/vX.Y.Z/<40-char>  create the tag at that commit instead.
+#   release-run/vX.Y.Z            create the tag at the branch head, then
+#                                 dispatch Release + Deploy web AT the tag.
+#                                 This is the full release path.
+#
+# The signal branch is deleted at the end of the run. Humans can do the same
+# from the Actions tab via Run workflow (inputs below).
+#
+# Chaining works because workflow_dispatch is exempt from GitHub's
+# GITHUB_TOKEN event suppression (unlike the tag-push trigger, which never
+# fires for tags created here). The Release workflow treats a dispatch at a
+# tag ref exactly like a tag push, including the draft-Release manual
+# publish gate.
 
 on:
+  push:
+    branches:
+      - 'release-tag/**'
+      - 'release-run/**'
   workflow_dispatch:
     inputs:
       tag:
@@ -23,37 +42,57 @@ on:
         description: 'Full 40-char commit SHA to tag. Empty = HEAD of the dispatched ref.'
         required: false
         default: ''
-      message:
-        description: 'Annotated tag message. Empty = "Release <tag>".'
+      run_release:
+        description: 'Also dispatch Release + Deploy web at the new tag'
+        type: boolean
         required: false
-        default: ''
+        default: false
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
-      - name: Create annotated tag
+      - name: Create annotated tag (and chain release workflows)
         uses: actions/github-script@v8
         env:
           TAG_INPUT: ${{ inputs.tag }}
           SHA_INPUT: ${{ inputs.sha }}
-          MSG_INPUT: ${{ inputs.message }}
+          RUN_RELEASE_INPUT: ${{ inputs.run_release }}
         with:
           script: |
-            const tag = (process.env.TAG_INPUT || '').trim();
+            const { owner, repo } = context.repo;
+            let tag, sha, runRelease, signalBranch = null;
+
+            if (context.eventName === 'push') {
+              signalBranch = context.ref.replace(/^refs\/heads\//, '');
+              const parts = signalBranch.split('/');
+              const mode = parts[0];               // release-tag | release-run
+              tag = parts[1] || '';
+              sha = (parts[2] || context.sha).toLowerCase();
+              runRelease = mode === 'release-run';
+              if (runRelease && parts.length > 2) {
+                core.setFailed('release-run/ does not take a SHA segment; point the branch at the commit to release');
+                return;
+              }
+            } else {
+              tag = (process.env.TAG_INPUT || '').trim();
+              sha = ((process.env.SHA_INPUT || '').trim() || context.sha).toLowerCase();
+              runRelease = process.env.RUN_RELEASE_INPUT === 'true';
+            }
+
             if (!/^v\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(tag)) {
               core.setFailed(`Tag "${tag}" does not look like vX.Y.Z`);
               return;
             }
-            const sha = ((process.env.SHA_INPUT || '').trim() || context.sha).toLowerCase();
             if (!/^[0-9a-f]{40}$/.test(sha)) {
               core.setFailed(`SHA "${sha}" is not a full 40-char commit SHA`);
               return;
             }
-            const { owner, repo } = context.repo;
+
             try {
               await github.rest.git.getRef({ owner, repo, ref: `tags/${tag}` });
               core.setFailed(`Tag ${tag} already exists; refusing to move it`);
@@ -61,11 +100,26 @@ jobs:
             } catch (e) {
               if (e.status !== 404) throw e;
             }
-            const message = (process.env.MSG_INPUT || '').trim() || `Release ${tag}`;
+
             const tagObj = await github.rest.git.createTag({
-              owner, repo, tag, message, object: sha, type: 'commit',
+              owner, repo, tag, message: `Release ${tag}`, object: sha, type: 'commit',
             });
             await github.rest.git.createRef({
               owner, repo, ref: `refs/tags/${tag}`, sha: tagObj.data.sha,
             });
             core.notice(`Created annotated tag ${tag} at ${sha}`);
+
+            if (runRelease) {
+              await github.rest.actions.createWorkflowDispatch({
+                owner, repo, workflow_id: 'release.yml', ref: tag,
+              });
+              await github.rest.actions.createWorkflowDispatch({
+                owner, repo, workflow_id: 'deploy-web.yml', ref: tag,
+              });
+              core.notice(`Dispatched Release + Deploy web at ${tag}`);
+            }
+
+            if (signalBranch) {
+              await github.rest.git.deleteRef({ owner, repo, ref: `heads/${signalBranch}` });
+              core.notice(`Deleted signal branch ${signalBranch}`);
+            }
