@@ -18,6 +18,15 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Added
+- Native OKLCH sliders (Light/Chroma/Hue) for the base-color editor, alongside
+  the existing HSV sliders. An HSV/OKLCH toggle in the "Adjust Base" panel
+  switches which color space the sliders show; both write through the same
+  hex on `baseColors[i]` so they stay in sync. OKLCH edits are gamut-mapped
+  (`auto` strategy, matching the ramp engine's default) before being written
+  as hex, so out-of-sRGB chroma/lightness/hue combinations still produce a
+  valid base color. (#129)
+
 ### Fixed
 - Removing or duplicating a ramp now re-keys the per-ramp advanced settings
   (`hueShiftStrengthPerRamp`, `lightnessCurvePerRamp`, `satCurvePerRamp`,

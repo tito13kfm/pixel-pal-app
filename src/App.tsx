@@ -129,6 +129,7 @@ export default function PixelPalGenerator() {
     lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
     editingIndex, setEditingIndex, editorHsv, setEditorHsv,
+    editorOklch, editorMode,
     pinEditor, setPinEditor, compareMode, setCompareMode,
     compareAnchor, setCompareAnchor, compareResult, setCompareResult,
     buildSnapshot, applySnapshotFields, resetTransientEditors,
@@ -409,6 +410,7 @@ export default function PixelPalGenerator() {
   const {
     removeRamp, duplicateRamp, scrollToRamp, highlightedRamp,
     toggleBaseEditor, updateEditorHsv, updateEditorHex,
+    updateEditorOklch, updateEditorMode,
     isShadePinned, togglePinEditor, setOverride, clearOverride,
     hideShade, resetHiddenShades,
     shuffleRamp, bumpShuffleSeed, toggleRampLock,
@@ -827,6 +829,8 @@ export default function PixelPalGenerator() {
             setRampSatOverrides={setRampSatOverrides}
             editingIndex={editingIndex}
             editorHsv={editorHsv}
+            editorOklch={editorOklch}
+            editorMode={editorMode}
             pinEditor={pinEditor}
             setPinEditor={setPinEditor}
             advancedOpen={advancedOpen}
@@ -868,6 +872,8 @@ export default function PixelPalGenerator() {
             toggleBaseEditor={toggleBaseEditor}
             updateEditorHex={updateEditorHex}
             updateEditorHsv={updateEditorHsv}
+            updateEditorOklch={updateEditorOklch}
+            updateEditorMode={updateEditorMode}
             setEditingIndex={setEditingIndex}
             toggleRampCollapse={toggleRampCollapse}
             hideShade={hideShade}

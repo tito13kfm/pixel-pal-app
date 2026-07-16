@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { CurvePoints } from '../lib/curve';
+import type { Oklch } from '../lib/oklch';
 import { DEFAULT_STYLE_PRESETS } from '../lib/style-presets';
 import { computePermutation, permuteRampState } from '../lib/permute-indexed-state';
 
@@ -28,6 +29,13 @@ export interface RampsStoreState {
   stylePresets: typeof DEFAULT_STYLE_PRESETS;
   editingIndex: number | null;
   editorHsv: { h: number; s: number; v: number };
+  // OKLCH counterpart to editorHsv, kept in sync at the same points (editor
+  // open, hex input, mode switch) rather than re-derived on every drag, so
+  // it doesn't reintroduce the integer-rounding drift #112 fixed for HSV.
+  editorOklch: Oklch;
+  // Which color space the base-color editor sliders show; a persistent UI
+  // preference like compareMode, not reset by resetTransientEditors.
+  editorMode: 'hsv' | 'oklch';
   // style is which of punchy/balanced/muted the open pin editor targets.
   // (The field was always present at runtime: togglePinEditor constructs
   // { baseIndex, shadeIndex, style }, but the type omitted it while every
@@ -57,6 +65,8 @@ export interface RampsStoreState {
   setStylePresets: (v: Updater<typeof DEFAULT_STYLE_PRESETS>) => void;
   setEditingIndex: (v: Updater<number | null>) => void;
   setEditorHsv: (v: Updater<{ h: number; s: number; v: number }>) => void;
+  setEditorOklch: (v: Updater<Oklch>) => void;
+  setEditorMode: (v: Updater<'hsv' | 'oklch'>) => void;
   setPinEditor: (v: Updater<RampsStoreState['pinEditor']>) => void;
   setCompareMode: (v: Updater<boolean>) => void;
   setCompareAnchor: (v: Updater<RampsStoreState['compareAnchor']>) => void;
@@ -89,6 +99,8 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
   stylePresets: DEFAULT_STYLE_PRESETS,
   editingIndex: null,
   editorHsv: { h: 0, s: 0, v: 0 },
+  editorOklch: { L: 0, C: 0, H: 0 },
+  editorMode: 'hsv',
   pinEditor: null,
   compareMode: false,
   compareAnchor: null,
@@ -114,6 +126,8 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
   setStylePresets: (v) => set((s) => ({ stylePresets: resolveUpdater(v, s.stylePresets) })),
   setEditingIndex: (v) => set((s) => ({ editingIndex: resolveUpdater(v, s.editingIndex) })),
   setEditorHsv: (v) => set((s) => ({ editorHsv: resolveUpdater(v, s.editorHsv) })),
+  setEditorOklch: (v) => set((s) => ({ editorOklch: resolveUpdater(v, s.editorOklch) })),
+  setEditorMode: (v) => set((s) => ({ editorMode: resolveUpdater(v, s.editorMode) })),
   setPinEditor: (v) => set((s) => ({ pinEditor: resolveUpdater(v, s.pinEditor) })),
   setCompareMode: (v) => set((s) => ({ compareMode: resolveUpdater(v, s.compareMode) })),
   setCompareAnchor: (v) => set((s) => ({ compareAnchor: resolveUpdater(v, s.compareAnchor) })),

@@ -53,12 +53,16 @@ src/
                         reads ThemeContext for vizDataBorder only.
                         React.memo-wrapped (SP2 phase b): skips re-render when its
                         props are unchanged.
-      RampsPanel.tsx    props-only (~73 props: baseColors, rampsPunchy/Balanced/Muted,
+      RampsPanel.tsx    props-only (~77 props: baseColors, rampsPunchy/Balanced/Muted,
                         style/size/sat overrides, per-ramp advanced curve state,
                         hardware/compare/pin state, all ramp action callbacks);
                         Swatch + PixelSprite as internal components; reads ThemeContext
                         for themedAccent + accentTextGlow; accentTextGlow cast to
-                        (hex, px?) signature to match 2-arg usage in ramp headers
+                        (hex, px?) signature to match 2-arg usage in ramp headers.
+                        The "Adjust Base" editor has an HSV/OKLCH mode toggle
+                        (editorMode/editorOklch + updateEditorOklch/updateEditorMode,
+                        #129): OKLCH edits go through lib/oklch's gamutMap('auto')
+                        before being written back as hex.
       InputPanel.tsx    props-only (54 props: mode/color/image/sprite input
                         state and handlers); reads ThemeContext for
                         t/themedAccentBorder/accentGlow; reuses PixelSprite
