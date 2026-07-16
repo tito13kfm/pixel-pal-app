@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Contrast, Cpu, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
 import { hexToHsl, hslToHex, hexToRgb } from './lib/color';
-import { HARDWARE_PALETTES, MOOD_PRESETS } from './lib/constants';
+import { HARDWARE_PALETTES } from './lib/constants';
 import { TourPanel } from './components/TourPanel'
 import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
@@ -35,8 +35,7 @@ import { generateHarmony } from './lib/harmony';
 import { quantizeToHardware } from './lib/hardware-quantize';
 import { buildRampsForSnapshot } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
-import { isValidRampSize } from './lib/ramp-engine';
-import { shadeLabelsFor, labelsForRamp, applyOverrides, filterHidden, resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp, generateRamp } from './lib/ramp-helpers';
+import { labelsForRamp, filterHidden, resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp } from './lib/ramp-helpers';
 import { permuteStringKeyMap } from './lib/permute-indexed-state';
 import { ThemeProvider, LayoutProvider, PaletteProvider, EditorProvider } from './contexts';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
@@ -59,6 +58,9 @@ import { formatHistoryAge } from './lib/history-snapshot';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
 import { usePaletteState } from './hooks/usePaletteState';
+import { useSessionPrefs } from './hooks/useSessionPrefs';
+import { useHardwareLock } from './hooks/useHardwareLock';
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 import { useHistory } from './hooks/useHistory';
 
 // ---------- window.storage shim ----------
@@ -276,18 +278,11 @@ export default function PixelPalGenerator() {
     return HARDWARE_PALETTES.find(hw => hw.id === hardwareLock) || null;
   }, [hardwareLock]);
 
-  // Mood preset (#135): a MOOD_PRESETS id or null. Session-level setting like
-  // hardwareLock (survives resetPaletteState on purpose), but unlike
-  // hardwareLock it is NOT in the undo snapshot and NOT in saved payloads:
-  // it never changes currently rendered output, it only biases FUTURE
-  // Surprise Me / Around This / Harmonize actions. Composes with Hardware
-  // Lock (mood shapes base-color inputs; the lock quantizes rendered shades).
-  // Persisted as ui:moodPreset (see the effects near the other ui:* prefs).
-  const [moodPreset, setMoodPreset] = useState(null);
-  const activeMood = useMemo(() => {
-    if (!moodPreset) return null;
-    return MOOD_PRESETS.find(m => m.id === moodPreset) || null;
-  }, [moodPreset]);
+  // Persisted session prefs (#113): the ui:rampSize load/persist effects and
+  // the moodPreset state (#135) + its ui:moodPreset persistence live in
+  // useSessionPrefs. rampSize itself stays in usePaletteState (the hook
+  // reads/writes it through the store).
+  const { moodPreset, setMoodPreset, activeMood } = useSessionPrefs();
 
 
   // Live ramps now flow through the SAME shared buildRamp pipeline that
@@ -734,77 +729,6 @@ export default function PixelPalGenerator() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, []);
 
-  // Persisted UI preferences: rampSize, vizStyle, gplStyle, rampExportStyle.
-  // These are session-level defaults the app initializes with on cold open.
-  // Each value is also restorable per-palette via the saved palette payload
-  // (rampSize, vizStyle, gplStyle are in the payload schema; rampExportStyle
-  // is not, but it follows the same persistence shape for the UI default).
-  // Loading a saved palette overrides whatever the persisted default was,
-  // which is the desired behavior. Undo also writes to these states (for
-  // rampSize) and that write will persist; the user's "current state" wins.
-  // Each setting follows the same pattern as ui:theme and ui:cvdMode:
-  // a one-shot load effect on mount and a mountRef-guarded persist effect.
-  // Hardcoded defaults stay unchanged for first-time users (no storage hit
-  // means we keep the useState initial value). Skipped intentionally:
-  // hueShiftStrength is per-palette (saved in the payload, default 1.0 per
-  // palette); persisting it as a session pref would conflict with that role.
-
-  // rampSize: persisted at ui:rampSize. Valid values 2..64.
-  useEffect(() => {
-    (async () => {
-      if (typeof window === 'undefined' || !window.storage) return;
-      try {
-        const got = await window.storage.get('ui:rampSize');
-        if (got && got.value) {
-          const parsed = JSON.parse(got.value);
-          if (isValidRampSize(parsed)) {
-            setRampSize(parsed);
-          }
-        }
-      } catch {
-        // No saved value or storage failed; keep default.
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, []);
-  const rampSizeMountRef = useRef(false);
-  useEffect(() => {
-    if (!rampSizeMountRef.current) { rampSizeMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !window.storage) return;
-    (async () => {
-      try { await window.storage.set('ui:rampSize', JSON.stringify(rampSize)); } catch {}
-    })();
-  }, [rampSize]);
-
-  // moodPreset: persisted at ui:moodPreset (#135). Session-level bias for
-  // Surprise Me / Around This / Harmonize; same load-once + mountRef-guarded
-  // persist shape as ui:rampSize. Valid values: a MOOD_PRESETS id or null.
-  useEffect(() => {
-    (async () => {
-      if (typeof window === 'undefined' || !window.storage) return;
-      try {
-        const got = await window.storage.get('ui:moodPreset');
-        if (got && got.value) {
-          const parsed = JSON.parse(got.value);
-          if (typeof parsed === 'string' && MOOD_PRESETS.some(m => m.id === parsed)) {
-            setMoodPreset(parsed);
-          }
-        }
-      } catch {
-        // No saved value or storage failed; keep default (null).
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot mount load, same as ui:rampSize
-  }, []);
-  const moodPresetMountRef = useRef(false);
-  useEffect(() => {
-    if (!moodPresetMountRef.current) { moodPresetMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !window.storage) return;
-    (async () => {
-      try { await window.storage.set('ui:moodPreset', JSON.stringify(moodPreset)); } catch {}
-    })();
-  }, [moodPreset]);
-
   // Auto-open the visualization section when the user transitions from 1 to 2+
   // base colors, but never force it closed (user can collapse manually any time).
   // Auto-collapse rule for ramp cards: when baseColors grows (a base was
@@ -915,208 +839,21 @@ export default function PixelPalGenerator() {
   // toggleRampCollapse / toggleAllRampsCollapse / anyRampExpanded moved to
   // hooks/useRampEditing.ts (#113 slice 3); destructured above.
 
-  // toggleHardwareLock: switches the hardware lock on/off. If already locked
-  // to the given hardware, clicking again unlocks. If locked to a different
-  // hardware, switches the lock target. Setting the lock is NON-destructive:
-  // baseColors and overrides are preserved as-is. The lock is applied at
-  // render time via the hardware-snap step in buildRamp (ramp-pipeline.ts).
-  // This means unlocking restores the full free-generation ramps without
-  // data loss.
-  //
-  // Pin overrides ARE retained while locked but get snapped on output via
-  // the order of operations in buildRamp (overrides run first, then the
-  // hardware snap covers everything including the pinned hex).
-  // This was a deliberate choice: clearing pins on lock would force the
-  // user to re-pin every time they toggled. Instead, pinned hexes get
-  // visually snapped while locked and reappear as the user's chosen hex
-  // when unlocked.
-  const toggleHardwareLock = (hardwareId) => {
-    if (hardwareLock === hardwareId) {
-      tagNextLabel('Unlock hardware');
-      setHardwareLock(null);
-      setExportFeedback(`Unlocked from hardware`);
-    } else {
-      const hw = HARDWARE_PALETTES.find(h => h.id === hardwareId);
-      tagNextLabel(hw ? `Lock to ${hw.name}` : 'Lock hardware');
-      setHardwareLock(hardwareId);
-      setExportFeedback(hw ? `Locked to ${hw.name}` : 'Locked');
-    }
-    setTimeout(() => setExportFeedback(''), 2000);
-  };
+  // Hardware-lock toggle + bake-to-pins handlers (#113) live in
+  // useHardwareLock; document state flows through usePaletteState inside
+  // the hook, activeHardware/gamutPerRamp bound here.
+  const { toggleHardwareLock, bakeHardwareLock } = useHardwareLock({
+    activeHardware, gamutPerRamp, tagNextLabel, setExportFeedback,
+  });
 
-  // bakeHardwareLock: convert the currently-snapped output into permanent
-  // pins so the user can keep editing without reverting to non-legal hexes.
-  //
-  // Strategy (the "diff-only" option from the analysis): for each
-  // (base, shade, style), compute the post-pin pre-snap value `withPins`
-  // and the post-snap value `snapped`. Pin the (base, shade, style) only
-  // when snapped !== withPins. This minimizes pin bloat: shades the lock
-  // wouldn't have changed are left procedural so future tweaks
-  // (rampSize, hue shift, base color edits, sat multiplier) still affect
-  // them naturally. Shades the lock DID change become permanent pins.
-  //
-  // Existing pins on shades the lock would NOT have changed are preserved
-  // verbatim. Existing pins on shades the lock WOULD have changed get
-  // REPLACED with the snapped value (because the user was looking at the
-  // snapped output anyway; preserving the unsnapped pin would silently
-  // un-bake that one shade).
-  //
-  // Per-style independence: a pin in (i, j, 'punchy') doesn't affect
-  // (i, j, 'balanced'). Each style is baked independently.
-  //
-  // Dedup note: buildRamp's hardware snap dedupes consecutive duplicates for
-  // DISPLAY, but bake pins by the pre-dedup shade index (every slot of
-  // the full ramp). After unlocking, an 8-shade ramp on Game Boy will
-  // show 8 slots with consecutive duplicates rather than the 4-color
-  // deduped view. To get the deduped view back, use hidden shades.
-  // Trade-off: the pin grid stays slot-aligned with the rest of the app.
-  //
-  // Clears hardwareLock to null after writing pins, since the same hexes
-  // are now baked in. History entry tagged 'Bake hardware lock'.
-  const bakeHardwareLock = () => {
-    if (!activeHardware) return;
-    tagNextLabel('Bake hardware lock');
-    const STYLES = ['punchy', 'balanced', 'muted'];
-    setOverrides(prev => {
-      const next = JSON.parse(JSON.stringify(prev));
-      for (let i = 0; i < baseColors.length; i++) {
-        const effBase = resolveBaseForRamp(baseColors[i], i, rampSatOverrides);
-        const effSize = resolveSizeForRamp(i, rampSizeOverrides, rampSize);
-        for (const style of STYLES) {
-          const raw = generateRamp(effBase, effSize, style, hueShiftStrength, i, {
-            gamutPerRamp, stylePresets, shuffleSeed, rampShuffleOffsets, lightnessCurvePerRamp, satCurvePerRamp,
-          });
-          const withPins = applyOverrides(raw, i, prev, style);
-          const snapped = withPins.map(hex => quantizeToHardware(hex, activeHardware));
-          for (let j = 0; j < withPins.length; j++) {
-            if (snapped[j] !== withPins[j]) {
-              if (!next[i]) next[i] = {};
-              if (!next[i][j]) next[i][j] = {};
-              next[i][j][style] = snapped[j];
-            }
-          }
-        }
-      }
-      return next;
-    });
-    setHardwareLock(null);
-    setExportFeedback('Baked hardware lock into pins');
-    setTimeout(() => setExportFeedback(''), 2500);
-  };
-
-  // Escape closes the topmost dismissable thing. Priority order is
-  // outer-to-inner: a modal sitting over everything closes first, then
-  // editor panels, then the floating WCAG Check picker. Skipping
-  // editable-focus is intentional (same reasoning as the undo handler):
-  // hitting Esc mid-typing should not surprise the user by closing a
-  // surrounding panel. Users dismiss editors from inside their inputs
-  // via the existing Close/Done buttons.
-  //
-  // Placement note: this useEffect must come AFTER all four pieces of
-  // state it reads (`gplImport`, `pinEditor`, `editingIndex`,
-  // `compareMode`) are declared. `gplImport` now arrives from the
-  // useSavedPalettesActions() call above; an earlier placement throws
-  // "Cannot access 'gplImport' before initialization" when React
-  // evaluates the dependency array during render (temporal dead zone).
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key !== 'Escape') return;
-      const target = e.target;
-      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
-      const isEditable = tag === 'input' || tag === 'textarea' || (target && target.isContentEditable);
-      if (isEditable) return;
-      if (gplImport) {
-        e.preventDefault();
-        setGplImport(null);
-        return;
-      }
-      if (pinEditor) {
-        e.preventDefault();
-        setPinEditor(null);
-        return;
-      }
-      if (editingIndex !== null) {
-        e.preventDefault();
-        setEditingIndex(null);
-        return;
-      }
-      if (compareMode) {
-        e.preventDefault();
-        setCompareMode(false);
-        return;
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [gplImport, pinEditor, editingIndex, compareMode]);
-
-  // KEYBOARD SHORTCUTS: S, H
-  //
-  //   S - Focus the Save palette name input and scroll it into view.
-  //   H - Harmonize. The harmonize() helper has its own internal guards
-  //       (returns early with a feedback toast if base count < 2 or no
-  //       unlocked targets), so we forward unconditionally.
-  //
-  // G previously triggered Generate. Removed because after the
-  // session 2 followup, Generate was renamed to "New palette" and
-  // downgraded to a secondary action since it's destructive (wipes
-  // pins, hidden shades, locks, anchor, side-by-side slots). A
-  // single-key shortcut for an unconfirmed destructive operation is
-  // a footgun, especially when the renamed button no longer maps to
-  // the letter "G." If a shortcut for the primary Add base action
-  // is wanted later, "A" is the obvious candidate.
-  //
-  // Bare letter keys (no Cmd/Ctrl). Same editable-focus guard as the
-  // undo/Escape handlers so the shortcuts don't fire while the user is
-  // typing in any input or textarea. No Shift, Alt, or modifier required;
-  // gated to plain key strokes so keyboard navigation with modifiers
-  // (e.g. browser Find: Cmd+H, Cmd+S) is not affected.
-  //
-  // Placement: must be AFTER the useSavedPalettesActions() call that
-  // returns `gplImport` (same TDZ constraint as the Escape handler above).
-  // `harmonize` declares earlier in the component body.
-  useEffect(() => {
-    const handler = (e) => {
-      // Modifier-gated keys are claimed by the browser or by the existing
-      // undo handler. Only fire on plain letter presses.
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      // Skip when typing in any input or textarea so the letter lands in
-      // the field, not the shortcut.
-      const target = e.target;
-      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
-      const isEditable = tag === 'input' || tag === 'textarea' || (target && target.isContentEditable);
-      if (isEditable) return;
-      // Don't intercept while a modal or editor is open. Esc dismisses
-      // those; layering shortcuts on top would be surprising.
-      if (gplImport || pinEditor || editingIndex !== null) return;
-      const key = e.key.toLowerCase();
-      if (key === 's') {
-        e.preventDefault();
-        const node = saveNameInputRef.current;
-        if (node) {
-          // scrollIntoView with smooth + center keeps the save panel visible
-          // even when the user pressed S from way up the page.
-          try { node.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
-          node.focus();
-        }
-      } else if (key === 'h') {
-        e.preventDefault();
-        harmonize();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [baseColors, lockedRamps, safeAnchor, gplImport, pinEditor, editingIndex]);
-  // Dep array notes: `baseColors`, `lockedRamps`, and `safeAnchor` are
-  // what harmonize reads directly (the H shortcut). `gplImport` /
-  // `pinEditor` / `editingIndex` gate both shortcuts (modal-open
-  // suppression). The S shortcut only reads from a ref, so it adds no
-  // deps. Everything else the handlers touch is via setters (which
-  // always see fresh state) or refs (which sidestep closures). If you
-  // add a new shortcut whose action function reads more state, add
-  // those reads here too.
+  // Global keyboard shortcuts (#113): Escape (dismiss topmost) and the
+  // bare-letter S / H shortcuts live in useGlobalShortcuts. Placement: must
+  // stay AFTER the useSavedPalettesActions() call that returns gplImport and
+  // after harmonize is declared (temporal dead zone on the argument object).
+  useGlobalShortcuts({
+    gplImport, setGplImport, saveNameInputRef, harmonize,
+    baseColors, lockedRamps, safeAnchor,
+  });
 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- THEME_TOKENS is pure static; deps=[theme] is correct
