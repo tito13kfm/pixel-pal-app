@@ -33,6 +33,24 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   `hooks/useHarmony.ts`. Both are typed (no `@ts-nocheck`). App.tsx drops
   from 3,846 to 3,500 lines. CI now enforces a 3,550-line ratchet on
   App.tsx to prevent regrowth between extraction slices.
+- App.tsx decomposition (#113, slice 2): saved-palette persistence wiring
+  (mount-time list refresh, save, the 240-line load/validate, classic-palette
+  and .gpl import loaders, delete/rename with the two-click confirm timer,
+  the `gplImport` modal state) extracted to `hooks/useSavedPalettesActions.ts`
+  (typed, no `@ts-nocheck`); `formatHistoryAge` moved to
+  `lib/history-snapshot.ts`. App.tsx drops from 3,500 to 2,962 lines; the CI
+  ratchet lowers to 3,000. New Playwright regression test covers the
+  save → load → rename → delete round-trip (previously zero e2e coverage).
+- App.tsx decomposition (#113, slice 3): the per-ramp / per-shade editing
+  handlers (remove/duplicate ramp with base-keyed re-keying, dock
+  scroll-and-highlight, base-color editor, pin/override cluster,
+  hide/restore shades, per-ramp + lock-aware shuffle, ramp lock, WCAG
+  compare handlers, card collapse toggles) extracted to
+  `hooks/useRampEditing.ts` (typed, no `@ts-nocheck`). The ramps store's
+  `pinEditor` type gains its always-present-at-runtime `style` field.
+  App.tsx drops from 2,962 to 2,496 lines; the CI ratchet lowers to 2,550.
+  New Playwright regression test covers duplicate → edit base → pin →
+  hide → lock → remove.
 
 ## [0.25.0] - 2026-07-16
 

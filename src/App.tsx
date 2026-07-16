@@ -1,12 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Contrast, Cpu, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
-import {
-  hexToHsl, hslToHex, hexToRgb, rgbToHex,
-  rgbToHsl, hslToRgb, hexToHsv, hsvToHex, hsvToRgb,
-} from './lib/color';
-import { presetToPoints } from './lib/curve';
-import type { CurvePoints } from './lib/curve';
+import { hexToHsl, hslToHex, hexToRgb, rgbToHex } from './lib/color';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
@@ -17,14 +12,13 @@ import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
 import { PixelPlayground } from './components/PixelPlayground';
 import type { GamutStrategySerialized } from './lib/palette';
-import { slugify } from './lib/palette';
 import { lightnessMarkers, LIGHTNESS_GRIDLINES } from './lib/strip-export';
 import { AdjacencyMatrix } from './components/AdjacencyMatrix';
 import { DitherBlend } from './components/DitherBlend';
 import { CrossRampDither } from './components/CrossRampDither';
 import { DITHER_PATTERNS } from './lib/viz-interaction';
 import { THEME_TOKENS } from './lib/theme';
-import { V2EngineNotice, isPreV2Palette } from './components/V2EngineNotice';
+import { V2EngineNotice } from './components/V2EngineNotice';
 import { CvdActiveBadge } from './components/CvdActiveBadge';
 import { SectionCard } from './components/SectionCard';
 import { BaseColorDock } from './components/BaseColorDock';
@@ -37,13 +31,12 @@ import { HarmonyPanel } from './components/panels/HarmonyPanel';
 import { RampsPanel, PixelSprite } from './components/panels/RampsPanel';
 import { InputPanel } from './components/panels/InputPanel';
 import { HeaderControls } from './components/panels/HeaderControls';
-import { wcagRelativeLuminance, wcagContrast, wcagAaTier } from './lib/wcag';
 import { DEFAULT_STYLE_PRESETS } from './lib/style-presets';
 import { buildRandomHex } from './lib/randomizer';
 import { generatePalette } from './lib/palette-generator';
 import { applyMoodToHex } from './lib/mood';
 import { generateHarmony } from './lib/harmony';
-import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
+import { parsePiskelC } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
 import { extractDominantColors } from './lib/image-extract';
 import { requestRemap } from './lib/remap-worker-client';
@@ -65,6 +58,9 @@ import { useImageRemapCompute } from './hooks/useImageRemapCompute';
 import { useHarmony } from './hooks/useHarmony';
 import { useSideBySide } from './hooks/useSideBySide';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
+import { useSavedPalettesActions } from './hooks/useSavedPalettesActions';
+import { useRampEditing } from './hooks/useRampEditing';
+import { formatHistoryAge } from './lib/history-snapshot';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
 import { usePaletteState } from './hooks/usePaletteState';
@@ -99,17 +95,10 @@ if (typeof window !== 'undefined' && !(window as any).storage) {
   };
 }
 
-// rgbToHex, rgbToHsl, hslToRgb, hexToHsl, hslToHex: imported from ./lib/color
-// wcagRelativeLuminance, wcagContrast, wcagAaTier: imported from ./lib/wcag
-
-// HSV conversion helpers. We use HSV (also called HSB) for the base-color
-// editor because it matches the mental model used by pixel art tools like
-// Aseprite. Note: HSV's V (value) goes from black at V=0 to a pure saturated
-// color at V=100, but reaches white only when S is also 0. This differs from
-// HSL where L=100 is always white regardless of S.
-// rgbToHsv, hsvToRgb, hexToHsv, hsvToHex, getShadowHueShift,
-// getHighlightHueShift, seededRandom, generateRamp:
-// imported from ./lib/color (original definitions removed).
+// rgbToHex, hexToHsl, hslToHex, hexToRgb: imported from ./lib/color.
+// The HSV editor conversions (hexToHsv/hsvToHex) and the WCAG compare
+// helpers moved with their handlers to hooks/useRampEditing.ts (#113
+// slice 3).
 
 
 // Sprites, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES, HARDWARE_PALETTES:
@@ -272,13 +261,11 @@ export default function PixelPalGenerator() {
 
   const [gamutPerRamp, setGamutPerRamp] = useState<Record<string, GamutStrategySerialized>>({});
   const resetStylePresets = () => setStylePresets(DEFAULT_STYLE_PRESETS);
-  const confirmTimerRef = useRef(null);
   // Ref to the Save Palette name input. Used by the `S` keyboard
   // shortcut to scroll the saved-palettes section into view and focus
   // the field for immediate typing. Set via the ref attribute on the
   // input element down in the JSX tree.
   const saveNameInputRef = useRef(null);
-  const SAVED_PALETTE_LIMIT = 100;
   const resetConfirmTimerRef = useRef(null);
 
   // Active hardware palette object when locked, otherwise null. Resolved
@@ -720,395 +707,22 @@ export default function PixelPalGenerator() {
     baseColors, setBaseColors, setAiColorNames,
   });
 
-  const removeRamp = (index) => {
-    setBaseColors(prev => prev.filter((_, i) => i !== index));
-    setAiColorNames(prev => prev.filter((_, i) => i !== index));
-    // Keep editingIndex consistent with the new array. If the removed ramp was
-    // the one being edited, close the editor. If a ramp before the edited one
-    // was removed, the edited ramp shifts down by 1.
-    setEditingIndex(prev => {
-      if (prev === null) return null;
-      if (prev === index) return null;
-      if (prev > index) return prev - 1;
-      return prev;
-    });
-    // Per-shade overrides: drop the removed base's overrides entirely, and
-    // shift later bases' keys down by 1 to match the new baseColors array.
-    setOverrides(prev => {
-      const next = {};
-      for (const k of Object.keys(prev)) {
-        const idx = Number(k);
-        if (idx === index) continue; // dropped
-        const newIdx = idx > index ? idx - 1 : idx;
-        next[newIdx] = prev[k];
-      }
-      return next;
-    });
-    // If the pin editor was on the removed ramp, close it. Otherwise shift its
-    // baseIndex down if a ramp before it was removed.
-    setPinEditor(prev => {
-      if (!prev) return null;
-      if (prev.baseIndex === index) return null;
-      if (prev.baseIndex > index) return { ...prev, baseIndex: prev.baseIndex - 1 };
-      return prev;
-    });
-    // Compare anchor: same shift logic. If the anchor's ramp was removed,
-    // clear the anchor (and any in-flight result) so the user has to pick
-    // a new one. Otherwise shift the baseIndex down by 1 if a ramp before
-    // it was removed.
-    setCompareAnchor(prev => {
-      if (!prev) return null;
-      if (prev.baseIndex === index) {
-        setCompareResult(null);
-        return null;
-      }
-      if (prev.baseIndex > index) return { ...prev, baseIndex: prev.baseIndex - 1 };
-      return prev;
-    });
-    // Harmony anchor: if the anchor ramp was removed, fall back to 0. If a
-    // ramp before the anchor was removed, shift the anchor down by 1 so it
-    // keeps pointing at the same color. The safeAnchor read above also
-    // guards against any one-frame staleness here.
-    setHarmonyAnchor(prev => {
-      if (prev === index) return 0;
-      if (prev > index) return prev - 1;
-      return prev;
-    });
-    // Same shift logic for per-ramp size and saturation overrides.
-    const shiftBaseKeyedMap = (prev) => {
-      const next = {};
-      for (const k of Object.keys(prev)) {
-        const idx = Number(k);
-        if (idx === index) continue;
-        const newIdx = idx > index ? idx - 1 : idx;
-        next[newIdx] = prev[k];
-      }
-      return next;
-    };
-    setRampSizeOverrides(shiftBaseKeyedMap);
-    setRampSatOverrides(shiftBaseKeyedMap);
-    setHiddenShades(shiftBaseKeyedMap);
-    setRampShuffleOffsets(shiftBaseKeyedMap);
-    // collapsedRamps is a Set, not an object map. Same shift semantics:
-    // drop the removed index, shift later indices down by 1.
-    setCollapsedRamps(prev => {
-      const next = new Set();
-      for (const idx of prev) {
-        if (idx === index) continue;
-        next.add(idx > index ? idx - 1 : idx);
-      }
-      return next;
-    });
-    // lockedRamps follows the same Set-shift semantics as collapsedRamps.
-    // If the removed ramp itself was locked, the lock is implicitly
-    // dropped (the ramp no longer exists); other locked ramps shift
-    // down by 1 if they sat after the removed index.
-    setLockedRamps(prev => {
-      const next = new Set();
-      for (const idx of prev) {
-        if (idx === index) continue;
-        next.add(idx > index ? idx - 1 : idx);
-      }
-      return next;
-    });
-  };
 
-  // Base-color dock (#80): smooth-scroll to a ramp and flash a highlight when
-  // the user clicks a swatch body in the dock.
-  const [highlightedRamp, setHighlightedRamp] = useState(null);
-  const highlightTimerRef = useRef(null);
-  const scrollToRamp = (index) => {
-    const el = document.querySelector(`[data-ramp-index="${index}"]`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-    setHighlightedRamp(index);
-    highlightTimerRef.current = setTimeout(() => {
-      setHighlightedRamp(prev => (prev === index ? null : prev));
-      highlightTimerRef.current = null;
-    }, 1200);
-  };
+  // Per-ramp / per-shade editing handlers (#113 slice 3): remove/duplicate,
+  // dock scroll+highlight, base editor, pin/override cluster, hide/restore,
+  // per-ramp + lock-aware shuffle, ramp lock, WCAG compare handlers, and the
+  // card collapse toggles live in useRampEditing. Document state flows
+  // through the Zustand-backed usePaletteState inside the hook.
+  const {
+    removeRamp, duplicateRamp, scrollToRamp, highlightedRamp,
+    toggleBaseEditor, updateEditorHsv, updateEditorHex,
+    isShadePinned, togglePinEditor, setOverride, clearOverride,
+    hideShade, resetHiddenShades,
+    shuffleRamp, bumpShuffleSeed, toggleRampLock,
+    toggleCompareMode, pickCompareSwatch,
+    toggleRampCollapse, toggleAllRampsCollapse, anyRampExpanded,
+  } = useRampEditing({ tagNextLabel, setExportFeedback });
 
-  // duplicateRamp: append a copy of ramp `i` at the end of baseColors,
-  // carrying over every per-base-keyed setting (overrides, size override,
-  // sat override, hidden shades, ramp shuffle offset, ai color name). The
-  // new index is N = baseColors.length BEFORE the append, since we
-  // append rather than insert. No existing indices shift, so other
-  // base-keyed state doesn't need shifting.
-  //
-  // lockedRamps is deliberately NOT carried over: the typical reason
-  // to duplicate is to vary the duplicate, so starting it unlocked is
-  // the useful default.
-  //
-  // collapsedRamps is left to the existing auto-collapse useEffect
-  // (collapses newly-appended indices when total >= 3).
-  //
-  // v0.6 perceptual engine: the new generateRamp ignores seed. Output is
-  // deterministic from (base, style, size, hueShift, curve, gamut, satMult).
-  // Since duplicateRamp carries over every per-base setting that the engine
-  // reads, the duplicate is byte-identical to the source. The seed formula
-  // `shuffleSeed * 17 + i * 31 + offset * 13` is still computed and passed
-  // through the adapter shim, but the new engine drops the value, so the
-  // N != i discrepancy from the old HSV engine no longer matters.
-  const duplicateRamp = (i) => {
-    if (i < 0 || i >= baseColors.length) return;
-    tagNextLabel('Duplicate ramp');
-    // Deep-clone helper for per-base entries. Plain JSON is sufficient:
-    // the contents are POJO maps / arrays / primitives.
-    const deepClone = (entry) => (entry === undefined ? undefined : JSON.parse(JSON.stringify(entry)));
-    // Generic appender for sparse base-keyed maps: writes the cloned
-    // source entry at index N (the position after append).
-    const appendDup = (map) => {
-      if (!Object.prototype.hasOwnProperty.call(map, i)) return map;
-      const N = baseColors.length;
-      return { ...map, [N]: deepClone(map[i]) };
-    };
-    setBaseColors(prev => [...prev, prev[i]]);
-    setAiColorNames(prev => [...prev, prev[i] !== undefined ? prev[i] : '']);
-    setOverrides(appendDup);
-    setRampSizeOverrides(appendDup);
-    setRampSatOverrides(appendDup);
-    setHiddenShades(appendDup);
-    setRampShuffleOffsets(appendDup);
-    setExportFeedback('Duplicated ramp');
-    setTimeout(() => setExportFeedback(''), 2000);
-  };
-
-  // Open/close the base-color editor for ramp `index`. Toggling the same index
-  // closes it. Opening a different index switches and re-seeds editorHsv from
-  // that ramp's current base color.
-  const toggleBaseEditor = (index) => {
-    if (editingIndex === index) {
-      setEditingIndex(null);
-      return;
-    }
-    const hex = baseColors[index];
-    if (hex) {
-      // Keep the exact (unrounded) HSV as the live editing state. Rounding
-      // here used to bake into editorHsv permanently: the next single-slider
-      // drag would spread the other two rounded channels back into baseColors,
-      // silently snapping hue/saturation by up to +/-0.5 even though the user
-      // only touched one slider. Rounding now happens only at render time for
-      // the numeric labels (see RampsPanel).
-      setEditorHsv(hexToHsv(hex));
-    }
-    setEditingIndex(index);
-    // If the ramp card is collapsed, auto-expand so the editor's effect
-    // on the swatches is visible. Otherwise the user clicks edit and
-    // nothing visible changes below the icon row.
-    setCollapsedRamps(prev => {
-      if (!prev.has(index)) return prev;
-      const next = new Set(prev);
-      next.delete(index);
-      return next;
-    });
-  };
-
-  // Commit an HSV update from the editor: writes the corresponding hex back to
-  // baseColors[editingIndex] and updates the local HSV state. Called on every
-  // slider drag, so it needs to be cheap. We deliberately do NOT bump
-  // shuffleSeed; that would re-randomize jitter on every nudge, making the
-  // edit feel disconnected from the user's input.
-  const updateEditorHsv = (next) => {
-    setEditorHsv(next);
-    if (editingIndex === null) return;
-    const hex = hsvToHex(next);
-    setBaseColors(prev => prev.map((c, i) => i === editingIndex ? hex : c));
-  };
-
-  // Commit a hex update from the color picker: writes hex through, then syncs
-  // the editor's HSV display so the sliders reflect the new value. The picker
-  // can produce arbitrary 24-bit values that don't correspond to round HSV
-  // numbers, so we let the displayed HSV show the actual derived values.
-  const updateEditorHex = (hex) => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
-    setEditorHsv(hexToHsv(hex));
-    if (editingIndex === null) return;
-    setBaseColors(prev => prev.map((c, i) => i === editingIndex ? hex : c));
-  };
-
-  // ---------- Per-shade override helpers ----------
-  // Overrides are keyed by (baseIndex, shadeIndex, style). isShadePinned
-  // tests for a pin in one specific style; setOverride writes one; clearOverride
-  // removes one and prunes empty containers up the tree.
-  const isShadePinned = (baseIndex, shadeIndex, style) => {
-    const inner = overrides[baseIndex];
-    if (!inner) return false;
-    const styleMap = inner[shadeIndex];
-    if (!styleMap || typeof styleMap !== 'object') return false;
-    return typeof styleMap[style] === 'string';
-  };
-
-  // togglePinEditor: handle a click on the pin button for (base, shade, style).
-  // Three cases, evaluated in this order:
-  //   1. Already pinned -> unpin. ALSO close the editor if it was open on
-  //      this exact triple, otherwise leave any other editor alone. This
-  //      ordering matters: a previous version checked the "editor open on
-  //      me" branch first and returned without unpinning, which made
-  //      unpinning a swatch with its own editor open take two clicks
-  //      (one to close, one to unpin). The pin button is a binary toggle
-  //      first, an editor-summoner second.
-  //   2. Editor already open on this exact triple (not pinned) -> close
-  //      it. This is the dismiss path for the "I pinned then changed my
-  //      mind without adjusting" case.
-  //   3. Not pinned, editor closed (or open elsewhere) -> commit the
-  //      current displayed hex as the pin and open the editor so the
-  //      user can adjust if they want.
-  // Re-editing a pin is not a direct flow: click unpins, click again
-  // re-pins to the new current computed shade. This keeps the pin button
-  // a clear binary toggle, matching the user's mental model.
-  const togglePinEditor = (baseIndex, shadeIndex, style, currentHex) => {
-    if (isShadePinned(baseIndex, shadeIndex, style)) {
-      clearOverride(baseIndex, shadeIndex, style);
-      // If the editor was open on this exact triple, close it. Editors on
-      // other swatches stay where they are.
-      if (pinEditor && pinEditor.baseIndex === baseIndex && pinEditor.shadeIndex === shadeIndex && pinEditor.style === style) {
-        setPinEditor(null);
-      }
-      return;
-    }
-    if (pinEditor && pinEditor.baseIndex === baseIndex && pinEditor.shadeIndex === shadeIndex && pinEditor.style === style) {
-      setPinEditor(null);
-      return;
-    }
-    if (typeof currentHex === 'string') {
-      setOverride(baseIndex, shadeIndex, style, currentHex);
-    }
-    setPinEditor({ baseIndex, shadeIndex, style });
-  };
-
-  // setOverride: write or update the pinned hex for (baseIndex, shadeIndex, style).
-  const setOverride = (baseIndex, shadeIndex, style, hex) => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
-    if (!['punchy', 'balanced', 'muted'].includes(style)) return;
-    const norm = hex.toLowerCase();
-    setOverrides(prev => {
-      const baseEntry = prev[baseIndex] ? { ...prev[baseIndex] } : {};
-      const styleMap = baseEntry[shadeIndex] ? { ...baseEntry[shadeIndex] } : {};
-      styleMap[style] = norm;
-      baseEntry[shadeIndex] = styleMap;
-      return { ...prev, [baseIndex]: baseEntry };
-    });
-  };
-
-  // clearOverride: remove the pin for (baseIndex, shadeIndex, style). If
-  // that shade entry has no remaining styles, drop the shade key. If the
-  // base entry has no remaining shade keys, drop the base entry too. This
-  // keeps the map sparse so save payloads stay small for mostly-unpinned
-  // palettes.
-  const clearOverride = (baseIndex, shadeIndex, style) => {
-    setOverrides(prev => {
-      if (!prev[baseIndex]) return prev;
-      const baseEntry = { ...prev[baseIndex] };
-      const styleMap = baseEntry[shadeIndex] ? { ...baseEntry[shadeIndex] } : null;
-      if (!styleMap || !(style in styleMap)) return prev;
-      delete styleMap[style];
-      if (Object.keys(styleMap).length === 0) {
-        delete baseEntry[shadeIndex];
-      } else {
-        baseEntry[shadeIndex] = styleMap;
-      }
-      const next = { ...prev };
-      if (Object.keys(baseEntry).length === 0) {
-        delete next[baseIndex];
-      } else {
-        next[baseIndex] = baseEntry;
-      }
-      return next;
-    });
-  };
-
-  // hideShade: mark a (baseIndex, shadeIndex) as hidden across all three
-  // styles for that base. Refuses to hide the last visible shade so a
-  // ramp never renders empty. rampLen is the full pre-filter ramp length
-  // for that base; caller passes it (rampsPunchy[baseIndex].length is
-  // canonical since all three styles have the same length).
-  const hideShade = (baseIndex, shadeIndex, rampLen) => {
-    const currentHidden = Array.isArray(hiddenShades[baseIndex]) ? hiddenShades[baseIndex] : [];
-    if (currentHidden.includes(shadeIndex)) return; // already hidden
-    const wouldBeHidden = currentHidden.length + 1;
-    if (wouldBeHidden >= rampLen) {
-      // Last visible shade; refuse.
-      setExportFeedback('Cannot hide the last visible shade');
-      setTimeout(() => setExportFeedback(''), 2000);
-      return;
-    }
-    setHiddenShades(prev => {
-      const next = { ...prev };
-      const existing = Array.isArray(next[baseIndex]) ? next[baseIndex] : [];
-      next[baseIndex] = [...existing, shadeIndex].sort((a, b) => a - b);
-      return next;
-    });
-    // If the pin editor was open on this shade for any style, close it
-    // since the shade is no longer interactable.
-    if (pinEditor && pinEditor.baseIndex === baseIndex && pinEditor.shadeIndex === shadeIndex) {
-      setPinEditor(null);
-    }
-  };
-
-  // resetHiddenShades: restore every hidden shade for one base.
-  const resetHiddenShades = (baseIndex) => {
-    setHiddenShades(prev => {
-      if (!prev[baseIndex]) return prev;
-      const next = { ...prev };
-      delete next[baseIndex];
-      return next;
-    });
-  };
-
-  // shuffleRamp: bump the per-ramp shuffle offset for one base, causing
-  // just that ramp to re-jitter while leaving every other ramp's
-  // generator output identical. This is distinct from the global
-  // shuffleSeed which re-jitters every ramp at once.
-  //
-  // Locked ramps are silently skipped: re-jittering a locked ramp would
-  // contradict the lock contract. The per-ramp dice button on the ramp
-  // card is itself hidden for locked ramps, but we double-gate here in
-  // case any other caller invokes shuffleRamp programmatically.
-  const shuffleRamp = (baseIndex) => {
-    if (lockedRamps.has(baseIndex)) return;
-    setRampShuffleOffsets(prev => ({
-      ...prev,
-      [baseIndex]: (prev[baseIndex] || 0) + 1,
-    }));
-  };
-
-  // bumpShuffleSeed: lock-aware replacement for `setShuffleSeed(s => s + 1)`
-  // used by global Generate / dice / image-eyedropper handlers. If nothing
-  // is locked, behaves identically to the old call (so existing palettes
-  // and tests are unaffected). If at least one ramp is locked, we instead
-  // bump rampShuffleOffsets[i] by 1 for every UNLOCKED ramp, and leave
-  // shuffleSeed untouched. This re-jitters unlocked ramps (changing the
-  // per-ramp seed by +13 instead of +17, but the user only sees that
-  // their unlocked ramps changed, which is what they asked for) and
-  // leaves locked ramps byte-identical to before the click.
-  //
-  // The asymmetry between +17 (old, all ramps) and +13 (new, unlocked
-  // only) is harmless: the seed formula already mixes both contributors
-  // (shuffleSeed * 17 + offset * 13), so both are valid shuffle steps.
-  // The only observable difference would be in tests pinning specific
-  // hex outputs to specific (shuffleSeed, offset) pairs; the test suite
-  // doesn't do that.
-  //
-  // Called by: handleGenerate (non-reset path), image extract handlers,
-  // handleImageClick eyedropper
-  // append, and any other "global shuffle" entry point. Hard-reset
-  // entry points (loadClassicPalette, applyGplImport, randomizeColor,
-  // load-from-storage) bypass this helper and call setShuffleSeed
-  // directly because they're wiping ALL state including lockedRamps.
-  const bumpShuffleSeed = () => {
-    if (lockedRamps.size === 0) {
-      setShuffleSeed(s => s + 1);
-      return;
-    }
-    setRampShuffleOffsets(prev => {
-      const next = { ...prev };
-      for (let i = 0; i < baseColors.length; i++) {
-        if (lockedRamps.has(i)) continue;
-        next[i] = (next[i] || 0) + 1;
-      }
-      return next;
-    });
-  };
 
   // resetPaletteState: clears every customization layer that the eight
   // full-palette-replace paths share. Callers are still responsible for
@@ -1171,17 +785,6 @@ export default function PixelPalGenerator() {
       setConfirmReset(false);
       resetConfirmTimerRef.current = null;
     }, 3000);
-  };
-
-  // toggleRampLock: flip lock state for one ramp index. Used by the
-  // padlock icon on each ramp card.
-  const toggleRampLock = (baseIndex) => {
-    setLockedRamps(prev => {
-      const next = new Set(prev);
-      if (next.has(baseIndex)) next.delete(baseIndex);
-      else next.add(baseIndex);
-      return next;
-    });
   };
 
   // harmonize: rotate the hue of every UNLOCKED non-anchor base to a
@@ -1252,49 +855,6 @@ export default function PixelPalGenerator() {
     setExportFeedback('Restored original hues');
     setTimeout(() => setExportFeedback(''), 2000);
   }, [harmonizeBaseline, tagNextLabel, setBaseColors, setHarmonizeBaseline, setCompareAnchor, setCompareResult, setExportFeedback]);
-
-  // Toggle compare mode on/off. Turning OFF clears any in-flight anchor
-  // and result so the next time the user enters compare mode they get a
-  // clean slate. Turning ON does NOT pre-populate anything; user picks.
-  const toggleCompareMode = () => {
-    setCompareMode(prev => {
-      if (prev) {
-        setCompareAnchor(null);
-        setCompareResult(null);
-      }
-      return !prev;
-    });
-  };
-
-  // Pick a swatch while compare mode is on. Behavior:
-  // - No anchor yet: this becomes the anchor.
-  // - Anchor exists and the clicked swatch IS the anchor: unlock (clear).
-  // - Anchor exists and the clicked swatch is different: compute the ratio
-  //   and stash both into compareResult. The anchor stays so the user can
-  //   keep comparing OTHER swatches against the same anchor; clicking the
-  //   anchor again clears everything.
-  // The "same swatch" identity uses (baseIndex, shadeIndex, style) since
-  // two different ramps can have the same hex value.
-  const pickCompareSwatch = (baseIndex, shadeIndex, style, hex) => {
-    if (!compareAnchor) {
-      setCompareAnchor({ baseIndex, shadeIndex, style, hex });
-      setCompareResult(null);
-      return;
-    }
-    const isAnchor = compareAnchor.baseIndex === baseIndex
-                  && compareAnchor.shadeIndex === shadeIndex
-                  && compareAnchor.style === style;
-    if (isAnchor) {
-      // Click anchor again -> unlock entirely.
-      setCompareAnchor(null);
-      setCompareResult(null);
-      return;
-    }
-    // Different swatch -> compute and show result, keep anchor.
-    const ratio = wcagContrast(compareAnchor.hex, hex);
-    const tier = wcagAaTier(ratio);
-    setCompareResult({ aHex: compareAnchor.hex, bHex: hex, ratio, tier });
-  };
 
   const handleSpriteFile = (file) => {
     if (!file) return;
@@ -1517,49 +1077,26 @@ export default function PixelPalGenerator() {
   // pulling enough data out of each entry to render the list. We pull
   // baseColors so the list can show a small mosaic thumbnail; the rest of
   // the payload is fetched lazily when a palette is loaded.
-  const refreshSavedPalettes = async () => {
-    if (typeof window === 'undefined' || !window.storage) return;
-    try {
-      const listResult = await window.storage.list('palettes:');
-      if (!listResult || !listResult.keys) { setSavedPalettes([]); return; }
-      const entries = [];
-      for (const key of listResult.keys) {
-        try {
-          const got = await window.storage.get(key);
-          if (!got || !got.value) continue;
-          const parsed = JSON.parse(got.value);
-          if (!parsed || !Array.isArray(parsed.baseColors)) continue;
-          entries.push({
-            slug: key.replace(/^palettes:/, ''),
-            name: parsed.name || '(unnamed)',
-            savedAt: parsed.savedAt || 0,
-            baseColors: parsed.baseColors,
-          });
-        } catch (err) {
-          // Individual key failed; skip it but keep going.
-          console.warn('Failed to read palette key', key, err);
-        }
-      }
-      entries.sort((a, b) => b.savedAt - a.savedAt);
-      setSavedPalettes(entries);
-    } catch (err) {
-      console.error('refreshSavedPalettes failed', err);
-      setSavedPalettes([]);
-    }
-  };
-
-  // Load saved palettes once at mount. If storage is unavailable (e.g. running
-  // outside the artifact sandbox), the list just stays empty and the panel
-  // shows a clear notice.
-  useEffect(() => {
-    refreshSavedPalettes();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, []);
-
-  // Cleanup the confirm-delete timer if the component unmounts mid-confirm.
-  useEffect(() => {
-    return () => { if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current); };
-  }, []);
+  // Saved-palette persistence + import handlers (#113 slice 2): the list
+  // refresh, save/load/delete/rename, the classic + .gpl loaders, and the
+  // two-click delete-confirm timer live in useSavedPalettesActions. Document
+  // state flows through the Zustand-backed usePaletteState inside the hook;
+  // everything non-store-backed is bound here. gplImport/setGplImport come
+  // back out because the Escape handler and the import modal JSX read them.
+  const {
+    saveCurrentPalette, loadPalette, loadClassicPalette,
+    gplImport, setGplImport, handleGplFile, applyGplImport,
+    requestDeletePalette, startRename, cancelRename, commitRename,
+  } = useSavedPalettesActions({
+    savedPalettes, setSavedPalettes, saveName, setSaveName,
+    setSavedError, setSavedBusy,
+    confirmDeleteSlug, setConfirmDeleteSlug,
+    setRenamingSlug, renameDraft, setRenameDraft, setRenameError,
+    gplStyle, setGplStyle, vizStyle, setVizStyle,
+    spriteKey, setSpriteKey, customSprites, setCustomSprites,
+    gamutPerRamp, setGamutPerRamp, advancedOpen, setAdvancedOpen,
+    setV2NoticePending, setExportFeedback, tagNextLabel, resetPaletteState,
+  });
 
   // History watcher, ref-sync, and undo/redo keybinds now live in useHistory.
   // Side-by-side slot fetcher. When a slot points at a saved-palette slug,
@@ -1874,446 +1411,11 @@ export default function PixelPalGenerator() {
   // ./lib/history-snapshot. undo/redo/jump/canUndo/canRedo are destructured from
   // the useHistory() call above.
 
-  // Format a unix-ms timestamp as a short relative-time string for the
-  // History panel. Resolution drops as ages grow: "just now" (<10s),
-  // "Ns ago" (<60s), "Nm ago" (<60m), "Nh ago" (<24h), "Nd ago" beyond.
-  // Recomputed each render based on Date.now() so entries age in place
-  // when the panel is open (no setInterval needed; opening/closing the
-  // panel and any other re-render refreshes the values).
-  const formatHistoryAge = (timestamp) => {
-    const ageSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-    if (ageSec < 10) return 'just now';
-    if (ageSec < 60) return `${ageSec}s ago`;
-    const ageMin = Math.floor(ageSec / 60);
-    if (ageMin < 60) return `${ageMin}m ago`;
-    const ageHr = Math.floor(ageMin / 60);
-    if (ageHr < 24) return `${ageHr}h ago`;
-    const ageDay = Math.floor(ageHr / 24);
-    return `${ageDay}d ago`;
-  };
+  // formatHistoryAge (relative-time formatter for the History panel) moved
+  // to lib/history-snapshot.ts (#113 slice 2); imported above.
 
-  const saveCurrentPalette = async () => {
-    setSavedError('');
-    const trimmed = saveName.trim();
-    if (!trimmed) { setSavedError('Please enter a name'); return; }
-    if (typeof window === 'undefined' || !window.storage) {
-      setSavedError('Storage is not available in this environment');
-      return;
-    }
-    if (savedPalettes.length >= SAVED_PALETTE_LIMIT && !savedPalettes.some(p => p.name === trimmed)) {
-      setSavedError(`Limit of ${SAVED_PALETTE_LIMIT} saved palettes reached. Delete one first.`);
-      return;
-    }
-    const slug = slugify(trimmed);
-    if (!slug) { setSavedError('Name must contain at least one letter or digit'); return; }
-    const payload = {
-      name: trimmed,
-      savedAt: Date.now(),
-      baseColors,
-      aiColorNames,
-      rampSize,
-      gplStyle,
-      vizStyle,
-      spriteKey,
-      shuffleSeed, // critical: ramps are deterministic only if we restore this exactly
-      customSprites, // snapshot the full custom sprite library
-      overrides, // sparse per-shade pin map; absent in pre-feature-A payloads
-      harmonyAnchor, // index into baseColors used as the harmony source
-      rampSizeOverrides, // per-ramp shade count overrides; absent in older payloads
-      rampSatOverrides, // per-ramp saturation multipliers; absent in older payloads
-      hueShiftStrengthPerRamp, // per-ramp hue shift strength overrides; absent in older payloads
-      hiddenShades, // per-base array of hidden shade indices; absent in older payloads
-      rampShuffleOffsets, // per-ramp shuffle counter; absent in older payloads
-      hardwareLock, // null | 'nes' | 'gameboy' | 'cga16' | 'ega64' | 'c64'; persistent hardware lock; absent in older payloads
-      hueShiftStrength, // number in [0.0, 2.0], default 1.0; absent in older payloads (legacy palettes restore at 1.0)
-      // lockedRamps is a Set in component state; we serialize as a sorted
-      // array of base indices. Absent in payloads saved before this
-      // feature shipped; legacy loads should default to empty (nothing
-      // locked). Sorted purely for diff-friendliness when inspecting
-      // stored JSON; load order doesn't matter.
-      lockedRamps: [...lockedRamps].sort((a, b) => a - b),
-      // Perceptual ramp engine per-ramp settings.
-      lightnessCurvePerRamp,
-      satCurvePerRamp,
-      gamutPerRamp,
-      advancedOpen,
-      stylePresets,
-      engineVersion: 2, // frozen constant: marks this as a v2 save so load() won't fire the migration notice (#70)
-    };
-    setSavedBusy(true);
-    try {
-      const result = await window.storage.set(`palettes:${slug}`, JSON.stringify(payload));
-      if (!result) {
-        setSavedError('Save failed (storage returned null)');
-        setSavedBusy(false);
-        return;
-      }
-      setSaveName('');
-      setExportFeedback(`Saved as "${trimmed}"`);
-      setTimeout(() => setExportFeedback(''), 2000);
-      await refreshSavedPalettes();
-    } catch (err) {
-      console.error('saveCurrentPalette failed', err);
-      setSavedError('Save failed: ' + (err && err.message ? err.message : 'unknown error'));
-    } finally {
-      setSavedBusy(false);
-    }
-  };
-
-  const loadPalette = async (slug) => {
-    setSavedError('');
-    if (typeof window === 'undefined' || !window.storage) {
-      setSavedError('Storage is not available in this environment');
-      return;
-    }
-    setSavedBusy(true);
-    try {
-      const got = await window.storage.get(`palettes:${slug}`);
-      if (!got || !got.value) {
-        setSavedError('Palette not found');
-        return;
-      }
-      const parsed = JSON.parse(got.value);
-      if (!parsed || !Array.isArray(parsed.baseColors) || parsed.baseColors.length === 0) {
-        setSavedError('Palette data is invalid');
-        return;
-      }
-      // Merge any saved custom sprites back in. We don't replace the current
-      // custom library wholesale, since the user may have other sprites they
-      // want to keep. New sprites from the snapshot only fill in gaps.
-      if (parsed.customSprites && typeof parsed.customSprites === 'object') {
-        setCustomSprites(prev => {
-          const merged = { ...parsed.customSprites, ...prev };
-          return merged;
-        });
-      }
-      tagNextLabel(`Load: ${parsed.name || slug}`);
-      setBaseColors(parsed.baseColors);
-      setAiColorNames(Array.isArray(parsed.aiColorNames) ? parsed.aiColorNames : []);
-      if (isValidRampSize(parsed.rampSize)) setRampSize(parsed.rampSize);
-      // hueShiftStrength: number in [0.0, 2.0]. Missing field (pre-E
-      // saved palettes) restores to 1.0, which matches their original
-      // generation behavior byte-for-byte. Invalid values silently clamp
-      // into range rather than failing the whole load.
-      if (typeof parsed.hueShiftStrength === 'number' && Number.isFinite(parsed.hueShiftStrength)) {
-        setHueShiftStrength(Math.max(0, Math.min(2, parsed.hueShiftStrength)));
-      } else {
-        setHueShiftStrength(1.0);
-      }
-      // engineVersion: v1 is gone; every palette renders on v2. A pre-v2 save
-      // (engineVersion absent or !== 2) is auto-migrated on render; flag the
-      // one-time notice. Migration persists lazily on the user's next save
-      // (the save payload always writes engineVersion: 2). (#70)
-      if (isPreV2Palette(parsed)) setV2NoticePending(true);
-      if (['punchy', 'balanced', 'muted'].includes(parsed.gplStyle)) setGplStyle(parsed.gplStyle);
-      if (['punchy', 'balanced', 'muted'].includes(parsed.vizStyle)) setVizStyle(parsed.vizStyle);
-      // Only restore the sprite key if it exists in the library after the merge above.
-      if (parsed.spriteKey && (DEFAULT_SPRITE_LIBRARY[parsed.spriteKey] || (parsed.customSprites && parsed.customSprites[parsed.spriteKey]) || customSprites[parsed.spriteKey])) {
-        setSpriteKey(parsed.spriteKey);
-      }
-      // Restore the exact shuffleSeed so ramp jitter reproduces identically.
-      // Older saved palettes (pre-fix) lack this field; fall back to 0, which
-      // gives the deterministic no-jitter ramps. Those old palettes will look
-      // slightly different from what was originally saved, but only on first
-      // load after this fix, and will be exact on every subsequent save.
-      if (typeof parsed.shuffleSeed === 'number' && Number.isFinite(parsed.shuffleSeed)) {
-        setShuffleSeed(parsed.shuffleSeed);
-      } else {
-        setShuffleSeed(0);
-      }
-      // Restore per-shade overrides. New schema (per-style):
-      //   overrides[baseIndex][shadeIndex] = { punchy?, balanced?, muted? }
-      // Validate the nested structure: numeric base/shade keys mapping to
-      // an object whose only allowed keys are 'punchy', 'balanced', 'muted',
-      // each a 6-digit hex. Anything that fails validation is dropped
-      // silently rather than failing the whole load. Old shared-style
-      // saves (where the inner value was a plain hex string) won't validate;
-      // we drop them rather than migrate, since this is a breaking change.
-      if (parsed.overrides && typeof parsed.overrides === 'object' && !Array.isArray(parsed.overrides)) {
-        const cleaned = {};
-        for (const baseKey of Object.keys(parsed.overrides)) {
-          const baseIdx = Number(baseKey);
-          if (!Number.isInteger(baseIdx) || baseIdx < 0 || baseIdx >= parsed.baseColors.length) continue;
-          const inner = parsed.overrides[baseKey];
-          if (!inner || typeof inner !== 'object') continue;
-          const cleanedInner = {};
-          for (const shadeKey of Object.keys(inner)) {
-            const shadeIdx = Number(shadeKey);
-            if (!Number.isInteger(shadeIdx) || shadeIdx < 0) continue;
-            const styleMap = inner[shadeKey];
-            if (!styleMap || typeof styleMap !== 'object') continue;
-            const cleanedStyles = {};
-            for (const styleKey of ['punchy', 'balanced', 'muted']) {
-              const hex = styleMap[styleKey];
-              if (typeof hex === 'string' && /^#[0-9a-fA-F]{6}$/.test(hex)) {
-                cleanedStyles[styleKey] = hex.toLowerCase();
-              }
-            }
-            if (Object.keys(cleanedStyles).length > 0) cleanedInner[shadeIdx] = cleanedStyles;
-          }
-          if (Object.keys(cleanedInner).length > 0) cleaned[baseIdx] = cleanedInner;
-        }
-        setOverrides(cleaned);
-      } else {
-        setOverrides({});
-      }
-      setPinEditor(null);
-      // Restore harmonyAnchor. Validate it's an integer in range of the
-      // restored baseColors; otherwise fall back to 0. Pre-feature payloads
-      // lack the field, also -> 0.
-      if (typeof parsed.harmonyAnchor === 'number' && Number.isInteger(parsed.harmonyAnchor) && parsed.harmonyAnchor >= 0 && parsed.harmonyAnchor < parsed.baseColors.length) {
-        setHarmonyAnchor(parsed.harmonyAnchor);
-      } else {
-        setHarmonyAnchor(0);
-      }
-      // Restore per-ramp size overrides. Validate each entry: key must be a
-      // valid baseIndex, value must be 2..64. Drop anything that fails.
-      if (parsed.rampSizeOverrides && typeof parsed.rampSizeOverrides === 'object' && !Array.isArray(parsed.rampSizeOverrides)) {
-        const cleaned = {};
-        for (const k of Object.keys(parsed.rampSizeOverrides)) {
-          const idx = Number(k);
-          if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
-          const n = parsed.rampSizeOverrides[k];
-          if (isValidRampSize(n)) cleaned[idx] = n;
-        }
-        setRampSizeOverrides(cleaned);
-      } else {
-        setRampSizeOverrides({});
-      }
-      // Restore per-ramp saturation multipliers. Validate: key in range,
-      // value a finite number in [0.5, 2.0]. Out-of-range values are clamped.
-      if (parsed.rampSatOverrides && typeof parsed.rampSatOverrides === 'object' && !Array.isArray(parsed.rampSatOverrides)) {
-        const cleaned = {};
-        for (const k of Object.keys(parsed.rampSatOverrides)) {
-          const idx = Number(k);
-          if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
-          const v = Number(parsed.rampSatOverrides[k]);
-          if (Number.isFinite(v)) cleaned[idx] = Math.max(0.5, Math.min(2.0, v));
-        }
-        setRampSatOverrides(cleaned);
-      } else {
-        setRampSatOverrides({});
-      }
-      // Restore per-ramp hue shift overrides. Schema: { [baseIndex]: number }.
-      // Validate: key in range, value a finite number in [0, 2]. Out-of-range values are clamped.
-      if (parsed.hueShiftStrengthPerRamp && typeof parsed.hueShiftStrengthPerRamp === 'object' && !Array.isArray(parsed.hueShiftStrengthPerRamp)) {
-        const cleaned = {};
-        for (const k of Object.keys(parsed.hueShiftStrengthPerRamp)) {
-          const idx = Number(k);
-          if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
-          const v = Number(parsed.hueShiftStrengthPerRamp[k]);
-          if (Number.isFinite(v)) cleaned[idx] = Math.max(0, Math.min(2, v));
-        }
-        setHueShiftStrengthPerRamp(cleaned);
-      } else {
-        setHueShiftStrengthPerRamp({});
-      }
-      // Restore hiddenShades. Schema: { [baseIndex]: number[] of shade indices }.
-      // Validation: numeric baseIndex in range, value an array of non-negative
-      // integers (out-of-range shade indices stay in state because they're
-      // inert when the ramp size doesn't reach them, same policy as overrides).
-      if (parsed.hiddenShades && typeof parsed.hiddenShades === 'object' && !Array.isArray(parsed.hiddenShades)) {
-        const cleaned = {};
-        for (const k of Object.keys(parsed.hiddenShades)) {
-          const idx = Number(k);
-          if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
-          const arr = parsed.hiddenShades[k];
-          if (!Array.isArray(arr)) continue;
-          const validIndices = [];
-          const seen = new Set();
-          for (const v of arr) {
-            const n = Number(v);
-            if (Number.isInteger(n) && n >= 0 && !seen.has(n)) {
-              seen.add(n);
-              validIndices.push(n);
-            }
-          }
-          if (validIndices.length > 0) cleaned[idx] = validIndices.sort((a, b) => a - b);
-        }
-        setHiddenShades(cleaned);
-      } else {
-        setHiddenShades({});
-      }
-      // Restore rampShuffleOffsets. Schema: { [baseIndex]: number }.
-      // Validation: numeric key in range, value a non-negative finite
-      // integer. Out-of-range or non-integer values are dropped.
-      if (parsed.rampShuffleOffsets && typeof parsed.rampShuffleOffsets === 'object' && !Array.isArray(parsed.rampShuffleOffsets)) {
-        const cleaned = {};
-        for (const k of Object.keys(parsed.rampShuffleOffsets)) {
-          const idx = Number(k);
-          if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
-          const v = Number(parsed.rampShuffleOffsets[k]);
-          if (Number.isInteger(v) && v >= 0) cleaned[idx] = v;
-        }
-        setRampShuffleOffsets(cleaned);
-      } else {
-        setRampShuffleOffsets({});
-      }
-      // Restore hardwareLock. Validate against the known hardware ids.
-      // Anything else (including missing field on older payloads) -> null.
-      if (typeof parsed.hardwareLock === 'string' && HARDWARE_PALETTES.some(hw => hw.id === parsed.hardwareLock)) {
-        setHardwareLock(parsed.hardwareLock);
-      } else {
-        setHardwareLock(null);
-      }
-      // Restore lockedRamps. Stored as a sorted array of base indices.
-      // Validate: must be an array; each entry must be a non-negative
-      // integer in range of the loaded baseColors. Invalid entries are
-      // silently dropped, and a missing field (older payloads) loads
-      // as empty (nothing locked). The set is rebuilt from the
-      // validated entries.
-      if (Array.isArray(parsed.lockedRamps)) {
-        const validIdx = new Set();
-        for (const v of parsed.lockedRamps) {
-          if (Number.isInteger(v) && v >= 0 && v < parsed.baseColors.length) {
-            validIdx.add(v);
-          }
-        }
-        setLockedRamps(validIdx);
-      } else {
-        setLockedRamps(new Set());
-      }
-      // Per-ramp Advanced fields. Migrate legacy curvePerRamp (string presets) to lightnessCurvePerRamp (CurvePoints).
-      const migratedLightness = {};
-      if (parsed.lightnessCurvePerRamp && typeof parsed.lightnessCurvePerRamp === 'object') {
-        Object.assign(migratedLightness, parsed.lightnessCurvePerRamp);
-      } else if (parsed.curvePerRamp && typeof parsed.curvePerRamp === 'object') {
-        for (const [id, val] of Object.entries(parsed.curvePerRamp)) {
-          migratedLightness[id] = typeof val === 'string' ? presetToPoints(val) : val;
-        }
-      }
-      setLightnessCurvePerRamp(migratedLightness);
-      setSatCurvePerRamp(parsed.satCurvePerRamp && typeof parsed.satCurvePerRamp === 'object' ? parsed.satCurvePerRamp : {});
-      setGamutPerRamp(parsed.gamutPerRamp && typeof parsed.gamutPerRamp === 'object' ? parsed.gamutPerRamp : {});
-      setAdvancedOpen(parsed.advancedOpen && typeof parsed.advancedOpen === 'object' ? parsed.advancedOpen : {});
-      const sp = parsed.stylePresets;
-      const validPreset = (x) => x && typeof x.reach === 'number' && typeof x.chromaFalloff === 'number';
-      setStylePresets(
-        sp && validPreset(sp.punchy) && validPreset(sp.balanced) && validPreset(sp.muted)
-          ? { punchy: sp.punchy, balanced: sp.balanced, muted: sp.muted }
-          : DEFAULT_STYLE_PRESETS
-      );
-      setExportFeedback(`Loaded "${parsed.name || slug}"`);
-      setTimeout(() => setExportFeedback(''), 2000);
-    } catch (err) {
-      console.error('loadPalette failed', err);
-      setSavedError('Load failed: ' + (err && err.message ? err.message : 'unknown error'));
-    } finally {
-      setSavedBusy(false);
-    }
-  };
-
-  // Load a built-in classic palette. Unlike loadPalette this doesn't touch
-  // storage; the source is the CLASSIC_PALETTES constant.
-  // shuffleSeed resets to 0 so the ramps are deterministic and don't
-  // depend on whatever shuffle the user happened to be on.
-  const loadClassicPalette = (classic) => {
-    if (!classic || !Array.isArray(classic.baseColors) || classic.baseColors.length === 0) return;
-    tagNextLabel(`Load classic: ${classic.name}`);
-    setBaseColors(classic.baseColors);
-    setAiColorNames(classic.names || classic.baseColors.map((_, i) => `${classic.name} ${i + 1}`));
-    resetPaletteState();
-    // Classics weren't designed for any specific hardware constraint. Clear
-    // any active lock so the loaded classic renders as-authored.
-    setHardwareLock(null);
-    setShuffleSeed(0);
-    setExportFeedback(`Loaded "${classic.name}"`);
-    setTimeout(() => setExportFeedback(''), 2000);
-  };
-
-  // GPL import: a .gpl file is parsed, and if successful the user is shown
-  // a modal that lets them choose between "use all N colors as bases"
-  // (capped at 16, truncated if longer) and "auto-pick representatives"
-  // (subset down to ~5 mid-lightness, evenly spaced by hue).
-  // gplImport state shape: { name, colors, error } | null
-  //   - name: palette name pulled from the file (cosmetic)
-  //   - colors: full array of parsed hex strings (used for the "all" branch)
-  //   - error: present if parsing failed and the modal should show an error
-  const [gplImport, setGplImport] = useState(null);
-
-  const handleGplFile = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      const parsed = parseGpl(text);
-      if (!parsed) {
-        setGplImport({ name: file.name, colors: [], error: 'Not a valid .gpl file. Expected a "GIMP Palette" header and R G B values.' });
-        return;
-      }
-      setGplImport({ name: parsed.name || file.name.replace(/\.[^/.]+$/, ''), colors: parsed.colors, error: null });
-    };
-    reader.onerror = () => {
-      setGplImport({ name: file.name, colors: [], error: 'Could not read the file.' });
-    };
-    reader.readAsText(file);
-  };
-
-  // Apply the user's import choice. mode is either 'all' or 'subset'.
-  // 'all' uses the first 16 unique colors verbatim (hard cap). 'subset'
-  // runs the heuristic. The actual write into baseColors mirrors the
-  // loadClassicPalette reset behavior: clears overrides, pins, anchor,
-  // hardware lock, shuffleSeed, and the per-ramp size/sat overrides.
-  const applyGplImport = (mode) => {
-    if (!gplImport || gplImport.error || gplImport.colors.length === 0) return;
-    let chosen;
-    if (mode === 'subset') {
-      chosen = subsetGplColors(gplImport.colors);
-    } else {
-      // 'all' branch: dedupe and hard-cap at 16.
-      const seen = new Set();
-      const uniq = [];
-      for (const hex of gplImport.colors) {
-        const n = hex.toLowerCase();
-        if (!seen.has(n)) { seen.add(n); uniq.push(n); }
-        if (uniq.length >= 16) break;
-      }
-      chosen = uniq;
-    }
-    if (chosen.length === 0) return;
-    tagNextLabel(`Import GPL: ${gplImport.name}`);
-    setBaseColors(chosen);
-    setAiColorNames(chosen.map((_, i) => `${gplImport.name} ${i + 1}`));
-    resetPaletteState();
-    setHardwareLock(null);
-    setShuffleSeed(0);
-    setGplImport(null);
-    const note = mode === 'subset' ? `Imported ${chosen.length} representatives from ${gplImport.colors.length}` : `Imported ${chosen.length}${gplImport.colors.length > chosen.length ? ` (truncated from ${gplImport.colors.length}, cap is 16)` : ''}`;
-    setExportFeedback(note);
-    setTimeout(() => setExportFeedback(''), 3500);
-  };
-
-  // Toggle a single ramp card's collapse state. When collapsing a card
-  // whose base editor or pin editor is currently open, close those too
-  // since they reference shades that are about to be hidden.
-  const toggleRampCollapse = (index) => {
-    setCollapsedRamps(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-        if (editingIndex === index) setEditingIndex(null);
-        if (pinEditor && pinEditor.baseIndex === index) setPinEditor(null);
-      }
-      return next;
-    });
-  };
-
-  // Bulk collapse/expand: if ANY card is currently expanded, collapse all.
-  // Otherwise expand all. This makes the button label predictable: it always
-  // does the action that affects the visible majority. Collapsing also
-  // closes any open base or pin editors.
-  const anyRampExpanded = baseColors.some((_, i) => !collapsedRamps.has(i));
-  const toggleAllRampsCollapse = () => {
-    if (anyRampExpanded) {
-      setCollapsedRamps(new Set(baseColors.map((_, i) => i)));
-      setEditingIndex(null);
-      setPinEditor(null);
-    } else {
-      setCollapsedRamps(new Set());
-    }
-  };
+  // toggleRampCollapse / toggleAllRampsCollapse / anyRampExpanded moved to
+  // hooks/useRampEditing.ts (#113 slice 3); destructured above.
 
   // toggleHardwareLock: switches the hardware lock on/off. If already locked
   // to the given hardware, clicking again unlocks. If locked to a different
@@ -2414,10 +1516,10 @@ export default function PixelPalGenerator() {
   //
   // Placement note: this useEffect must come AFTER all four pieces of
   // state it reads (`gplImport`, `pinEditor`, `editingIndex`,
-  // `compareMode`) are declared. `gplImport` is the latest at ~3440.
-  // An earlier placement throws "Cannot access 'gplImport' before
-  // initialization" when React evaluates the dependency array during
-  // render (temporal dead zone on the `const` from `useState`).
+  // `compareMode`) are declared. `gplImport` now arrives from the
+  // useSavedPalettesActions() call above; an earlier placement throws
+  // "Cannot access 'gplImport' before initialization" when React
+  // evaluates the dependency array during render (temporal dead zone).
   useEffect(() => {
     const handler = (e) => {
       if (e.key !== 'Escape') return;
@@ -2473,9 +1575,9 @@ export default function PixelPalGenerator() {
   // gated to plain key strokes so keyboard navigation with modifiers
   // (e.g. browser Find: Cmd+H, Cmd+S) is not affected.
   //
-  // Placement: must be AFTER `gplImport`'s state declaration (same TDZ
-  // constraint as the Escape handler at line ~3570). `harmonize` declares
-  // earlier in the component body.
+  // Placement: must be AFTER the useSavedPalettesActions() call that
+  // returns `gplImport` (same TDZ constraint as the Escape handler above).
+  // `harmonize` declares earlier in the component body.
   useEffect(() => {
     const handler = (e) => {
       // Modifier-gated keys are claimed by the browser or by the existing
@@ -2517,112 +1619,6 @@ export default function PixelPalGenerator() {
   // always see fresh state) or refs (which sidestep closures). If you
   // add a new shortcut whose action function reads more state, add
   // those reads here too.
-
-  // Two-click delete: first click arms the slug, second click within 3s commits.
-  const requestDeletePalette = (slug) => {
-    if (confirmDeleteSlug === slug) {
-      // Second click: commit.
-      if (confirmTimerRef.current) { clearTimeout(confirmTimerRef.current); confirmTimerRef.current = null; }
-      deletePalette(slug);
-      return;
-    }
-    setConfirmDeleteSlug(slug);
-    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-    confirmTimerRef.current = setTimeout(() => {
-      setConfirmDeleteSlug(null);
-      confirmTimerRef.current = null;
-    }, 3000);
-  };
-
-  const deletePalette = async (slug) => {
-    setSavedError('');
-    setConfirmDeleteSlug(null);
-    if (typeof window === 'undefined' || !window.storage) {
-      setSavedError('Storage is not available in this environment');
-      return;
-    }
-    setSavedBusy(true);
-    try {
-      await window.storage.delete(`palettes:${slug}`);
-      await refreshSavedPalettes();
-    } catch (err) {
-      console.error('deletePalette failed', err);
-      setSavedError('Delete failed: ' + (err && err.message ? err.message : 'unknown error'));
-    } finally {
-      setSavedBusy(false);
-    }
-  };
-
-  // Rename a saved palette in place. Strategy A: only the user-visible
-  // `name` field in the payload changes; the storage key (slug) stays the
-  // same. This is simpler than re-slugging (no conflict handling, no
-  // set+delete window) and the slug is never visible to the user. The
-  // tradeoff is that the slug may no longer match the name if the user
-  // inspects storage directly. Acceptable since storage inspection is not
-  // a feature.
-  const startRename = (slug, currentName) => {
-    if (confirmDeleteSlug) {
-      setConfirmDeleteSlug(null);
-      if (confirmTimerRef.current) { clearTimeout(confirmTimerRef.current); confirmTimerRef.current = null; }
-    }
-    setRenamingSlug(slug);
-    setRenameDraft(currentName || '');
-    setRenameError('');
-  };
-  const cancelRename = () => {
-    setRenamingSlug(null);
-    setRenameDraft('');
-    setRenameError('');
-  };
-  const commitRename = async (slug) => {
-    setRenameError('');
-    const trimmed = renameDraft.trim();
-    if (!trimmed) { setRenameError('Name cannot be empty'); return; }
-    // No-op if name is unchanged. The current name lives in savedPalettes;
-    // look it up rather than passing it in so a stale draft (e.g. caps
-    // changes only) still cleanly no-ops.
-    const existing = savedPalettes.find(p => p.slug === slug);
-    if (existing && existing.name === trimmed) { cancelRename(); return; }
-    // Reject if another saved palette already uses this exact display name.
-    if (savedPalettes.some(p => p.slug !== slug && p.name === trimmed)) {
-      setRenameError('Another palette already uses this name');
-      return;
-    }
-    if (typeof window === 'undefined' || !window.storage) {
-      setRenameError('Storage is not available in this environment');
-      return;
-    }
-    setSavedBusy(true);
-    try {
-      const got = await window.storage.get(`palettes:${slug}`);
-      if (!got || !got.value) {
-        setRenameError('Palette not found in storage');
-        setSavedBusy(false);
-        return;
-      }
-      const parsed = JSON.parse(got.value);
-      if (!parsed || typeof parsed !== 'object') {
-        setRenameError('Palette data is invalid');
-        setSavedBusy(false);
-        return;
-      }
-      parsed.name = trimmed;
-      const result = await window.storage.set(`palettes:${slug}`, JSON.stringify(parsed));
-      if (!result) {
-        setRenameError('Rename failed (storage returned null)');
-        setSavedBusy(false);
-        return;
-      }
-      await refreshSavedPalettes();
-      cancelRename();
-    } catch (err) {
-      console.error('commitRename failed', err);
-      setRenameError('Rename failed: ' + (err && err.message ? err.message : 'unknown error'));
-    } finally {
-      setSavedBusy(false);
-    }
-  };
-
 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- THEME_TOKENS is pure static; deps=[theme] is correct

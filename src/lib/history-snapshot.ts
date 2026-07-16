@@ -31,3 +31,18 @@ export function inferLabel(prev: any, next: any): string {
   if (JSON.stringify(prev.collapsedRamps) !== JSON.stringify(next.collapsedRamps)) return 'Collapse / expand ramps';
   return 'Edit';
 }
+
+// Human-readable age for a history entry's timestamp ("just now", "5m ago").
+// Pure display formatter used by HistoryPanel. Extracted verbatim from
+// App.tsx (#113 slice 2).
+export function formatHistoryAge(timestamp: number): string {
+  const ageSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (ageSec < 10) return 'just now';
+  if (ageSec < 60) return `${ageSec}s ago`;
+  const ageMin = Math.floor(ageSec / 60);
+  if (ageMin < 60) return `${ageMin}m ago`;
+  const ageHr = Math.floor(ageMin / 60);
+  if (ageHr < 24) return `${ageHr}h ago`;
+  const ageDay = Math.floor(ageHr / 24);
+  return `${ageDay}d ago`;
+}

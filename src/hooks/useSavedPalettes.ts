@@ -4,9 +4,9 @@ import { CLASSIC_PALETTES } from '../lib/constants';
 /**
  * Saved-palettes panel state: the persisted palette list, the save-name draft +
  * busy/error flags, delete/rename/reset confirmation state, the list filter,
- * and the selected classic-palette loader id. The load effect (lists storage
- * on mount) and the save/load/delete/rename HANDLERS live in App.tsx (wiring
- * layer) because they read/write document state and storage.
+ * and the selected classic-palette loader id. The mount-time list refresh and
+ * the save/load/delete/rename HANDLERS live in useSavedPalettesActions
+ * (#113 slice 2), which App.tsx wires to this state bag.
  */
 export function useSavedPalettes() {
   // Saved palettes (persisted via window.storage). Each entry is a small index
