@@ -4,9 +4,11 @@ import { useRampsStore } from '../store/rampsStore';
  * usePaletteState: thin document state-bag (App.tsx Tier B, Wave 2).
  *
  * Owns the 28 "document core" fields: the 20 `SNAPSHOT_FIELDS` that participate
- * in undo/redo snapshots, plus the 8-field editor/compare cluster (only 4 of
- * which `applyUndoSnapshot` resets: editorHsv/editorOklch/compareMode/editorMode
- * are UI-preference caches, not undo-scoped state). It is deliberately *thin*: it holds state and
+ * in undo/redo snapshots, plus the 8-field editor/compare cluster. Of that
+ * cluster, `resetTransientEditors` clears only editingIndex/pinEditor/
+ * compareAnchor/compareResult; the other four (editorHsv/editorOklch/
+ * editorMode/compareMode) are UI-preference caches, not undo-scoped state,
+ * and survive undo/redo. It is deliberately *thin*: it holds state and
  * exposes three snapshot helpers. The generation pipeline, harmonize, load,
  * GPL import, and every other bulk handler STAY in App.tsx (the wiring layer)
  * and read these fields via the destructured return.
