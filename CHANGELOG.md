@@ -18,6 +18,22 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Fixed
+- Image Preview (Visualize & Compare) computes again: the debounced
+  auto-remap effect was lost in the Tier-C `VizComparePanel` extraction, so
+  an uploaded image sat on "Remapping..." forever. The effect is restored in
+  the new `useImageRemapCompute` hook (300ms debounce keyed on the active
+  palette signature + dither mode, exactly the pre-extraction behavior).
+
+### Changed
+- App.tsx decomposition (#113, slice 1): image-remap wiring (active-palette
+  derivation, upload/clear/download handlers, download confirmation timer)
+  extracted to `hooks/useImageRemapCompute.ts`; harmony add handlers
+  (`addHarmonyColor`/`addHarmonyPair`/`addHarmonyMany`) extracted to
+  `hooks/useHarmony.ts`. Both are typed (no `@ts-nocheck`). App.tsx drops
+  from 3,846 to 3,500 lines. CI now enforces a 3,550-line ratchet on
+  App.tsx to prevent regrowth between extraction slices.
+
 ## [0.25.0] - 2026-07-16
 
 ### Added

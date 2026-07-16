@@ -88,6 +88,22 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: npm run deadcode:ci
 
+      # App.tsx line-count ratchet (#113): the file is being decomposed into
+      # hooks/ + components/panels/; this guard stops regrowth between
+      # extraction slices. Lower the budget as slices land; never raise it
+      # without a decision on #113.
+      - name: Lint - App.tsx line-count ratchet
+        if: matrix.platform == 'ubuntu-latest'
+        shell: bash
+        run: |
+          BUDGET=3550
+          LINES=$(wc -l < src/App.tsx)
+          echo "src/App.tsx is $LINES lines (budget: $BUDGET)"
+          if [ "$LINES" -gt "$BUDGET" ]; then
+            echo "::error file=src/App.tsx::src/App.tsx is $LINES lines, over the $BUDGET-line ratchet (#113). Extract logic into hooks/ or components/panels/ instead of growing App.tsx, or lower-bound discussion on the issue."
+            exit 1
+          fi
+
       - name: Cargo check
         working-directory: src-tauri
         run: cargo check
