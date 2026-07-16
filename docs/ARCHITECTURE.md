@@ -75,7 +75,13 @@ src/
                         (Image Preview remap pipeline: active-palette derivation,
                         upload/clear/download handlers, debounced auto-refresh
                         effect; wired to useImageRemap state), useHarmony
-                        (harmony add-as-base handlers for HarmonyPanel)
+                        (harmony add-as-base handlers for HarmonyPanel),
+                        useSavedPalettesActions (saved-palette persistence:
+                        list refresh, save/load/delete/rename, classic + .gpl
+                        loaders, gplImport modal state, two-click delete timer;
+                        document state via the Zustand-backed usePaletteState,
+                        the useSavedPalettes state bag + cross-domain setters
+                        bound as params)
   lib/
     renderCount.ts      SP2 perf test harness (test-only). enableRenderCounts() /
                         recordRender(name) / getRenderCount(name). No-op in prod
@@ -176,8 +182,11 @@ Invariants that must hold across edits:
    (overrides/pins, harmony anchor, size + sat overrides, per-ramp hue, hidden,
    shuffle offsets, locks, collapsed, curves, side-by-side slots, remap output) and
    resets `hueShiftStrength = 1.0`. Callers separately set `baseColors`, tag history
-   via `tagNextLabel`, and bump the seed. **Add any new base-keyed or per-palette
-   state's setter here**, or the 8 paths leak stale state.
+   via `tagNextLabel`, and bump the seed. Three of the paths (load saved, load
+   classic, GPL import) live in `hooks/useSavedPalettesActions.ts` and receive
+   `resetPaletteState` as a param; the function itself stays in App.tsx because it
+   also clears side-by-side + remap state owned there. **Add any new base-keyed or
+   per-palette state's setter here**, or the 8 paths leak stale state.
 2. **Hard-reset paths call `setShuffleSeed(s => s + 1)` directly, NOT
    `bumpShuffleSeed()`.** `bumpShuffleSeed` reads the *old* `lockedRamps` closure; on a
    render where reset just cleared locks in the same batch it would take the wrong

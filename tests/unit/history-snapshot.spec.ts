@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { inferLabel, SNAPSHOT_FIELDS } from '../../src/lib/history-snapshot';
+import { inferLabel, SNAPSHOT_FIELDS, formatHistoryAge } from '../../src/lib/history-snapshot';
 
 const base = {
   baseColors: ['#ff00ff'], aiColorNames: [], aiReasoning: '', rampSize: 6,
@@ -60,5 +60,21 @@ describe('inferLabel', () => {
     expect(inferLabel(base, { ...base, lightnessCurvePerRamp: { 0: [] } })).toBe('Edit');
     expect(inferLabel(base, { ...base, satCurvePerRamp: { 0: [] } })).toBe('Edit');
     expect(inferLabel(base, { ...base, aiColorNames: ['x'] })).toBe('Edit');
+  });
+});
+
+describe('formatHistoryAge', () => {
+  it('formats each age bucket relative to Date.now()', () => {
+    const now = Date.now();
+    expect(formatHistoryAge(now)).toBe('just now');
+    expect(formatHistoryAge(now - 9 * 1000)).toBe('just now');
+    expect(formatHistoryAge(now - 45 * 1000)).toBe('45s ago');
+    expect(formatHistoryAge(now - 5 * 60 * 1000)).toBe('5m ago');
+    expect(formatHistoryAge(now - 3 * 60 * 60 * 1000)).toBe('3h ago');
+    expect(formatHistoryAge(now - 2 * 24 * 60 * 60 * 1000)).toBe('2d ago');
+  });
+
+  it('clamps future timestamps to "just now"', () => {
+    expect(formatHistoryAge(Date.now() + 60 * 1000)).toBe('just now');
   });
 });
