@@ -73,3 +73,28 @@ test('single color generate produces swatches', async ({ page }) => {
   const count = await swatches.count()
   expect(count).toBeGreaterThan(10)
 })
+
+test('image preview remap auto-computes after upload', async ({ page }) => {
+  // Regression test: the debounced auto-remap effect was lost in the
+  // VizComparePanel extraction, leaving an uploaded image stuck on the
+  // "Remapping..." placeholder forever (no e2e covered this flow). The
+  // effect now lives in useImageRemapCompute. The "Export scale:" control
+  // renders only once remapOutput exists, so its arrival proves the
+  // upload -> debounce -> worker remap -> output pipeline ran end to end.
+  await page.goto('/')
+  await page.waitForLoadState('networkidle')
+
+  // Visualize & Compare is collapsed by default
+  await page.getByTitle('Expand the Visualize & Compare section').click()
+
+  // Upload a tiny 4x4 PNG through the Image Preview drop zone's file input
+  const pngB64 = 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAFElEQVR4nGP4z8DAAMb//0MZBDkA+EkT7YP5CsUAAAAASUVORK5CYII='
+  const input = page.locator('label:has-text("Browse files") input[type="file"]')
+  await input.setInputFiles({ name: 'tiny.png', mimeType: 'image/png', buffer: Buffer.from(pngB64, 'base64') })
+
+  // The upload registers (source line shows), then the auto-remap effect
+  // (300ms debounce + worker round-trip) must produce an output
+  await expect(page.getByText('Source:')).toBeAttached()
+  await expect(page.getByText('Export scale:')).toBeAttached({ timeout: 10000 })
+  await expect(page.getByText('Remapping...')).not.toBeAttached()
+})

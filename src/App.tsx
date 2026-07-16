@@ -7,7 +7,6 @@ import {
 } from './lib/color';
 import { presetToPoints } from './lib/curve';
 import type { CurvePoints } from './lib/curve';
-import { saveFile } from './lib/save-file';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
@@ -47,7 +46,6 @@ import { generateHarmony } from './lib/harmony';
 import { parsePiskelC, parseGpl, subsetGplColors } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
 import { extractDominantColors } from './lib/image-extract';
-import { computeRemapScaleOptions, estimateRemapCost } from './lib/image-remap';
 import { requestRemap } from './lib/remap-worker-client';
 import { buildRampsForSnapshot } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
@@ -63,6 +61,8 @@ import { useTour } from './hooks/useTour';
 import { useSpriteImport } from './hooks/useSpriteImport';
 import { useImageExtract } from './hooks/useImageExtract';
 import { useImageRemap } from './hooks/useImageRemap';
+import { useImageRemapCompute } from './hooks/useImageRemapCompute';
+import { useHarmony } from './hooks/useHarmony';
 import { useSideBySide } from './hooks/useSideBySide';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
 import { usePanelLayout } from './hooks/usePanelLayout';
@@ -231,23 +231,18 @@ export default function PixelPalGenerator() {
   const [addBaseFeedback, setAddBaseFeedback] = useState('');
   const [harmonizeMode, setHarmonizeMode] = useState('complement');
   const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
-  // ----- Image Remap Preview state -----
+  // ----- Image Remap Preview -----
   // Separate image slot from the From Image extraction feature. The user
   // uploads a reference image and remaps every pixel to the nearest color
   // in the currently active palette (vizStyle, hidden shades, hardware
-  // lock applied). Manual refresh via a button. None of this state is
-  // persisted (matches the From Image mode), saved with palettes, or in
-  // the history snapshot. See IMAGE_REMAP_PLAN.md and ARCHITECTURE.md's
-  // remap section for the full design. The remap STATE fields live in the
-  // useImageRemap() hook (destructured above); the compute/draw effects,
-  // canvas ref, and upload/refresh/download handlers stay here in the
-  // wiring layer because they read the live working palette and refs.
-  // remapDownloadConfirmTimerRef: 5-second auto-disarm timer handle for the
-  // two-click download confirmation (remapDownloadConfirmPending). Kept here
-  // (not in the hook) because it's only touched by the download handler.
-  const remapDownloadConfirmTimerRef = useRef(null);
-
-
+  // lock applied); a debounced effect recomputes the preview as the
+  // palette changes. None of this state is persisted (matches the From
+  // Image mode), saved with palettes, or in the history snapshot. See
+  // IMAGE_REMAP_PLAN.md and ARCHITECTURE.md's remap section for the full
+  // design. The remap STATE fields live in the useImageRemap() hook
+  // (destructured above); the compute pipeline + handlers live in
+  // useImageRemapCompute() (called below, after the ramp memos it reads);
+  // the SBS slot remap effects stay here in the wiring layer.
 
   // History (undo / redo / jump-to-state) lives in useHistory: Photoshop-style
   // whole-state snapshots (NOT diff patches), 50-entry cap, session-only. The
@@ -615,328 +610,24 @@ export default function PixelPalGenerator() {
     }
   };
 
-  // ----- Image Remap Preview handlers -----
-  // The visible-palette computation matches what the Visualization section
-  // shows in mosaic/lightness/chromatic plot. We compute it lazily inside
-  // refreshRemap so it always reflects the current state (vizStyle, hidden
-  // shades, hardware lock all baked in through the ramp memos). Pulling
-  // from the same activeRamps the viz uses guarantees parity.
-  //
-  // Performance note: the source image is downsampled to remapMaxDimension
-  // (default 512) on the longer axis before the actual remap. This keeps
-  // Floyd-Steinberg responsive on photographic inputs and matches the
-  // worst-case bounds in IMAGE_REMAP_PLAN.md.
-  const REMAP_MAX_DIMENSION = 512;
-
-  // Compute the active palette for remap. Reads vizStyle and the active
-  // ramp memo for that style, filters hidden shades, dedupes. The result
-  // is the SAME flat hex set the chromatic plot dots come from.
-  const getActiveRemapPalette = () => {
-    const rampsForStyle = vizStyle === 'balanced' ? rampsBalanced
-                       : vizStyle === 'muted'    ? rampsMuted
-                       :                            rampsPunchy;
-    const visible = rampsForStyle.map((ramp, i) => {
-      const effectiveBase = resolveBaseForRamp(baseColors[i], i, rampSatOverrides);
-      const labels = labelsForRamp(ramp, effectiveBase);
-      return filterHidden(ramp, labels, i, hiddenShades).hexes;
-    });
-    const all = visible.flat();
-    // Dedupe while preserving order; the remapper does not need uniqueness
-    // for correctness but a smaller palette is faster.
-    const seen = new Set();
-    const out = [];
-    for (const hex of all) {
-      const k = hex.toLowerCase();
-      if (!seen.has(k)) { seen.add(k); out.push(hex); }
-    }
-    return out;
-  };
-
-  // Build a signature string capturing the inputs that produced a remap
-  // output. Two outputs are considered "the same" iff their signatures
-  // match. Used by the stale-output badge: when the live signature
-  // differs from remapOutputSignature, the user sees a warning.
-  //
-  // Includes: dither mode, the active palette (joined), the active style.
-  // Excludes: the image itself (a new image always triggers a fresh remap
-  // through its own code path, not the stale-badge logic).
-  const buildRemapSignature = (paletteColors, dither) => {
-    return dither + '|' + paletteColors.map(c => c.toLowerCase()).join(',');
-  };
-
-  // Handle a freshly-uploaded image for the remap panel. Stores the data
-  // URL and the natural size, clears any prior output, and clears any
-  // previous error. Also picks an appropriate default export scale based
-  // on the upload's natural size: 1x if it fits under the 8192px ceiling,
-  // otherwise the largest available scale <= 1.
-  const handleRemapImageUpload = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setRemapError('Please upload an image file');
-      return;
-    }
-    setRemapError('');
-    setRemapOutput(null);
-    setRemapOutputSignature(null);
-    setRemapImageName(file.name || 'image');
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      const probe = new Image();
-      probe.onload = () => {
-        const nw = probe.naturalWidth;
-        const nh = probe.naturalHeight;
-        setRemapImageNaturalSize({ w: nw, h: nh });
-        setRemapImageDataUrl(dataUrl);
-        // Pick the default export scale: prefer 1x when valid, else the
-        // largest available <= 1. Compute the options synchronously here
-        // since the dropdown render does the same computation; staying in
-        // lock-step with the dropdown's options avoids a flash of an
-        // invalid value.
-        const opts = computeRemapScaleOptions(nw, nh, 8192);
-        let pick = 1;
-        if (opts.includes(1)) {
-          pick = 1;
-        } else {
-          // Largest option <= 1, or smallest option if none <= 1.
-          const leOne = opts.filter(s => s <= 1);
-          pick = leOne.length > 0 ? leOne[leOne.length - 1] : (opts[0] || 1);
-        }
-        setRemapDownloadScale(pick);
-        setRemapDownloadConfirmPending(false);
-        if (remapDownloadConfirmTimerRef.current) {
-          clearTimeout(remapDownloadConfirmTimerRef.current);
-          remapDownloadConfirmTimerRef.current = null;
-        }
-      };
-      probe.onerror = () => { setRemapError('Failed to load image'); };
-      probe.src = dataUrl;
-    };
-    reader.onerror = () => { setRemapError('Failed to read file'); };
-    reader.readAsDataURL(file);
-  };
-
-  // Clear the uploaded image and all derived state.
-  const clearRemapImage = () => {
-    setRemapImageDataUrl(null);
-    setRemapImageNaturalSize(null);
-    setRemapImageName('');
-    setRemapOutput(null);
-    setRemapOutputSignature(null);
-    setRemapError('');
-    setRemapDownloadConfirmPending(false);
-    if (remapDownloadConfirmTimerRef.current) {
-      clearTimeout(remapDownloadConfirmTimerRef.current);
-      remapDownloadConfirmTimerRef.current = null;
-    }
-  };
-
-  // The actual remap: loads the data URL into an Image, draws to a
-  // canvas (downsampling if needed with imageSmoothingEnabled=false to
-  // preserve pixel-art aesthetics), reads ImageData, and calls
-  // requestRemap (runs remapImageToPalette in a worker, see
-  // src/workers/remap.worker.ts and src/lib/remap-worker-client.ts, issue
-  // #110). The result is stored in remapOutput and a fresh signature is
-  // captured.
-  //
-  // Still wrapped in setTimeout(..., 0) so React renders the "Computing..."
-  // badge before work begins.
-  const refreshRemap = () => {
-    if (!remapImageDataUrl) {
-      setRemapError('No image loaded');
-      return;
-    }
-    setRemapError('');
-    setRemapLoading(true);
-    setTimeout(() => {
-      try {
-        const img = new Image();
-        img.onload = async () => {
-          try {
-            const palette = getActiveRemapPalette();
-            // Downsample to REMAP_MAX_DIMENSION on the longer axis.
-            const longer = Math.max(img.naturalWidth, img.naturalHeight);
-            const scale = longer > REMAP_MAX_DIMENSION ? REMAP_MAX_DIMENSION / longer : 1;
-            const w = Math.max(1, Math.round(img.naturalWidth * scale));
-            const h = Math.max(1, Math.round(img.naturalHeight * scale));
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            // Nearest-neighbor on downsample: preserve source pixel hexes
-            // and the pixel-art aesthetic. See IMAGE_REMAP_PLAN.md G4.
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(img, 0, 0, w, h);
-            const source = ctx.getImageData(0, 0, w, h);
-            // Runs in a worker (src/workers/remap.worker.ts) so the
-            // per-pixel dithering loop doesn't block the main thread.
-            const result = await requestRemap(source, palette, { dither: remapDither });
-            setRemapOutput(result);
-            setRemapOutputSignature(buildRemapSignature(palette, remapDither));
-            setRemapLoading(false);
-          } catch (err) {
-            setRemapError('Failed: ' + (err && err.message ? err.message : 'unknown error'));
-            setRemapLoading(false);
-          }
-        };
-        img.onerror = () => {
-          setRemapError('Failed to decode image');
-          setRemapLoading(false);
-        };
-        img.src = remapImageDataUrl;
-      } catch (err) {
-        setRemapError('Failed: ' + (err && err.message ? err.message : 'unknown error'));
-        setRemapLoading(false);
-      }
-    }, 0);
-  };
-
-  // Canvas ref for drawing the remap output.
-
-
-  // Download the current remap as a PNG at the configured scale.
-  //
-  // Pipeline:
-  //   1. Compute the export dimensions: floor(naturalSize * scale).
-  //   2. Estimate cost; if it exceeds the warn threshold and the user
-  //      has not yet confirmed (remapDownloadConfirmPending), arm the
-  //      two-click confirmation and stop. The second click within 5
-  //      seconds commits.
-  //   3. Decode remapImageDataUrl into an Image at its full natural size.
-  //   4. Draw it onto a canvas at export dimensions with
-  //      imageSmoothingEnabled = false. This gives us a fresh ImageData
-  //      at the actual export resolution that the remap runs against.
-  //   5. Run remapImageToPalette against THAT image with the current
-  //      dither setting. The remap math runs on real pixels, not on
-  //      upscaled preview pixels. Result is a true full-resolution PNG.
-  //   6. Render the result to an export canvas and toBlob it.
-  //
-  // Notes:
-  //   - We do NOT use the cached remapOutput. That is the downsampled
-  //     PREVIEW; export does its own full-res computation so the user
-  //     gets pixel-accurate output for their actual upload size.
-  //   - For very large outputs (e.g. 4K Floyd-Steinberg), the remap runs in
-  //     a worker (see requestRemap), so the main thread stays responsive;
-  //     the warn-then-confirm guard is now a "this may take a while" UX
-  //     hint rather than a correctness guard against freezing the tab.
-  //   - Still wrapped in setTimeout(..., 0) so React paints the
-  //     "Computing..." badge before the (now off-thread) work kicks off.
-  const downloadRemap = () => {
-    if (!remapImageDataUrl || !remapImageNaturalSize) {
-      setRemapError('No image loaded');
-      return;
-    }
-    const scale = (typeof remapDownloadScale === 'number' && remapDownloadScale > 0) ? remapDownloadScale : 1;
-    const exportW = Math.max(1, Math.floor(remapImageNaturalSize.w * scale));
-    const exportH = Math.max(1, Math.floor(remapImageNaturalSize.h * scale));
-    // Cost projection: use the active palette size and the current dither
-    // mode. Warn threshold is 50M distance ops (about 10 seconds of
-    // main-thread freeze at 200ns / op). Only the heavy combinations
-    // trigger the warning; small images and no-dither at moderate
-    // resolutions pass through silently.
-    const activePalette = getActiveRemapPalette();
-    const projectedCost = estimateRemapCost(exportW, exportH, activePalette.length, remapDither);
-    const WARN_THRESHOLD = 50000000;
-    if (projectedCost > WARN_THRESHOLD && !remapDownloadConfirmPending) {
-      setRemapDownloadConfirmPending(true);
-      if (remapDownloadConfirmTimerRef.current) clearTimeout(remapDownloadConfirmTimerRef.current);
-      remapDownloadConfirmTimerRef.current = setTimeout(() => {
-        setRemapDownloadConfirmPending(false);
-        remapDownloadConfirmTimerRef.current = null;
-      }, 5000);
-      return;
-    }
-    // Commit path: either cost is under threshold, or the user has
-    // confirmed. Disarm the confirmation if it was armed.
-    if (remapDownloadConfirmTimerRef.current) {
-      clearTimeout(remapDownloadConfirmTimerRef.current);
-      remapDownloadConfirmTimerRef.current = null;
-    }
-    setRemapDownloadConfirmPending(false);
-    setRemapError('');
-    setRemapLoading(true);
-    setTimeout(() => {
-      try {
-        const img = new Image();
-        img.onload = async () => {
-          try {
-            // Draw the upload into a canvas at the EXPORT dimensions with
-            // nearest-neighbor scaling. This produces the source for the
-            // remap run. For scale = 1 the canvas matches natural size.
-            // For scale < 1 we downsample; for scale > 1 we upsample.
-            // In both cases imageSmoothingEnabled=false preserves the
-            // pixel-art aesthetic.
-            const sourceCanvas = document.createElement('canvas');
-            sourceCanvas.width = exportW;
-            sourceCanvas.height = exportH;
-            const sourceCtx = sourceCanvas.getContext('2d');
-            sourceCtx.imageSmoothingEnabled = false;
-            sourceCtx.drawImage(img, 0, 0, exportW, exportH);
-            const sourceImageData = sourceCtx.getImageData(0, 0, exportW, exportH);
-
-            // Run the SAME remap helper on the export-resolution source, in
-            // a worker (this is the largest cost site: up to 8192px/axis).
-            const result = await requestRemap(sourceImageData, activePalette, { dither: remapDither });
-
-            // Write the result to a fresh canvas and export.
-            const exportCanvas = document.createElement('canvas');
-            exportCanvas.width = result.width;
-            exportCanvas.height = result.height;
-            const exportCtx = exportCanvas.getContext('2d');
-            try {
-              const imgData = new ImageData(result.data, result.width, result.height);
-              exportCtx.putImageData(imgData, 0, 0);
-            } catch {
-              const imgData = exportCtx.createImageData(result.width, result.height);
-              imgData.data.set(result.data);
-              exportCtx.putImageData(imgData, 0, 0);
-            }
-
-            // Filename: sanitize the original upload name (extension
-            // stripped, lowercased, non-alphanumeric chars normalized to
-            // dashes) and append -remapped-{scale-tag}.png. The scale
-            // tag formats integer scales as "{n}x" and fractional scales
-            // as "0p25x" etc. so the filename is shell-friendly.
-            const sanitize = (s) => s.replace(/\.[^.]+$/, '').toLowerCase().replace(/[\s.]+/g, '-').replace(/[^a-z0-9-]+/g, '').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
-            const scaleTag = Number.isInteger(scale)
-              ? scale + 'x'
-              : scale.toString().replace('.', 'p') + 'x';
-            const base = remapImageName ? sanitize(remapImageName) : '';
-            const filename = (base || 'remapped') + '-remapped-' + scaleTag + '.png';
-
-            exportCanvas.toBlob(async (blob) => {
-              if (!blob) {
-                setRemapError('Failed to encode PNG');
-                setRemapLoading(false);
-                return;
-              }
-              const result = await saveFile({
-                defaultName: filename,
-                filters: [{ name: 'PNG image', extensions: ['png'] }],
-                data: { bytes: blob },
-                folderKey: 'png',
-              });
-              if (!result.ok && !result.canceled) {
-                setRemapError('Failed to save PNG');
-              }
-              setRemapLoading(false);
-            }, 'image/png');
-          } catch (err) {
-            setRemapError('Download failed: ' + (err && err.message ? err.message : 'unknown error'));
-            setRemapLoading(false);
-          }
-        };
-        img.onerror = () => {
-          setRemapError('Failed to decode source image for export');
-          setRemapLoading(false);
-        };
-        img.src = remapImageDataUrl;
-      } catch (err) {
-        setRemapError('Download failed: ' + (err && err.message ? err.message : 'unknown error'));
-        setRemapLoading(false);
-      }
-    }, 0);
-  };
+  // ----- Image Remap Preview wiring -----
+  // The compute pipeline (active-palette derivation, upload/clear/download
+  // handlers, the debounced auto-refresh effect, and the two-click download
+  // confirmation timer) lives in useImageRemapCompute. It reads the SAME
+  // ramp memos the Visualization section uses (vizStyle, hidden shades,
+  // hardware lock baked in), which guarantees preview/viz parity. The remap
+  // STATE stays in useImageRemap (destructured above).
+  const {
+    getActiveRemapPalette, handleRemapImageUpload, clearRemapImage,
+    downloadRemap, remapDownloadConfirmTimerRef,
+  } = useImageRemapCompute({
+    baseColors, rampsPunchy, rampsBalanced, rampsMuted, vizStyle,
+    resolveBaseForRamp: boundResolveBaseForRamp, labelsForRamp, filterHidden: boundFilterHidden,
+    remapImageDataUrl, setRemapImageDataUrl, remapImageNaturalSize, setRemapImageNaturalSize,
+    setRemapOutput, setRemapOutputSignature, remapDither, setRemapLoading, setRemapError,
+    remapImageName, setRemapImageName, remapDownloadScale, setRemapDownloadScale,
+    remapDownloadConfirmPending, setRemapDownloadConfirmPending,
+  });
 
   // randomizeColor: roll a new random hex into the colorInput field. Does
   // NOT touch baseColors, the ramp customizations, or history. The user
@@ -1023,49 +714,11 @@ export default function PixelPalGenerator() {
     setTimeout(() => setAddBaseFeedback(''), 2000);
   };
 
-  const addHarmonyColor = useCallback((hex, name) => {
-    if (baseColors.includes(hex)) return;
-    setBaseColors(prev => [...prev, hex]);
-    setAiColorNames(prev => {
-      const padded = [...prev];
-      while (padded.length < baseColors.length) padded.push('');
-      padded.push(name);
-      return padded;
-    });
-  }, [baseColors, setBaseColors, setAiColorNames]);
-
-  const addHarmonyPair = useCallback((hex1, hex2, name1, name2) => {
-    const toAdd = [], namesToAdd = [];
-    if (!baseColors.includes(hex1)) { toAdd.push(hex1); namesToAdd.push(name1); }
-    if (!baseColors.includes(hex2) && hex1 !== hex2) { toAdd.push(hex2); namesToAdd.push(name2); }
-    if (toAdd.length === 0) return;
-    setBaseColors(prev => [...prev, ...toAdd]);
-    setAiColorNames(prev => {
-      const padded = [...prev];
-      while (padded.length < baseColors.length) padded.push('');
-      return [...padded, ...namesToAdd];
-    });
-  }, [baseColors, setBaseColors, setAiColorNames]);
-
-  // N-ary version for tetradic/square which add 3 derived colors (the base
-  // itself is already a ramp). Skips any color that's already in baseColors
-  // and any duplicate among the input pairs.
-  const addHarmonyMany = useCallback((pairs) => {
-    const toAdd = [], namesToAdd = [];
-    for (const { hex, name } of pairs) {
-      if (baseColors.includes(hex)) continue;
-      if (toAdd.includes(hex)) continue;
-      toAdd.push(hex);
-      namesToAdd.push(name);
-    }
-    if (toAdd.length === 0) return;
-    setBaseColors(prev => [...prev, ...toAdd]);
-    setAiColorNames(prev => {
-      const padded = [...prev];
-      while (padded.length < baseColors.length) padded.push('');
-      return [...padded, ...namesToAdd];
-    });
-  }, [baseColors, setBaseColors, setAiColorNames]);
+  // Harmony add handlers (append derived harmony colors as new bases) live
+  // in useHarmony; HarmonyPanel receives them via props below.
+  const { addHarmonyColor, addHarmonyPair, addHarmonyMany } = useHarmony({
+    baseColors, setBaseColors, setAiColorNames,
+  });
 
   const removeRamp = (index) => {
     setBaseColors(prev => prev.filter((_, i) => i !== index));
@@ -2110,7 +1763,8 @@ export default function PixelPalGenerator() {
     return out;
   };
   // Stable signature for a slot palette + dither, used as the useEffect
-  // dependency for the per-slot remap. Same shape as buildRemapSignature.
+  // dependency for the per-slot remap. Same shape as the main preview's
+  // signature in useImageRemapCompute.
   // Empty palette signals "do not run a remap" via the empty-palette
   // guard inside the effect.
   const buildSbsRemapKey = (palette, dither) => palette.length === 0

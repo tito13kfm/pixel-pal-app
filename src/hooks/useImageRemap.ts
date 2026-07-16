@@ -4,9 +4,10 @@ import { useState } from 'react';
  * Image-remap panel state: the uploaded source image + its natural size, the
  * computed remap output + signature, dither mode, load/error flags, the export
  * scale + two-click download confirmation, and drag state. The remap COMPUTE
- * /draw effects, the canvas ref, and the upload/refresh/download HANDLERS live
- * in App.tsx (wiring layer) because they read the live working palette
- * (document state) and canvas refs.
+ * pipeline (active-palette derivation, upload/clear/download handlers, the
+ * debounced auto-refresh effect) lives in useImageRemapCompute, which App.tsx
+ * wires to this hook's state; the draw effect + canvas ref live in
+ * VizComparePanel.
  *
  * Feature overview: a separate image slot from the From Image extraction
  * feature. The user uploads a reference image and remaps every pixel to the

@@ -71,6 +71,11 @@ src/
                         useExportSettings, useTour, useSpriteImport,
                         useImageExtract, useImageRemap, useSideBySide,
                         useSavedPalettes, usePanelLayout, useUpdater, useBaseDock, …)
+                        Stateful compute wrappers (#113): useImageRemapCompute
+                        (Image Preview remap pipeline: active-palette derivation,
+                        upload/clear/download handlers, debounced auto-refresh
+                        effect; wired to useImageRemap state), useHarmony
+                        (harmony add-as-base handlers for HarmonyPanel)
   lib/
     renderCount.ts      SP2 perf test harness (test-only). enableRenderCounts() /
                         recordRender(name) / getRenderCount(name). No-op in prod
