@@ -56,70 +56,92 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
-      - name: Create annotated tag (and chain release workflows)
-        uses: actions/github-script@v8
+      - name: Parse request
+        id: parse
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          HEAD_SHA: ${{ github.sha }}
           TAG_INPUT: ${{ inputs.tag }}
           SHA_INPUT: ${{ inputs.sha }}
           RUN_RELEASE_INPUT: ${{ inputs.run_release }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "push" ]; then
+            SIGNAL_BRANCH="$REF_NAME"
+            MODE="${REF_NAME%%/*}"                       # release-tag | release-run
+            REST="${REF_NAME#*/}"
+            TAG="${REST%%/*}"
+            SHA_SEG="${REST#"$TAG"}"; SHA_SEG="${SHA_SEG#/}"
+            SHA="${SHA_SEG:-$HEAD_SHA}"
+            if [ "$MODE" = "release-run" ]; then
+              RUN_RELEASE=true
+              if [ -n "$SHA_SEG" ]; then
+                echo "::error::release-run/ does not take a SHA segment; point the branch at the commit to release"
+                exit 1
+              fi
+            else
+              RUN_RELEASE=false
+            fi
+          else
+            SIGNAL_BRANCH=""
+            TAG="$TAG_INPUT"
+            SHA="${SHA_INPUT:-$HEAD_SHA}"
+            RUN_RELEASE="$RUN_RELEASE_INPUT"
+          fi
+          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9.]+)?$'; then
+            echo "::error::Tag \"$TAG\" does not look like vX.Y.Z"; exit 1
+          fi
+          if ! echo "$SHA" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "::error::SHA \"$SHA\" is not a full 40-char lowercase commit SHA"; exit 1
+          fi
+          {
+            echo "tag=$TAG"
+            echo "sha=$SHA"
+            echo "run_release=$RUN_RELEASE"
+            echo "signal_branch=$SIGNAL_BRANCH"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Plain git so a rejection (e.g. a tag ruleset without a bypass for
+      # Actions) surfaces its real reason in the log instead of a generic
+      # API 403.
+      - name: Create and push annotated tag
+        env:
+          TAG: ${{ steps.parse.outputs.tag }}
+          SHA: ${{ steps.parse.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists; refusing to move it"; exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$SHA" -m "Release $TAG"
+          git push origin "refs/tags/$TAG"
+          echo "::notice::Created annotated tag $TAG at $SHA"
+
+      - name: Chain Release + Deploy web at the tag
+        if: steps.parse.outputs.run_release == 'true'
+        uses: actions/github-script@v8
+        env:
+          TAG: ${{ steps.parse.outputs.tag }}
         with:
           script: |
             const { owner, repo } = context.repo;
-            let tag, sha, runRelease, signalBranch = null;
+            const ref = process.env.TAG;
+            await github.rest.actions.createWorkflowDispatch({ owner, repo, workflow_id: 'release.yml', ref });
+            await github.rest.actions.createWorkflowDispatch({ owner, repo, workflow_id: 'deploy-web.yml', ref });
+            core.notice(`Dispatched Release + Deploy web at ${ref}`);
 
-            if (context.eventName === 'push') {
-              signalBranch = context.ref.replace(/^refs\/heads\//, '');
-              const parts = signalBranch.split('/');
-              const mode = parts[0];               // release-tag | release-run
-              tag = parts[1] || '';
-              sha = (parts[2] || context.sha).toLowerCase();
-              runRelease = mode === 'release-run';
-              if (runRelease && parts.length > 2) {
-                core.setFailed('release-run/ does not take a SHA segment; point the branch at the commit to release');
-                return;
-              }
-            } else {
-              tag = (process.env.TAG_INPUT || '').trim();
-              sha = ((process.env.SHA_INPUT || '').trim() || context.sha).toLowerCase();
-              runRelease = process.env.RUN_RELEASE_INPUT === 'true';
-            }
-
-            if (!/^v\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(tag)) {
-              core.setFailed(`Tag "${tag}" does not look like vX.Y.Z`);
-              return;
-            }
-            if (!/^[0-9a-f]{40}$/.test(sha)) {
-              core.setFailed(`SHA "${sha}" is not a full 40-char commit SHA`);
-              return;
-            }
-
-            try {
-              await github.rest.git.getRef({ owner, repo, ref: `tags/${tag}` });
-              core.setFailed(`Tag ${tag} already exists; refusing to move it`);
-              return;
-            } catch (e) {
-              if (e.status !== 404) throw e;
-            }
-
-            const tagObj = await github.rest.git.createTag({
-              owner, repo, tag, message: `Release ${tag}`, object: sha, type: 'commit',
-            });
-            await github.rest.git.createRef({
-              owner, repo, ref: `refs/tags/${tag}`, sha: tagObj.data.sha,
-            });
-            core.notice(`Created annotated tag ${tag} at ${sha}`);
-
-            if (runRelease) {
-              await github.rest.actions.createWorkflowDispatch({
-                owner, repo, workflow_id: 'release.yml', ref: tag,
-              });
-              await github.rest.actions.createWorkflowDispatch({
-                owner, repo, workflow_id: 'deploy-web.yml', ref: tag,
-              });
-              core.notice(`Dispatched Release + Deploy web at ${tag}`);
-            }
-
-            if (signalBranch) {
-              await github.rest.git.deleteRef({ owner, repo, ref: `heads/${signalBranch}` });
-              core.notice(`Deleted signal branch ${signalBranch}`);
-            }
+      - name: Delete signal branch
+        if: always() && steps.parse.outputs.signal_branch != ''
+        env:
+          SIGNAL_BRANCH: ${{ steps.parse.outputs.signal_branch }}
+        shell: bash
+        run: git push origin --delete "$SIGNAL_BRANCH" || true
