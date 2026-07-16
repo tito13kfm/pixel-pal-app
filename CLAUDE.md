@@ -37,25 +37,25 @@ glob matches nothing that's expected, not an error:
 
 ---
 
-## Code Navigation & Edits: use Serena
+## Code Navigation: Serena available, no longer enforced
 
-This repo is indexed by **Serena** (`.serena/project.yml`, TypeScript LSP). **For any
-`src/**` code file use Serena tools, not the built-in Read/Edit** (`App.tsx` is ~3,900
-lines; string-match edits there are fragile). A `PreToolUse` hook **hard-blocks the
-built-in Edit tool on `src/**/*.ts(x)`**, it is enforced, not advisory.
+This repo is indexed by **Serena** (`.serena/project.yml`, TypeScript LSP). The old
+`PreToolUse` hooks that hard-blocked built-in Read/Edit on `src/**/*.ts(x)` were
+**removed when #113 finished**: App.tsx dropped from ~3,900 to ~1,300 lines
+(CI-ratcheted at 1,350), so string-match edits are no longer fragile and the built-in
+tools are fine everywhere.
 
-- **Navigate/read:** `get_symbols_overview` → `find_symbol` (`include_body`). No
-  Read-for-discovery on code files. Fall back to `Read` with `offset`+`limit` for
-  non-symbol context, `Grep` for literal matches.
-- **Edit:** `replace_content` (regex, a few lines inside a big symbol) /
-  `replace_symbol_body` / `insert_before_symbol` / `insert_after_symbol`.
+Serena remains the better choice for symbol-level work when available:
+
+- **Navigate:** `get_symbols_overview` → `find_symbol` (`include_body`) beats reading
+  whole files for discovery; `Grep` for literal matches.
 - **Cross-refs:** `find_referencing_symbols` first; keep `grep` as a backup completeness
   check (some refs in untyped files aren't type-linked).
 
 `@ts-nocheck` does **not** blind Serena, the LSP still parses symbol structure (it only
 suppresses *type diagnostics*), so Serena navigates `App.tsx`/`color.ts` fine. But
 `get_diagnostics_for_file` is muted there, so the **`sed`-strip-nocheck + `tsc` type-gate +
-grep stays the correctness gate**, Serena replaces navigation/edits, not verification.
+grep stays the correctness gate**, whichever tools did the editing.
 
 `npm run deadcode` (ts-prune) complements grep from the other direction: it lists exported
 symbols nobody imports. During the `App.tsx` decomposition this catches helpers extracted to
