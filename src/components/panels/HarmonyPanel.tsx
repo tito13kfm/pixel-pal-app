@@ -3,6 +3,7 @@ import { Sparkles, RotateCcw } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import { recordRender } from '../../lib/renderCount';
 import type { HarmonySet } from '../../lib/harmony';
+import { MOOD_PRESETS } from '../../lib/constants';
 
 export interface HarmonyPanelProps {
   baseColors: string[];
@@ -14,6 +15,8 @@ export interface HarmonyPanelProps {
   harmonizeBaseline: string[] | null;
   restoreHarmonizeBaseline: () => void;
   harmonize: () => void;
+  moodPreset: string | null;
+  setMoodPreset: (id: string | null) => void;
   harmony: HarmonySet;
   addHarmonyPair: (h1: string, h2: string, n1: string, n2: string) => void;
   addHarmonyMany: (items: { hex: string; name: string }[]) => void;
@@ -31,6 +34,8 @@ function HarmonyPanelImpl({
   harmonizeBaseline,
   restoreHarmonizeBaseline,
   harmonize,
+  moodPreset,
+  setMoodPreset,
   harmony,
   addHarmonyPair,
   addHarmonyMany,
@@ -136,6 +141,7 @@ function HarmonyPanelImpl({
                   unlockedCount++;
                 }
                 const disabled = unlockedCount === 0;
+                const activeMoodName = moodPreset ? (MOOD_PRESETS.find(m => m.id === moodPreset)?.name || null) : null;
                 const MODES = [
                   { key: 'complement',       label: 'Compl.',  tip: 'All unlocked ramps snap to the complementary hue (180° from anchor). Maximum contrast.' },
                   { key: 'analogous',        label: 'Analog',  tip: 'Ramps cluster tightly around the anchor (±15-60°). Low contrast, cohesive feel.' },
@@ -161,6 +167,26 @@ function HarmonyPanelImpl({
                           {label}
                         </button>
                       ))}
+                    </div>
+                    {/* Mood preset (#135): sibling of Hardware Lock, bound to
+                        the same state as the Input panel's select. Clamps
+                        harmonized hues into the mood's envelope. */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-pink-200 uppercase tracking-wider">Mood:</span>
+                      <select
+                        value={moodPreset ?? ''}
+                        onChange={(e) => setMoodPreset(e.target.value || null)}
+                        aria-label="Mood preset for Harmonize"
+                        title={moodPreset
+                          ? (MOOD_PRESETS.find(m => m.id === moodPreset)?.tip || 'Mood preset')
+                          : 'Clamp harmonized colors into a hand-tuned genre envelope (hue, saturation, lightness). Also biases the Surprise Me generator. Curated data, no AI.'}
+                        className="px-2 py-1 rounded font-bold bg-purple-900/40 text-pink-300/80 border border-pink-700/40 hover:bg-purple-800/60 uppercase tracking-wider text-[10px] cursor-pointer focus:outline-none"
+                      >
+                        <option value="">No mood</option>
+                        {MOOD_PRESETS.map(m => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="flex items-center gap-2">
                       {harmonizeBaseline && (
@@ -191,7 +217,7 @@ function HarmonyPanelImpl({
                     <span className="text-[10px] text-pink-200/70 italic">
                       {disabled
                         ? 'All non-anchor ramps are locked.'
-                        : `Will rotate ${unlockedCount} ramp${unlockedCount === 1 ? '' : 's'}: ${harmonizeMode.replace('-', ' ')}.`}
+                        : `Will rotate ${unlockedCount} ramp${unlockedCount === 1 ? '' : 's'}: ${harmonizeMode.replace('-', ' ')}${activeMoodName ? `, clamped to ${activeMoodName}` : ''}.`}
                     </span>
                   </>
                 );

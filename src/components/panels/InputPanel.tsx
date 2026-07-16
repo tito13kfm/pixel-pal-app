@@ -1,8 +1,8 @@
-import { Dice5, Plus, Upload, Pipette, Sparkles, Copy, Image as ImageIcon } from 'lucide-react';
+import { Dice5, Plus, Upload, Pipette, Sparkles, Copy, Wand2, Shuffle, Image as ImageIcon } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import { PixelSprite } from './RampsPanel';
 import ShadeCountControl from '../ShadeCountControl';
-import { DEFAULT_SPRITE_LIBRARY } from '../../lib/constants';
+import { DEFAULT_SPRITE_LIBRARY, MOOD_PRESETS } from '../../lib/constants';
 
 type SpriteLibrary = Record<string, { name: string; pattern: string[]; numShades: number }>;
 
@@ -40,6 +40,12 @@ interface InputPanelProps {
 
   handleGenerate: () => void;
 
+  // One-click generator (backlog F) + mood bias (#135)
+  surpriseMe: () => void;
+  buildAroundColor: () => void;
+  moodPreset: string | null;
+  setMoodPreset: (id: string | null) => void;
+
   spriteLibrary: SpriteLibrary;
   rampsPunchy: string[][];
   spriteKey: string;
@@ -75,7 +81,8 @@ export function InputPanel(props: InputPanelProps) {
     reExtractFromImage, imageLoading, eyedropperActive, setEyedropperActive,
     hoveredColor, imageZoom, setImageZoom, imageNaturalSize, setImageNaturalSize,
     imageRef, handleImageHover, handleImageLeave, handleImageClick, imageError,
-    handleGenerate, spriteLibrary, rampsPunchy, spriteKey, setSpriteKey,
+    handleGenerate, surpriseMe, buildAroundColor, moodPreset, setMoodPreset,
+    spriteLibrary, rampsPunchy, spriteKey, setSpriteKey,
     removeCustomSprite, copySpriteSource, showSpriteImporter, setShowSpriteImporter,
     spriteDragging, handleSpriteDragOver, handleSpriteDragLeave, handleSpriteDrop,
     handleSpriteFile, spriteImportName, setSpriteImportName, spriteImportText,
@@ -198,6 +205,46 @@ export function InputPanel(props: InputPanelProps) {
               </button>
             )}
           </div>
+
+          {/* One-click generator row (backlog F) + mood bias (#135). The mood
+              select sits immediately left of the two buttons it biases; it
+              also biases Harmonize (a twin select lives in the Harmony
+              panel, bound to the same state). */}
+          {mode === 'color' && (
+            <div className="flex flex-wrap gap-2 items-center justify-center mb-4" data-tour-id="generator-row">
+              <select
+                value={moodPreset ?? ''}
+                onChange={(e) => setMoodPreset(e.target.value || null)}
+                aria-label="Mood preset"
+                title={moodPreset
+                  ? (MOOD_PRESETS.find(m => m.id === moodPreset)?.tip || 'Mood preset')
+                  : 'Bias Surprise Me, Around This, and Harmonize toward a hand-tuned genre feel (hue, saturation, and lightness envelope). Curated data, no AI. Composes with Hardware Lock. No mood = pleasing mid-tone defaults.'}
+                className="px-2 py-2 rounded font-bold bg-purple-900/60 text-pink-200 border-2 border-pink-700/50 hover:bg-purple-800/60 uppercase tracking-wider text-xs cursor-pointer focus:outline-none"
+              >
+                <option value="">No mood</option>
+                {MOOD_PRESETS.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={surpriseMe}
+                data-tour-id="surprise-me-btn"
+                title="One click, whole palette: 5 base colors picked to work together (golden-angle hue spacing with perceptual separation), each with its own ramp. Uses the mood preset when one is set. Destructive like New palette. No AI, no network."
+                className="px-4 py-2 rounded font-bold bg-pink-500 text-white border-2 border-pink-300 hover:bg-pink-400 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-sm"
+                style={{ boxShadow: '0 0 12px #ff00ff' }}
+              >
+                <Wand2 size={18} />Surprise Me
+              </button>
+              <button
+                onClick={buildAroundColor}
+                data-tour-id="around-this-btn"
+                title="Generate a 5-base palette around the hex above: your color stays exactly as base 1 and 4 companions are derived from its hue. Uses the mood preset when one is set. Destructive like New palette."
+                className="px-4 py-2 rounded font-bold bg-purple-900/60 text-pink-200 border-2 border-pink-700/50 hover:bg-purple-800/60 hover:border-pink-400/60 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-sm"
+              >
+                <Shuffle size={18} />Around This
+              </button>
+            </div>
+          )}
 
 
 
