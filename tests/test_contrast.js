@@ -89,7 +89,7 @@ const THEMES = {
     // Neutral (theme.ts THEME_TOKENS.neutral): accent identity comes from
     // card border color only, not fill.
     cardBgCyan: { gradient: ['#707070', '#7e7e7e'] },
-    themedAccentCyanLabel: '#cffafe', // ACCENT_MAP['#00ffff'].neutralText (App.tsx)
+    themedAccentCyanLabel: '#cffafe', // ACCENT_MAP['#00ffff'].neutralText (hooks/useThemeHelpers.ts)
     alertWarnText: 'text-yellow-900',
     alertWarnBg: { rgba: [254, 249, 195, 0.7] }, // bg-yellow-100/70 over pageBg
   },
@@ -101,7 +101,7 @@ const THEMES = {
     // cardBgCyan/Pink/Yellow/Green/Viz are identical flat near-white
     // gradients in Light (theme.ts THEME_TOKENS.light).
     cardBgCyan: { gradient: ['#f5f5f5', '#e0e0e0'] },
-    themedAccentCyanLabel: '#155e75', // ACCENT_MAP['#00ffff'].light (App.tsx)
+    themedAccentCyanLabel: '#155e75', // ACCENT_MAP['#00ffff'].light (hooks/useThemeHelpers.ts)
     alertWarnText: 'text-yellow-900',
     alertWarnBg: '#fefce8', // bg-yellow-50, solid
   },
@@ -263,8 +263,8 @@ for (const themeName of Object.keys(THEMES)) {
 
 const themePath = path.join(__dirname, '..', 'src', 'lib', 'theme.ts');
 const themeSrc = fs.readFileSync(themePath, 'utf8');
-const appPath = path.join(__dirname, '..', 'src', 'App.tsx');
-const appSrc = fs.readFileSync(appPath, 'utf8');
+const themeHelpersPath = path.join(__dirname, '..', 'src', 'hooks', 'useThemeHelpers.ts');
+const themeHelpersSrc = fs.readFileSync(themeHelpersPath, 'utf8');
 const driftErrors = [];
 
 const MIRRORED_LITERALS = [
@@ -298,16 +298,17 @@ for (const [, literal] of MIRRORED_LITERALS) {
   }
 }
 
-// Issue #10: themedAccentCyanLabel mirrors App.tsx's ACCENT_MAP['#00ffff']
-// entry (themedAccent() source of truth), not a theme.ts token, so it's
-// checked against App.tsx separately since that's where it actually lives.
-const MIRRORED_LITERALS_APP = [
+// Issue #10: themedAccentCyanLabel mirrors ACCENT_MAP['#00ffff'] (the
+// themedAccent() source of truth), not a theme.ts token, so it's checked
+// separately where it actually lives: hooks/useThemeHelpers.ts (moved
+// there from App.tsx in the #113 finish extraction).
+const MIRRORED_LITERALS_THEME_HELPERS = [
   "'#00ffff': { neutralText: '#cffafe', neutralBorder: '#083344', light: '#155e75' }",
 ];
 
-for (const literal of MIRRORED_LITERALS_APP) {
-  if (!appSrc.includes(literal)) {
-    driftErrors.push(`MISSING in App.tsx: ${literal}`);
+for (const literal of MIRRORED_LITERALS_THEME_HELPERS) {
+  if (!themeHelpersSrc.includes(literal)) {
+    driftErrors.push(`MISSING in useThemeHelpers.ts: ${literal}`);
   }
 }
 

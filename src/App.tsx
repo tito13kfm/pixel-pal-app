@@ -1,12 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Contrast, Cpu, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
-import { hexToHsl, hslToHex, hexToRgb, rgbToHex } from './lib/color';
-import {
-  WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
-  spriteDiamond, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES,
-  HARDWARE_PALETTES, MOOD_PRESETS,
-} from './lib/constants';
+import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Contrast, Cpu, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, Gamepad2 } from 'lucide-react';
+import { HARDWARE_PALETTES } from './lib/constants';
 import { TourPanel } from './components/TourPanel'
 import { TourOverlay } from './components/TourOverlay'
 import { RampAdvancedPanel } from './components/RampAdvancedPanel';
@@ -17,7 +12,6 @@ import { AdjacencyMatrix } from './components/AdjacencyMatrix';
 import { DitherBlend } from './components/DitherBlend';
 import { CrossRampDither } from './components/CrossRampDither';
 import { DITHER_PATTERNS } from './lib/viz-interaction';
-import { THEME_TOKENS } from './lib/theme';
 import { V2EngineNotice } from './components/V2EngineNotice';
 import { CvdActiveBadge } from './components/CvdActiveBadge';
 import { SectionCard } from './components/SectionCard';
@@ -33,18 +27,11 @@ import { InputPanel } from './components/panels/InputPanel';
 import { HeaderControls } from './components/panels/HeaderControls';
 import { DEFAULT_STYLE_PRESETS } from './lib/style-presets';
 import { buildRandomHex } from './lib/randomizer';
-import { generatePalette } from './lib/palette-generator';
-import { applyMoodToHex } from './lib/mood';
 import { generateHarmony } from './lib/harmony';
-import { parsePiskelC } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
-import { extractDominantColors } from './lib/image-extract';
-import { requestRemap } from './lib/remap-worker-client';
 import { buildRampsForSnapshot } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
-import { isValidRampSize } from './lib/ramp-engine';
-import { shadeLabelsFor, labelsForRamp, applyOverrides, filterHidden, resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp, generateRamp } from './lib/ramp-helpers';
-import { permuteStringKeyMap } from './lib/permute-indexed-state';
+import { labelsForRamp, filterHidden, resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp } from './lib/ramp-helpers';
 import { ThemeProvider, LayoutProvider, PaletteProvider, EditorProvider } from './contexts';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
@@ -53,10 +40,17 @@ import { useExport } from './hooks/useExport';
 import { useTour } from './hooks/useTour';
 import { useSpriteImport } from './hooks/useSpriteImport';
 import { useImageExtract } from './hooks/useImageExtract';
+import { useImageExtractHandlers } from './hooks/useImageExtractHandlers';
 import { useImageRemap } from './hooks/useImageRemap';
 import { useImageRemapCompute } from './hooks/useImageRemapCompute';
 import { useHarmony } from './hooks/useHarmony';
+import { usePaletteReset } from './hooks/usePaletteReset';
+import { useGenerationActions } from './hooks/useGenerationActions';
+import { useTourOrchestration } from './hooks/useTourOrchestration';
+import { useThemeHelpers } from './hooks/useThemeHelpers';
+import { useSectionDrag, useRampDrag } from './hooks/useDragReorder';
 import { useSideBySide } from './hooks/useSideBySide';
+import { useSideBySideCompute } from './hooks/useSideBySideCompute';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
 import { useSavedPalettesActions } from './hooks/useSavedPalettesActions';
 import { useRampEditing } from './hooks/useRampEditing';
@@ -64,6 +58,9 @@ import { formatHistoryAge } from './lib/history-snapshot';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
 import { usePaletteState } from './hooks/usePaletteState';
+import { useSessionPrefs } from './hooks/useSessionPrefs';
+import { useHardwareLock } from './hooks/useHardwareLock';
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 import { useHistory } from './hooks/useHistory';
 
 // ---------- window.storage shim ----------
@@ -95,14 +92,16 @@ if (typeof window !== 'undefined' && !(window as any).storage) {
   };
 }
 
-// rgbToHex, hexToHsl, hslToHex, hexToRgb: imported from ./lib/color.
+// Color-math helpers (hexToHsl / hslToHex / hexToRgb / ...) live in
+// ./lib/color; the hooks that need them import them directly.
 // The HSV editor conversions (hexToHsv/hsvToHex) and the WCAG compare
 // helpers moved with their handlers to hooks/useRampEditing.ts (#113
 // slice 3).
 
 
-// Sprites, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES, HARDWARE_PALETTES:
-// imported from ./lib/constants (original definitions removed).
+// Sprites, DEFAULT_SPRITE_LIBRARY, CLASSIC_PALETTES, HARDWARE_PALETTES all
+// live in ./lib/constants (original definitions removed); App.tsx now only
+// imports what its remaining wiring reads directly.
 
 
 
@@ -158,12 +157,17 @@ export default function PixelPalGenerator() {
   // The snapshot/restore/start/exit orchestration stays below in App.tsx
   // because it spans other domains. See src/hooks/useTour.ts.
   const { tourOpen, setTourOpen, tourGuideId, setTourGuideId, tourStep, setTourStep, launcherOpen, setLauncherOpen } = useTour();
+  // Sprite state + import/drag/remove/copy handlers (#113) live in
+  // useSpriteImport; setExportFeedback is bound as a param (same pattern
+  // as useRampEditing).
   const {
     spriteKey, setSpriteKey, customSprites, setCustomSprites,
     showSpriteImporter, setShowSpriteImporter, spriteImportText, setSpriteImportText,
     spriteImportName, setSpriteImportName, spriteImportError, setSpriteImportError,
     spriteDragging, setSpriteDragging, spriteLibrary,
-  } = useSpriteImport();
+    handleSpriteFile, handleSpriteDragOver, handleSpriteDragLeave, handleSpriteDrop,
+    importSprite, removeCustomSprite, copySpriteSource,
+  } = useSpriteImport({ setExportFeedback });
 
   const {
     imageDataUrl, setImageDataUrl, imageColorCount, setImageColorCount,
@@ -207,19 +211,7 @@ export default function PixelPalGenerator() {
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,
   } = usePanelLayout();
-  // Ramp reorder drag state, deliberately SEPARATE from the section-level
-  // dragOver/draggingKey so card-drag (#44) and ramp-drag never collide.
-  const [rampDragOver, setRampDragOver] = useState<{ index: number; pos: 'before' | 'after' } | null>(null);
-  const [rampDragging, setRampDragging] = useState<number | null>(null);
   const { updateInfo, setUpdateInfo, updateReady, setUpdateReady, updateDownloading, setUpdateDownloading } = useUpdater();
-  const tourSnapshot = useRef(null);
-  // Brief inline feedback shown next to the "Add to Palette" button on the
-  // Single Color tab. Separate from exportFeedback because the export
-  // badge lives near the bottom of the page and is invisible to a user
-  // working at the top. Clears itself via setTimeout.
-  const [addBaseFeedback, setAddBaseFeedback] = useState('');
-  const [harmonizeMode, setHarmonizeMode] = useState('complement');
-  const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
   // ----- Image Remap Preview -----
   // Separate image slot from the From Image extraction feature. The user
   // uploads a reference image and remaps every pixel to the nearest color
@@ -266,7 +258,6 @@ export default function PixelPalGenerator() {
   // the field for immediate typing. Set via the ref attribute on the
   // input element down in the JSX tree.
   const saveNameInputRef = useRef(null);
-  const resetConfirmTimerRef = useRef(null);
 
   // Active hardware palette object when locked, otherwise null. Resolved
   // here once so the ramp useMemos don't re-do the find on every iteration.
@@ -275,18 +266,11 @@ export default function PixelPalGenerator() {
     return HARDWARE_PALETTES.find(hw => hw.id === hardwareLock) || null;
   }, [hardwareLock]);
 
-  // Mood preset (#135): a MOOD_PRESETS id or null. Session-level setting like
-  // hardwareLock (survives resetPaletteState on purpose), but unlike
-  // hardwareLock it is NOT in the undo snapshot and NOT in saved payloads:
-  // it never changes currently rendered output, it only biases FUTURE
-  // Surprise Me / Around This / Harmonize actions. Composes with Hardware
-  // Lock (mood shapes base-color inputs; the lock quantizes rendered shades).
-  // Persisted as ui:moodPreset (see the effects near the other ui:* prefs).
-  const [moodPreset, setMoodPreset] = useState(null);
-  const activeMood = useMemo(() => {
-    if (!moodPreset) return null;
-    return MOOD_PRESETS.find(m => m.id === moodPreset) || null;
-  }, [moodPreset]);
+  // Persisted session prefs (#113): the ui:rampSize load/persist effects and
+  // the moodPreset state (#135) + its ui:moodPreset persistence live in
+  // useSessionPrefs. rampSize itself stays in usePaletteState (the hook
+  // reads/writes it through the store).
+  const { moodPreset, setMoodPreset, activeMood } = useSessionPrefs();
 
 
   // Live ramps now flow through the SAME shared buildRamp pipeline that
@@ -305,7 +289,7 @@ export default function PixelPalGenerator() {
   // re-migrated, so passing it would double-apply. hardwareLock is the id string
   // (buildRamp re-finds the palette, exactly as activeHardware does).
   // Shared render-input field set for liveRampSnapshot (main grid) and
-  // buildWorkingSnapshot (viz/export/compare) below. Both must carry the same
+  // buildWorkingSnapshot (viz/export/compare, in useSideBySideCompute). Both must carry the same
   // buildRamp inputs to stay in sync (#36, #37) - extend this, not either
   // call site, when a new render input is added (#62).
   const workingRenderInputs = useCallback(() => ({
@@ -373,229 +357,19 @@ export default function PixelPalGenerator() {
     lastSavedPath, setLastSavedPath, sessionRampGplFolder, setSessionRampGplFolder,
   });
 
-  const handleGenerate = () => {
-    tagNextLabel(mode === 'color' ? 'New palette' : 'Shuffle');
-    if (mode === 'color') {
-      setBaseColors([colorInput]); setAiColorNames([]);
-      resetPaletteState();
-      // Hard reset path: lockedRamps just got cleared. Bump shuffleSeed
-      // directly rather than via bumpShuffleSeed, because the latter
-      // reads the OLD lockedRamps closure value and would take the
-      // lock-aware branch on a render where lock has already been
-      // cleared in the same batched update.
-      setShuffleSeed(s => s + 1);
-    } else {
-      // Non-reset path: respect existing lockedRamps so the user can
-      // hold one ramp in place and Generate to re-roll only the others.
-      bumpShuffleSeed();
-    }
-  };
 
 
 
-  const handleImageUpload = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { setImageError('Please upload an image file'); return; }
-    setImageLoading(true); setImageError(''); setAiColorNames([]);
-    // Reset zoom and naturalSize so the new image starts at 1x and the
-    // onLoad handler captures fresh dimensions.
-    setImageZoom(1);
-    setImageNaturalSize({ width: 0, height: 0 });
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      setImageDataUrl(dataUrl);
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const maxDim = 150;
-          const scale = img.width > maxDim || img.height > maxDim ? Math.min(maxDim / img.width, maxDim / img.height) : 1;
-          const w = Math.max(1, Math.floor(img.width * scale));
-          const h = Math.max(1, Math.floor(img.height * scale));
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(img, 0, 0, w, h);
-          const imageData = ctx.getImageData(0, 0, w, h);
-          const colors = extractDominantColors(imageData, imageColorCount);
-          if (colors.length === 0) { setImageError('No colors found'); setImageLoading(false); return; }
-          const finalColors = colors.slice(0, imageColorCount);
-          tagNextLabel('Extract from image');
-          setBaseColors(finalColors);
-          setAiColorNames(finalColors.map((_, i) => `Color ${i + 1}`));
-          resetPaletteState();
-          setShuffleSeed(s => s + 1);
-          setImageLoading(false);
-        } catch (err) { setImageError('Failed: ' + err.message); setImageLoading(false); }
-      };
-      img.onerror = () => { setImageError('Failed to load'); setImageLoading(false); };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const reExtractFromImage = () => {
-    if (!imageDataUrl) return;
-    setImageLoading(true);
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const maxDim = 150;
-        const scale = img.width > maxDim || img.height > maxDim ? Math.min(maxDim / img.width, maxDim / img.height) : 1;
-        const w = Math.max(1, Math.floor(img.width * scale));
-        const h = Math.max(1, Math.floor(img.height * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, 0, 0, w, h);
-        const imageData = ctx.getImageData(0, 0, w, h);
-        const colors = extractDominantColors(imageData, imageColorCount);
-        const finalColors = colors.slice(0, imageColorCount);
-        tagNextLabel('Re-extract from image');
-        setBaseColors(finalColors);
-        setAiColorNames(finalColors.map((_, i) => `Color ${i + 1}`));
-        resetPaletteState();
-        setShuffleSeed(s => s + 1);
-        setImageLoading(false);
-      } catch (err) { setImageError('Failed: ' + err.message); setImageLoading(false); }
-    };
-    img.src = imageDataUrl;
-  };
-
-  const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); if (mode === 'image') setIsDragging(true); };
-  const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };
-  const handleDrop = (e) => {
-    e.preventDefault(); e.stopPropagation(); setIsDragging(false);
-    if (mode !== 'image') return;
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleImageUpload(file);
-  };
-
-  useEffect(() => {
-    if (!localStorage.getItem('pixel-pal-tour-seen')) {
-      setTimeout(() => { startTour('onboarding'); }, 600);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-
-
-  function handleTourMarkSeen() {
-    localStorage.setItem('pixel-pal-tour-seen', '1');
-  }
-
-  const SETUP_SETTERS = {
-    export: setExportOpen,
-    harmony: setHarmonyOpen,
-  };
-
-  const runTourSetup = (setupId) => {
-    const setter = SETUP_SETTERS[setupId];
-    if (setter) setter(true);
-  };
-
-  const snapshotTourState = () => {
-    tourSnapshot.current = {
-      mode, exportOpen, hwPickerOpen, compareMode, harmonyOpen,
-    };
-  };
-
-  const restoreTourState = () => {
-    const s = tourSnapshot.current;
-    if (!s) return;
-    setMode(s.mode);
-    setExportOpen(s.exportOpen);
-    setHwPickerOpen(s.hwPickerOpen);
-    setCompareMode(s.compareMode);
-    if (!s.compareMode) { setCompareAnchor(null); setCompareResult(null); }
-    setHarmonyOpen(s.harmonyOpen);
-    tourSnapshot.current = null;
-  };
-
-  const startTour = (id) => {
-    if (!tourSnapshot.current) snapshotTourState();
-    setLauncherOpen(false);
-    setTourGuideId(id);
-    setTourStep(0);
-    setTourOpen(true);
-  };
-
-  const exitTour = () => {
-    if (tourGuideId === 'onboarding') handleTourMarkSeen();
-    setTourOpen(false);
-    setTourGuideId(null);
-    setTourStep(0);
-    restoreTourState();
-  };
-
-  useEffect(() => {
-    const pasteHandler = (e) => {
-      if (mode !== 'image') return;
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) { handleImageUpload(file); break; }
-        }
-      }
-    };
-    if (mode === 'image') {
-      window.addEventListener('paste', pasteHandler);
-      return () => window.removeEventListener('paste', pasteHandler);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [mode]);
-
-  const getPixelColorFromImage = (event) => {
-    if (!imageDataUrl) return null;
-    const img = event.currentTarget;
-    const rect = img.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const naturalX = Math.floor((x / rect.width) * img.naturalWidth);
-    const naturalY = Math.floor((y / rect.height) * img.naturalHeight);
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0);
-    try {
-      const data = ctx.getImageData(naturalX, naturalY, 1, 1).data;
-      return { hex: rgbToHex(data[0], data[1], data[2]), alpha: data[3] };
-    } catch { return null; }
-  };
-
-  const handleImageHover = (event) => {
-    if (!eyedropperActive) return;
-    const result = getPixelColorFromImage(event);
-    if (result && result.alpha > 0) setHoveredColor(result.hex);
-  };
-
-  const handleImageLeave = () => setHoveredColor(null);
-
-  const handleImageClick = (event) => {
-    if (!eyedropperActive) return;
-    const result = getPixelColorFromImage(event);
-    if (!result || result.alpha < 128) return;
-    if (!baseColors.includes(result.hex)) {
-      tagNextLabel('Eyedropper add');
-      setBaseColors(prev => [...prev, result.hex]);
-      setAiColorNames(prev => {
-        const padded = [...prev];
-        while (padded.length < baseColors.length) padded.push('');
-        padded.push('Eyedropper');
-        return padded;
-      });
-      // Non-reset path: respect lockedRamps. New ramp (just appended) is
-      // unlocked by default, so it'll receive the offset bump like any
-      // other unlocked ramp.
-      bumpShuffleSeed();
-    }
-  };
+  // Tour orchestration (#113): start/exit, pre-tour UI snapshot/restore,
+  // per-guide setup staging, and the first-visit auto-start effect live in
+  // useTourOrchestration. Tour open/guide/step state stays in useTour
+  // (destructured above); panel setters are bound here because guides
+  // stage panels across domains.
+  const { startTour, exitTour, runTourSetup } = useTourOrchestration({
+    mode, setMode, exportOpen, setExportOpen, hwPickerOpen, setHwPickerOpen,
+    harmonyOpen, setHarmonyOpen,
+    tourGuideId, setTourGuideId, setTourOpen, setTourStep, setLauncherOpen,
+  });
 
   // ----- Image Remap Preview wiring -----
   // The compute pipeline (active-palette derivation, upload/clear/download
@@ -616,96 +390,15 @@ export default function PixelPalGenerator() {
     remapDownloadConfirmPending, setRemapDownloadConfirmPending,
   });
 
-  // randomizeColor: roll a new random hex into the colorInput field. Does
-  // NOT touch baseColors, the ramp customizations, or history. The user
-  // decides what to do with the new hex by clicking Add base (append it
-  // to the palette) or New palette (replace the palette with this hex).
-  //
-  // Previous behavior: destructive replace, same as handleGenerate. That
-  // got reported as confusing during usability session 2 followup work:
-  // a user wanting to "roll until I see something good, then add it" had
-  // no way to do that because every roll wiped their pins/locks/anchor.
-  // Non-destructive: replaces only the hex preview; pins/locks/anchor stay.
-  const randomizeColor = () => {
-    setColorInput(buildRandomHex());
-  };
 
-  // surpriseMe / buildAroundColor: backlog item F, the non-AI one-click
-  // multi-base generator. Both are full-palette-replace paths and follow the
-  // same contract as handleGenerate's 'color' branch: tag history, replace
-  // baseColors, resetPaletteState, then bump shuffleSeed DIRECTLY (locks were
-  // just cleared; bumpShuffleSeed reads the old lockedRamps closure and would
-  // take the wrong branch, see ARCHITECTURE.md rules 1-2). The active mood
-  // preset (#135) biases hue/chroma/lightness sampling when set.
-  const surpriseMe = () => {
-    const colors = generatePalette({ count: 5, mood: activeMood });
-    tagNextLabel(activeMood ? `Surprise Me (${activeMood.name})` : 'Surprise Me');
-    setColorInput(colors[0]);
-    setBaseColors(colors);
-    setAiColorNames([]);
-    setEditingIndex(null);
-    resetPaletteState();
-    setShuffleSeed(s => s + 1);
-  };
-
-  // Seeded variant: the current colorInput hex is kept VERBATIM as base 1
-  // (never mood-clamped; the user's pick wins) and 4 companions are derived
-  // around its hue.
-  const buildAroundColor = () => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(colorInput)) {
-      setAddBaseFeedback('Invalid hex');
-      setTimeout(() => setAddBaseFeedback(''), 2000);
-      return;
-    }
-    const colors = generatePalette({ count: 5, seedHex: colorInput, mood: activeMood });
-    tagNextLabel(`Palette around ${colorInput.toLowerCase()}`);
-    setBaseColors(colors);
-    setAiColorNames([]);
-    setEditingIndex(null);
-    resetPaletteState();
-    setShuffleSeed(s => s + 1);
-  };
-
-  // Add the current Single Color tab's colorInput to baseColors as a new
-  // base, without leaving the Single Color tab. Lets users batch-build a
-  // multi-base palette by picking colors one at a time. The colorInput
-  // state stays as-is so the user can keep adjusting.
-  // Duplicate detection: case-insensitive hex compare. On a duplicate we
-  // do NOT add a second entry; the feedback message becomes "Already in
-  // palette" rather than the success count. Hex is normalized to lowercase
-  // before write to match the storage convention used elsewhere.
-  const addColorAsBase = () => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(colorInput)) {
-      setAddBaseFeedback('Invalid hex');
-      setTimeout(() => setAddBaseFeedback(''), 2000);
-      return;
-    }
-    const norm = colorInput.toLowerCase();
-    const alreadyPresent = baseColors.some(h => h.toLowerCase() === norm);
-    if (alreadyPresent) {
-      setAddBaseFeedback('Already in palette');
-      setTimeout(() => setAddBaseFeedback(''), 2000);
-      return;
-    }
-    const newLen = baseColors.length + 1;
-    tagNextLabel('Add base color');
-    setRampSizeOverrides(prev => ({ ...prev, [baseColors.length]: rampSize }));
-    setBaseColors(prev => [...prev, norm]);
-    setAiColorNames(prev => {
-      const padded = [...prev];
-      while (padded.length < baseColors.length) padded.push('');
-      padded.push(`Color ${newLen}`);
-      return padded;
-    });
-    setAddBaseFeedback(`Added: now ${newLen} ramp${newLen === 1 ? '' : 's'}`);
-    setTimeout(() => setAddBaseFeedback(''), 2000);
-  };
-
-  // Harmony add handlers (append derived harmony colors as new bases) live
-  // in useHarmony; HarmonyPanel receives them via props below.
-  const { addHarmonyColor, addHarmonyPair, addHarmonyMany } = useHarmony({
-    baseColors, setBaseColors, setAiColorNames,
-  });
+  // Harmony handlers (#113): the add-as-base handlers, the global Harmonize
+  // action + its restore baseline, and the harmonizeMode/harmonizeBaseline
+  // state live in useHarmony; HarmonyPanel receives them via props below.
+  const {
+    addHarmonyColor, addHarmonyPair, addHarmonyMany,
+    harmonize, restoreHarmonizeBaseline,
+    harmonizeMode, setHarmonizeMode, harmonizeBaseline,
+  } = useHarmony({ safeAnchor, activeMood, tagNextLabel, setExportFeedback });
 
 
   // Per-ramp / per-shade editing handlers (#113 slice 3): remove/duplicate,
@@ -721,220 +414,48 @@ export default function PixelPalGenerator() {
     shuffleRamp, bumpShuffleSeed, toggleRampLock,
     toggleCompareMode, pickCompareSwatch,
     toggleRampCollapse, toggleAllRampsCollapse, anyRampExpanded,
-  } = useRampEditing({ tagNextLabel, setExportFeedback });
+  } = useRampEditing({ tagNextLabel, setExportFeedback, setGamutPerRamp });
 
 
-  // resetPaletteState: clears every customization layer that the eight
-  // full-palette-replace paths share. Callers are still responsible for
-  // setting baseColors (or aiColorNames when applicable),
-  // tagging the next history label via tagNextLabel, and bumping the shuffle seed if their path
-  // requires it. Preserves rampSize, hardwareLock, moodPreset, theme, CRT,
-  // CVD on purpose: those are session-level settings, not per-palette state.
-  //
-  // See ARCHITECTURE.md "Cross-cutting state-maintenance rules" rule 1.
-  // If you add new base-keyed or per-palette state, add its setter here
-  // (and verify each of the 8 call sites still does the right thing).
-  const resetPaletteState = () => {
-    setOverrides({}); setPinEditor(null); setHarmonyAnchor(0);
-    setRampSizeOverrides({}); setRampSatOverrides({}); setHueShiftStrengthPerRamp({});
-    setHiddenShades({}); setRampShuffleOffsets({});
-    setCompareAnchor(null); setCompareResult(null);
-    setCollapsedRamps(new Set()); setLockedRamps(new Set());
-    setSbsLeft('working'); setSbsRight(null);
-    setSbsLeftPayload(null); setSbsRightPayload(null);
-    setSbsLeftError(''); setSbsRightError('');
-    setSbsLeftLoading(false); setSbsRightLoading(false);
-    setHueShiftStrength(1.0);
-    // Image remap: clear the cached output and error. The uploaded image
-    // itself stays (the user uploaded it intentionally and likely wants to
-    // remap against the new palette). See IMAGE_REMAP_PLAN.md reset paths.
-    setRemapOutput(null);
-    setRemapOutputSignature(null);
-    setRemapError('');
-    setLightnessCurvePerRamp({});
-    setSatCurvePerRamp({});
-  };
+  // Shared reset paths (#113): resetPaletteState (the customization wipe
+  // all eight full-palette-replace paths call; see ARCHITECTURE.md rule 1)
+  // and the two-click resetToDefaults live in usePaletteReset. The SBS +
+  // remap setters it clears and the reset-confirm state are bound here.
+  const { resetPaletteState, resetToDefaults } = usePaletteReset({
+    setSbsLeft, setSbsRight, setSbsLeftPayload, setSbsRightPayload,
+    setSbsLeftError, setSbsRightError, setSbsLeftLoading, setSbsRightLoading,
+    setRemapOutput, setRemapOutputSignature, setRemapError,
+    confirmReset, setConfirmReset, setColorInput, tagNextLabel,
+  });
 
-  // resetToDefaults: user-visible "wipe my session and start fresh"
-  // action. Picks a new random base color, clears the AI prompt, runs
-  // the shared reset, and bumps the shuffle seed. Tags history so it's
-  // undoable. Two-click confirmation pattern: first click arms, second
-  // commits. Auto-disarms after 3 seconds.
-  const resetToDefaults = () => {
-    if (confirmReset) {
-      if (resetConfirmTimerRef.current) { clearTimeout(resetConfirmTimerRef.current); resetConfirmTimerRef.current = null; }
-      setConfirmReset(false);
-      tagNextLabel('Reset to defaults');
-      const fresh = buildRandomHex();
-      setColorInput(fresh);
-      setBaseColors([fresh]);
-      setAiColorNames([]);
-      setEditingIndex(null);
-      resetPaletteState();
-      // Hard-reset path: lockedRamps just got cleared. Bump shuffleSeed
-      // directly rather than via bumpShuffleSeed, since the latter reads
-      // the OLD lockedRamps closure and would take the lock-aware branch
-      // on a render where lock has already been cleared in the same
-      // batched update. Same reasoning as handleGenerate.
-      setShuffleSeed(s => s + 1);
-      return;
-    }
-    setConfirmReset(true);
-    if (resetConfirmTimerRef.current) clearTimeout(resetConfirmTimerRef.current);
-    resetConfirmTimerRef.current = setTimeout(() => {
-      setConfirmReset(false);
-      resetConfirmTimerRef.current = null;
-    }, 3000);
-  };
+  // Single Color tab actions (#113): New palette, the random hex roller,
+  // Surprise Me / Around This (#135), and Add-to-Palette (with its inline
+  // feedback string) live in useGenerationActions.
+  const {
+    addBaseFeedback, handleGenerate, randomizeColor,
+    surpriseMe, buildAroundColor, addColorAsBase,
+  } = useGenerationActions({
+    mode, colorInput, setColorInput, activeMood,
+    tagNextLabel, resetPaletteState, bumpShuffleSeed,
+  });
 
-  // harmonize: rotate the hue of every UNLOCKED non-anchor base to a
-  // color-theory position relative to the harmony anchor. Saturation and
-  // lightness preserved per base. Mode controls the slot pattern used.
-  // On first press the current base colors are saved as a baseline so
-  // the user can restore pre-harmonize hues without relying on undo.
-  const harmonize = useCallback(() => {
-    if (baseColors.length < 2) {
-      setExportFeedback('Need at least 2 ramps to harmonize');
-      setTimeout(() => setExportFeedback(''), 2000);
-      return;
-    }
-    const anchorIdx = safeAnchor;
-    const anchorHex = baseColors[anchorIdx];
-    if (!anchorHex) return;
-    const anchorHsl = hexToHsl(anchorHex);
-    const targets = [];
-    for (let i = 0; i < baseColors.length; i++) {
-      if (i === anchorIdx) continue;
-      if (lockedRamps.has(i)) continue;
-      targets.push(i);
-    }
-    if (targets.length === 0) {
-      setExportFeedback('No unlocked ramps to harmonize');
-      setTimeout(() => setExportFeedback(''), 2000);
-      return;
-    }
-    if (!harmonizeBaseline) setHarmonizeBaseline(baseColors.slice());
-    const HARMONIZE_MODE_SLOTS = {
-      complement:         [180],
-      analogous:          [30, 330, 15, 345, 45, 315, 20, 340, 60, 300, 10],
-      triadic:            [120, 240, 60, 180, 300, 30, 90, 150, 210, 270, 330],
-      'split-complement': [150, 210, 30, 330, 120, 240, 60, 180, 90, 270, 45],
-      square:             [90, 180, 270, 45, 135, 225, 315, 30, 60, 120, 150],
-      tetradic:           [60, 240, 180, 120, 300, 30, 90, 150, 210, 270, 330],
-    };
-    const slots = HARMONIZE_MODE_SLOTS[harmonizeMode] || HARMONIZE_MODE_SLOTS.complement;
-    const newBaseColors = baseColors.slice();
-    for (let k = 0; k < targets.length; k++) {
-      const i = targets[k];
-      const slot = slots[k % slots.length];
-      const orig = hexToHsl(baseColors[i]);
-      const newH = ((anchorHsl.h + slot) % 360 + 360) % 360;
-      newBaseColors[i] = hslToHex({ h: newH, s: orig.s, l: orig.l });
-      // Mood bias (#135): clamp the rotated color into the active mood's
-      // hue/chroma/lightness envelope. Applied AFTER the rotation so the
-      // color-theory relationship drives placement and the mood constrains
-      // it. The anchor is untouched (it never enters this loop).
-      if (activeMood) newBaseColors[i] = applyMoodToHex(newBaseColors[i], activeMood);
-    }
-    const modeLabel = harmonizeMode.replace('-', ' ');
-    const moodSuffix = activeMood ? `, ${activeMood.name}` : '';
-    tagNextLabel(`Harmonize (${targets.length}, ${modeLabel}${moodSuffix})`);
-    setBaseColors(newBaseColors);
-    setCompareAnchor(null);
-    setCompareResult(null);
-    setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'}: ${modeLabel}${moodSuffix}`);
-    setTimeout(() => setExportFeedback(''), 2000);
-  }, [baseColors, safeAnchor, lockedRamps, harmonizeBaseline, harmonizeMode, activeMood, setExportFeedback, setHarmonizeBaseline, tagNextLabel, setBaseColors, setCompareAnchor, setCompareResult]);
-  const restoreHarmonizeBaseline = useCallback(() => {
-    if (!harmonizeBaseline) return;
-    tagNextLabel('Restore pre-harmonize hues');
-    setBaseColors(harmonizeBaseline.slice());
-    setHarmonizeBaseline(null);
-    setCompareAnchor(null);
-    setCompareResult(null);
-    setExportFeedback('Restored original hues');
-    setTimeout(() => setExportFeedback(''), 2000);
-  }, [harmonizeBaseline, tagNextLabel, setBaseColors, setHarmonizeBaseline, setCompareAnchor, setCompareResult, setExportFeedback]);
+  // From Image extraction handlers (#113): upload/drag-drop/paste decode +
+  // extract, re-extract, and the eyedropper live in useImageExtractHandlers.
+  // Panel state stays in useImageExtract (destructured above). Called here
+  // (not next to the state hook) because it binds resetPaletteState and
+  // bumpShuffleSeed, which are declared just above.
+  const {
+    handleImageUpload, reExtractFromImage,
+    handleDragOver, handleDragLeave, handleDrop,
+    handleImageHover, handleImageLeave, handleImageClick,
+  } = useImageExtractHandlers({
+    mode, imageDataUrl, setImageDataUrl, imageColorCount,
+    setImageLoading, setImageError, setIsDragging, eyedropperActive,
+    setImageZoom, setImageNaturalSize, setHoveredColor,
+    tagNextLabel, resetPaletteState, bumpShuffleSeed,
+  });
 
-  const handleSpriteFile = (file) => {
-    if (!file) return;
-    const baseName = file.name.replace(/\.[^/.]+$/, '');
-    if (!spriteImportName.trim()) setSpriteImportName(baseName);
-    const reader = new FileReader();
-    reader.onload = (e) => { setSpriteImportText(e.target.result); setSpriteImportError(''); };
-    reader.onerror = () => setSpriteImportError('Failed to read file');
-    reader.readAsText(file);
-  };
 
-  const handleSpriteDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setSpriteDragging(true); };
-  const handleSpriteDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setSpriteDragging(false); };
-  const handleSpriteDrop = (e) => {
-    e.preventDefault(); e.stopPropagation(); setSpriteDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleSpriteFile(file);
-  };
-
-  const importSprite = () => {
-    setSpriteImportError('');
-    if (!spriteImportName.trim()) { setSpriteImportError('Please give your sprite a name'); return; }
-    const parsed = parsePiskelC(spriteImportText);
-    if (!parsed) { setSpriteImportError('Could not parse. Paste the full C array text'); return; }
-    const key = spriteImportName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-    if (DEFAULT_SPRITE_LIBRARY[key]) { setSpriteImportError('Name conflicts with built-in sprite'); return; }
-    setCustomSprites(prev => ({
-      ...prev,
-      [key]: { name: spriteImportName.trim(), pattern: parsed.pattern, numShades: parsed.numShades }
-    }));
-    setSpriteKey(key);
-    setSpriteImportText(''); setSpriteImportName('');
-    setShowSpriteImporter(false);
-    setExportFeedback(`Imported ${parsed.width}×${parsed.height}, ${parsed.numShades} shades`);
-    setTimeout(() => setExportFeedback(''), 3000);
-  };
-
-  const removeCustomSprite = (key) => {
-    setCustomSprites(prev => { const n = { ...prev }; delete n[key]; return n; });
-    if (spriteKey === key) setSpriteKey('vase');
-  };
-
-  const copySpriteSource = (key) => {
-    const sprite = spriteLibrary[key];
-    if (!sprite || !sprite.pattern) return;
-    const width = sprite.pattern[0].length;
-    const height = sprite.pattern.length;
-    const lines = [];
-    lines.push('=== PIXEL.PAL SPRITE EXPORT ===');
-    lines.push(`name: ${sprite.name}`);
-    lines.push(`size: ${width}x${height}`);
-    lines.push(`shades: ${sprite.numShades}`);
-    lines.push('pattern:');
-    sprite.pattern.forEach(row => lines.push(row));
-    lines.push('=== END SPRITE ===');
-    const text = lines.join('\n');
-    const tryCopy = async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        setExportFeedback('Sprite source copied!');
-      } catch {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          ta.style.position = 'fixed';
-          ta.style.left = '-9999px';
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand('copy');
-          document.body.removeChild(ta);
-          setExportFeedback('Sprite source copied!');
-        } catch {
-          setExportFeedback('Copy failed: check console');
-          console.log(text);
-        }
-      }
-      setTimeout(() => setExportFeedback(''), 2500);
-    };
-    tryCopy();
-  };
 
   useEffect(() => {
     const randomHex = buildRandomHex();
@@ -943,77 +464,6 @@ export default function PixelPalGenerator() {
     setShuffleSeed(s => s + 1);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, []);
-
-  // Persisted UI preferences: rampSize, vizStyle, gplStyle, rampExportStyle.
-  // These are session-level defaults the app initializes with on cold open.
-  // Each value is also restorable per-palette via the saved palette payload
-  // (rampSize, vizStyle, gplStyle are in the payload schema; rampExportStyle
-  // is not, but it follows the same persistence shape for the UI default).
-  // Loading a saved palette overrides whatever the persisted default was,
-  // which is the desired behavior. Undo also writes to these states (for
-  // rampSize) and that write will persist; the user's "current state" wins.
-  // Each setting follows the same pattern as ui:theme and ui:cvdMode:
-  // a one-shot load effect on mount and a mountRef-guarded persist effect.
-  // Hardcoded defaults stay unchanged for first-time users (no storage hit
-  // means we keep the useState initial value). Skipped intentionally:
-  // hueShiftStrength is per-palette (saved in the payload, default 1.0 per
-  // palette); persisting it as a session pref would conflict with that role.
-
-  // rampSize: persisted at ui:rampSize. Valid values 2..64.
-  useEffect(() => {
-    (async () => {
-      if (typeof window === 'undefined' || !window.storage) return;
-      try {
-        const got = await window.storage.get('ui:rampSize');
-        if (got && got.value) {
-          const parsed = JSON.parse(got.value);
-          if (isValidRampSize(parsed)) {
-            setRampSize(parsed);
-          }
-        }
-      } catch {
-        // No saved value or storage failed; keep default.
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, []);
-  const rampSizeMountRef = useRef(false);
-  useEffect(() => {
-    if (!rampSizeMountRef.current) { rampSizeMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !window.storage) return;
-    (async () => {
-      try { await window.storage.set('ui:rampSize', JSON.stringify(rampSize)); } catch {}
-    })();
-  }, [rampSize]);
-
-  // moodPreset: persisted at ui:moodPreset (#135). Session-level bias for
-  // Surprise Me / Around This / Harmonize; same load-once + mountRef-guarded
-  // persist shape as ui:rampSize. Valid values: a MOOD_PRESETS id or null.
-  useEffect(() => {
-    (async () => {
-      if (typeof window === 'undefined' || !window.storage) return;
-      try {
-        const got = await window.storage.get('ui:moodPreset');
-        if (got && got.value) {
-          const parsed = JSON.parse(got.value);
-          if (typeof parsed === 'string' && MOOD_PRESETS.some(m => m.id === parsed)) {
-            setMoodPreset(parsed);
-          }
-        }
-      } catch {
-        // No saved value or storage failed; keep default (null).
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot mount load, same as ui:rampSize
-  }, []);
-  const moodPresetMountRef = useRef(false);
-  useEffect(() => {
-    if (!moodPresetMountRef.current) { moodPresetMountRef.current = true; return; }
-    if (typeof window === 'undefined' || !window.storage) return;
-    (async () => {
-      try { await window.storage.set('ui:moodPreset', JSON.stringify(moodPreset)); } catch {}
-    })();
-  }, [moodPreset]);
 
   // Auto-open the visualization section when the user transitions from 1 to 2+
   // base colors, but never force it closed (user can collapse manually any time).
@@ -1041,7 +491,6 @@ export default function PixelPalGenerator() {
       });
     }
     prevBaseLenRef.current = curr;
-    if (harmonizeBaseline && harmonizeBaseline.length !== curr) setHarmonizeBaseline(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [baseColors.length]);
 
@@ -1099,312 +548,20 @@ export default function PixelPalGenerator() {
   });
 
   // History watcher, ref-sync, and undo/redo keybinds now live in useHistory.
-  // Side-by-side slot fetcher. When a slot points at a saved-palette slug,
-  // pull the full payload from storage so ramps render at full fidelity
-  // (pins, hidden shades, hardware lock, per-ramp sizes/sats, shuffleSeed).
-  // When the slot is 'working' or null, no fetch is needed. We use an
-  // ignore flag to avoid late-resolving fetches clobbering newer state.
-  useEffect(() => {
-    if (sbsLeft === null || sbsLeft === 'working' || (typeof sbsLeft === 'string' && sbsLeft.startsWith('classic:'))) {
-      // Empty, working, or a classic palette. None of these require a
-      // storage fetch: empty and working render from live state, and
-      // classics render from the CLASSIC_PALETTES constant.
-      setSbsLeftPayload(null);
-      setSbsLeftError('');
-      setSbsLeftLoading(false);
-      return;
-    }
-    let ignore = false;
-    setSbsLeftLoading(true);
-    setSbsLeftError('');
-    (async () => {
-      try {
-        if (typeof window === 'undefined' || !window.storage) {
-          throw new Error('Storage unavailable');
-        }
-        const got = await window.storage.get(`palettes:${sbsLeft}`);
-        if (ignore) return;
-        if (!got || !got.value) {
-          setSbsLeftPayload(null);
-          setSbsLeftError('Palette not found');
-        } else {
-          const parsed = JSON.parse(got.value);
-          if (!parsed || !Array.isArray(parsed.baseColors)) {
-            setSbsLeftPayload(null);
-            setSbsLeftError('Palette payload malformed');
-          } else {
-            setSbsLeftPayload(parsed);
-          }
-        }
-      } catch (err) {
-        if (ignore) return;
-        setSbsLeftPayload(null);
-        setSbsLeftError(`Load failed: ${err && err.message ? err.message : 'unknown error'}`);
-      } finally {
-        if (!ignore) setSbsLeftLoading(false);
-      }
-    })();
-    return () => { ignore = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [sbsLeft]);
-
-  useEffect(() => {
-    if (sbsRight === null || sbsRight === 'working' || (typeof sbsRight === 'string' && sbsRight.startsWith('classic:'))) {
-      // Empty, working, or a classic palette. None of these require a
-      // storage fetch: empty and working render from live state, and
-      // classics render from the CLASSIC_PALETTES constant.
-      setSbsRightPayload(null);
-      setSbsRightError('');
-      setSbsRightLoading(false);
-      return;
-    }
-    let ignore = false;
-    setSbsRightLoading(true);
-    setSbsRightError('');
-    (async () => {
-      try {
-        if (typeof window === 'undefined' || !window.storage) {
-          throw new Error('Storage unavailable');
-        }
-        const got = await window.storage.get(`palettes:${sbsRight}`);
-        if (ignore) return;
-        if (!got || !got.value) {
-          setSbsRightPayload(null);
-          setSbsRightError('Palette not found');
-        } else {
-          const parsed = JSON.parse(got.value);
-          if (!parsed || !Array.isArray(parsed.baseColors)) {
-            setSbsRightPayload(null);
-            setSbsRightError('Palette payload malformed');
-          } else {
-            setSbsRightPayload(parsed);
-          }
-        }
-      } catch (err) {
-        if (ignore) return;
-        setSbsRightPayload(null);
-        setSbsRightError(`Load failed: ${err && err.message ? err.message : 'unknown error'}`);
-      } finally {
-        if (!ignore) setSbsRightLoading(false);
-      }
-    })();
-    return () => { ignore = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [sbsRight]);
-
-  // Resolve a slot value to a snapshot bundle understood by
-  // buildRampsForSnapshot. Returns null if the slot is empty, still
-  // loading, or errored. Used by both sbs slots.
-  //   - null              -> null (empty slot)
-  //   - 'working'         -> live snapshot of the working palette built
-  //                          from current state. Re-evaluated on every
-  //                          render so the slot tracks edits in real time.
-  //   - 'classic:<id>'    -> a synthetic snapshot built from the named
-  //                          CLASSIC_PALETTES entry. Wraps the classic's
-  //                          baseColors and uses the user's LIVE rampSize
-  //                          and hueShiftStrength so the comparison is
-  //                          apples-to-apples with the working palette's
-  //                          shade count and stylization. shuffleSeed is
-  //                          forced to 0 so the classic doesn't drift as
-  //                          the user shuffles their working palette
-  //                          (a comparison reference should stay stable).
-  //                          All per-ramp overrides (pins, hidden shades,
-  //                          per-ramp sizes/sats, shuffle offsets) and
-  //                          hardwareLock are empty: those are working-
-  //                          palette identity, not the classic's, and
-  //                          bleeding them through would produce nonsense.
-  //   - <slug>            -> the cached payload from sbs*Payload, or null
-  //                          while loading or on error.
-  const buildWorkingSnapshot = () => {
-    return {
-      ...workingRenderInputs(),
-      hiddenShades, // working-only: the live grid hides at the display
-                    // boundary instead (see liveRampSnapshot comment above)
-    };
-  };
-  // Build a classic-palette snapshot bundle. See the "classic:<id>" rule
-  // in getSnapshotForSlot above for the policy.
-  const buildClassicSnapshot = (classicId) => {
-    const classic = CLASSIC_PALETTES.find(c => c.id === classicId);
-    if (!classic) return null;
-    return {
-      baseColors: classic.baseColors,
-      aiColorNames: classic.names || [],
-      rampSize,
-      stylePresets,
-      shuffleSeed: 0,
-      overrides: {},
-      rampSizeOverrides: {},
-      rampSatOverrides: {},
-      rampShuffleOffsets: {},
-      hiddenShades: {},
-      hardwareLock: null,
-      hueShiftStrength,
-    };
-  };
-  const getSnapshotForSlot = (slot, cachedPayload) => {
-    if (slot === null) return null;
-    if (slot === 'working') return buildWorkingSnapshot();
-    if (typeof slot === 'string' && slot.startsWith('classic:')) {
-      return buildClassicSnapshot(slot.slice('classic:'.length));
-    }
-    return cachedPayload; // null while loading or on error
-  };
-  // Friendly display name for a slot, used in the column header.
-  // Prefer the in-memory savedPalettes index over the cached payload's
-  // `name` field: the index is updated immediately after rename, while
-  // a cached payload that was loaded before rename still holds the old
-  // name. The cached-payload `.name` is only the fallback for the brief
-  // window where a slot was just picked but the index has not yet
-  // refreshed (e.g. immediately after a save).
-  const getSlotLabel = (slot, cachedPayload) => {
-    if (slot === null) return '(empty)';
-    if (slot === 'working') return 'Current working palette';
-    if (typeof slot === 'string' && slot.startsWith('classic:')) {
-      const classic = CLASSIC_PALETTES.find(c => c.id === slot.slice('classic:'.length));
-      return classic ? `${classic.name} (classic)` : '(unknown classic)';
-    }
-    const meta = savedPalettes.find(p => p.slug === slot);
-    if (meta) return meta.name;
-    if (cachedPayload && typeof cachedPayload.name === 'string') return cachedPayload.name;
-    return '(loading)';
-  };
-
-  // Side-by-Side image remap pipeline. Mirrors the main Image Preview
-  // panel's pipeline but operates on snapshot palettes rather than on
-  // the live working palette. See the "sbsRemapSource" state block above
-  // for the policy summary.
-  //
-  // Source decode ceiling for SBS slots. 256 vs the main panel's 512
-  // because each slot renders at a smaller display size AND we run two
-  // remaps per relevant change. Halving the longer axis is a 4x cost
-  // reduction per remap, 8x across both slots vs the main panel.
-  const SBS_REMAP_MAX_DIMENSION = 256;
-  // Derive a remap-ready palette (flat, deduped, lowercase) from a
-  // snapshot under the current vizStyle. Returns [] for an unusable
-  // snapshot. The flatten + dedupe is byte-identical to what the live
-  // pipeline's getActiveRemapPalette produces when fed the same input,
-  // because buildRampsForSnapshot already applies hidden-shade filter,
-  // hardware lock, pins, sizes, saturations, and shuffle internally.
-  const paletteFromSnapshotForRemap = (snapshot) => {
-    const ramps = buildRampsForSnapshot(snapshot, vizStyle);
-    if (!ramps || ramps.length === 0) return [];
-    const seen = new Set();
-    const out = [];
-    for (const ramp of ramps) {
-      for (const hex of ramp) {
-        const k = hex.toLowerCase();
-        if (!seen.has(k)) { seen.add(k); out.push(hex); }
-      }
-    }
-    return out;
-  };
-  // Stable signature for a slot palette + dither, used as the useEffect
-  // dependency for the per-slot remap. Same shape as the main preview's
-  // signature in useImageRemapCompute.
-  // Empty palette signals "do not run a remap" via the empty-palette
-  // guard inside the effect.
-  const buildSbsRemapKey = (palette, dither) => palette.length === 0
-    ? ''
-    : (dither + '|' + palette.map(c => c.toLowerCase()).join(','));
-
-  // Decode the uploaded image once per upload into an ImageData at up
-  // to SBS_REMAP_MAX_DIMENSION on the longer axis. Both slots reuse
-  // this source. Cleared when remapImageDataUrl becomes null (user
-  // removed the image).
-  useEffect(() => {
-    if (!remapImageDataUrl) {
-      setSbsRemapSource(null);
-      return;
-    }
-    let cancelled = false;
-    const img = new Image();
-    img.onload = () => {
-      if (cancelled) return;
-      try {
-        const longer = Math.max(img.naturalWidth, img.naturalHeight);
-        const scale = longer > SBS_REMAP_MAX_DIMENSION ? SBS_REMAP_MAX_DIMENSION / longer : 1;
-        const w = Math.max(1, Math.round(img.naturalWidth * scale));
-        const h = Math.max(1, Math.round(img.naturalHeight * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, 0, 0, w, h);
-        const data = ctx.getImageData(0, 0, w, h);
-        if (!cancelled) setSbsRemapSource(data);
-      } catch {
-        if (!cancelled) setSbsRemapSource(null);
-      }
-    };
-    img.onerror = () => { if (!cancelled) setSbsRemapSource(null); };
-    img.src = remapImageDataUrl;
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [remapImageDataUrl]);
-
-  // Per-slot remap effects. Each fires when the source, the slot
-  // palette signature (vizStyle is baked into the signature via the
-  // snapshot ramps), or the dither mode changes. Empty palette or
-  // missing source -> clear the slot's output and bail. The remap itself
-  // runs in a worker via requestRemap (issue #110); the `cancelled` flag
-  // still guards against a stale response landing after a newer request
-  // for the same slot has been fired (e.g. rapid palette edits).
-  const leftSnapForRemap = getSnapshotForSlot(sbsLeft, sbsLeftPayload);
-  const rightSnapForRemap = getSnapshotForSlot(sbsRight, sbsRightPayload);
-  const leftRemapPalette = leftSnapForRemap ? paletteFromSnapshotForRemap(leftSnapForRemap) : [];
-  const rightRemapPalette = rightSnapForRemap ? paletteFromSnapshotForRemap(rightSnapForRemap) : [];
-  const leftRemapKey = buildSbsRemapKey(leftRemapPalette, remapDither);
-  const rightRemapKey = buildSbsRemapKey(rightRemapPalette, remapDither);
-
-  useEffect(() => {
-    if (!sbsRemapSource || leftRemapKey === '') {
-      setSbsLeftRemap(null);
-      setSbsLeftRemapLoading(false);
-      return;
-    }
-    setSbsLeftRemapLoading(true);
-    let cancelled = false;
-    requestRemap(sbsRemapSource, leftRemapPalette, { dither: remapDither }).then((result) => {
-      if (!cancelled) {
-        setSbsLeftRemap(result);
-        setSbsLeftRemapLoading(false);
-      }
-    }).catch(() => {
-      if (!cancelled) {
-        setSbsLeftRemap(null);
-        setSbsLeftRemapLoading(false);
-      }
-    });
-    return () => { cancelled = true; };
-    // leftRemapPalette and remapDither are captured via closure; the
-    // signature key in deps changes whenever either of them changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sbsRemapSource, leftRemapKey]);
-
-  useEffect(() => {
-    if (!sbsRemapSource || rightRemapKey === '') {
-      setSbsRightRemap(null);
-      setSbsRightRemapLoading(false);
-      return;
-    }
-    setSbsRightRemapLoading(true);
-    let cancelled = false;
-    requestRemap(sbsRemapSource, rightRemapPalette, { dither: remapDither }).then((result) => {
-      if (!cancelled) {
-        setSbsRightRemap(result);
-        setSbsRightRemapLoading(false);
-      }
-    }).catch(() => {
-      if (!cancelled) {
-        setSbsRightRemap(null);
-        setSbsRightRemapLoading(false);
-      }
-    });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sbsRemapSource, rightRemapKey]);
+  // Side-by-side compare pipeline (#113): the per-slot saved-payload fetch
+  // effects, slot -> snapshot resolution (working / classic / saved slug),
+  // slot display labels, and the SBS image-remap effects (shared source
+  // decode + per-slot worker remaps) live in useSideBySideCompute. The SBS
+  // STATE stays in useSideBySide (destructured above); the shared remap
+  // upload comes from useImageRemap.
+  const { getSnapshotForSlot, getSlotLabel } = useSideBySideCompute({
+    workingRenderInputs, hiddenShades, rampSize, stylePresets, hueShiftStrength,
+    vizStyle, savedPalettes, remapImageDataUrl, remapDither,
+    sbsLeft, sbsRight, sbsLeftPayload, setSbsLeftPayload, sbsRightPayload, setSbsRightPayload,
+    setSbsLeftError, setSbsRightError, setSbsLeftLoading, setSbsRightLoading,
+    sbsRemapSource, setSbsRemapSource, setSbsLeftRemap, setSbsRightRemap,
+    setSbsLeftRemapLoading, setSbsRightRemapLoading,
+  });
 
   // History snapshot machinery (applyUndoSnapshot, undo/redo/jumpToHistoryIndex,
   // canUndo/canRedo) lives in useHistory. inferLabel lives in
@@ -1417,400 +574,43 @@ export default function PixelPalGenerator() {
   // toggleRampCollapse / toggleAllRampsCollapse / anyRampExpanded moved to
   // hooks/useRampEditing.ts (#113 slice 3); destructured above.
 
-  // toggleHardwareLock: switches the hardware lock on/off. If already locked
-  // to the given hardware, clicking again unlocks. If locked to a different
-  // hardware, switches the lock target. Setting the lock is NON-destructive:
-  // baseColors and overrides are preserved as-is. The lock is applied at
-  // render time via the hardware-snap step in buildRamp (ramp-pipeline.ts).
-  // This means unlocking restores the full free-generation ramps without
-  // data loss.
-  //
-  // Pin overrides ARE retained while locked but get snapped on output via
-  // the order of operations in buildRamp (overrides run first, then the
-  // hardware snap covers everything including the pinned hex).
-  // This was a deliberate choice: clearing pins on lock would force the
-  // user to re-pin every time they toggled. Instead, pinned hexes get
-  // visually snapped while locked and reappear as the user's chosen hex
-  // when unlocked.
-  const toggleHardwareLock = (hardwareId) => {
-    if (hardwareLock === hardwareId) {
-      tagNextLabel('Unlock hardware');
-      setHardwareLock(null);
-      setExportFeedback(`Unlocked from hardware`);
-    } else {
-      const hw = HARDWARE_PALETTES.find(h => h.id === hardwareId);
-      tagNextLabel(hw ? `Lock to ${hw.name}` : 'Lock hardware');
-      setHardwareLock(hardwareId);
-      setExportFeedback(hw ? `Locked to ${hw.name}` : 'Locked');
-    }
-    setTimeout(() => setExportFeedback(''), 2000);
-  };
-
-  // bakeHardwareLock: convert the currently-snapped output into permanent
-  // pins so the user can keep editing without reverting to non-legal hexes.
-  //
-  // Strategy (the "diff-only" option from the analysis): for each
-  // (base, shade, style), compute the post-pin pre-snap value `withPins`
-  // and the post-snap value `snapped`. Pin the (base, shade, style) only
-  // when snapped !== withPins. This minimizes pin bloat: shades the lock
-  // wouldn't have changed are left procedural so future tweaks
-  // (rampSize, hue shift, base color edits, sat multiplier) still affect
-  // them naturally. Shades the lock DID change become permanent pins.
-  //
-  // Existing pins on shades the lock would NOT have changed are preserved
-  // verbatim. Existing pins on shades the lock WOULD have changed get
-  // REPLACED with the snapped value (because the user was looking at the
-  // snapped output anyway; preserving the unsnapped pin would silently
-  // un-bake that one shade).
-  //
-  // Per-style independence: a pin in (i, j, 'punchy') doesn't affect
-  // (i, j, 'balanced'). Each style is baked independently.
-  //
-  // Dedup note: buildRamp's hardware snap dedupes consecutive duplicates for
-  // DISPLAY, but bake pins by the pre-dedup shade index (every slot of
-  // the full ramp). After unlocking, an 8-shade ramp on Game Boy will
-  // show 8 slots with consecutive duplicates rather than the 4-color
-  // deduped view. To get the deduped view back, use hidden shades.
-  // Trade-off: the pin grid stays slot-aligned with the rest of the app.
-  //
-  // Clears hardwareLock to null after writing pins, since the same hexes
-  // are now baked in. History entry tagged 'Bake hardware lock'.
-  const bakeHardwareLock = () => {
-    if (!activeHardware) return;
-    tagNextLabel('Bake hardware lock');
-    const STYLES = ['punchy', 'balanced', 'muted'];
-    setOverrides(prev => {
-      const next = JSON.parse(JSON.stringify(prev));
-      for (let i = 0; i < baseColors.length; i++) {
-        const effBase = resolveBaseForRamp(baseColors[i], i, rampSatOverrides);
-        const effSize = resolveSizeForRamp(i, rampSizeOverrides, rampSize);
-        for (const style of STYLES) {
-          const raw = generateRamp(effBase, effSize, style, hueShiftStrength, i, {
-            gamutPerRamp, stylePresets, shuffleSeed, rampShuffleOffsets, lightnessCurvePerRamp, satCurvePerRamp,
-          });
-          const withPins = applyOverrides(raw, i, prev, style);
-          const snapped = withPins.map(hex => quantizeToHardware(hex, activeHardware));
-          for (let j = 0; j < withPins.length; j++) {
-            if (snapped[j] !== withPins[j]) {
-              if (!next[i]) next[i] = {};
-              if (!next[i][j]) next[i][j] = {};
-              next[i][j][style] = snapped[j];
-            }
-          }
-        }
-      }
-      return next;
-    });
-    setHardwareLock(null);
-    setExportFeedback('Baked hardware lock into pins');
-    setTimeout(() => setExportFeedback(''), 2500);
-  };
-
-  // Escape closes the topmost dismissable thing. Priority order is
-  // outer-to-inner: a modal sitting over everything closes first, then
-  // editor panels, then the floating WCAG Check picker. Skipping
-  // editable-focus is intentional (same reasoning as the undo handler):
-  // hitting Esc mid-typing should not surprise the user by closing a
-  // surrounding panel. Users dismiss editors from inside their inputs
-  // via the existing Close/Done buttons.
-  //
-  // Placement note: this useEffect must come AFTER all four pieces of
-  // state it reads (`gplImport`, `pinEditor`, `editingIndex`,
-  // `compareMode`) are declared. `gplImport` now arrives from the
-  // useSavedPalettesActions() call above; an earlier placement throws
-  // "Cannot access 'gplImport' before initialization" when React
-  // evaluates the dependency array during render (temporal dead zone).
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key !== 'Escape') return;
-      const target = e.target;
-      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
-      const isEditable = tag === 'input' || tag === 'textarea' || (target && target.isContentEditable);
-      if (isEditable) return;
-      if (gplImport) {
-        e.preventDefault();
-        setGplImport(null);
-        return;
-      }
-      if (pinEditor) {
-        e.preventDefault();
-        setPinEditor(null);
-        return;
-      }
-      if (editingIndex !== null) {
-        e.preventDefault();
-        setEditingIndex(null);
-        return;
-      }
-      if (compareMode) {
-        e.preventDefault();
-        setCompareMode(false);
-        return;
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [gplImport, pinEditor, editingIndex, compareMode]);
-
-  // KEYBOARD SHORTCUTS: S, H
-  //
-  //   S - Focus the Save palette name input and scroll it into view.
-  //   H - Harmonize. The harmonize() helper has its own internal guards
-  //       (returns early with a feedback toast if base count < 2 or no
-  //       unlocked targets), so we forward unconditionally.
-  //
-  // G previously triggered Generate. Removed because after the
-  // session 2 followup, Generate was renamed to "New palette" and
-  // downgraded to a secondary action since it's destructive (wipes
-  // pins, hidden shades, locks, anchor, side-by-side slots). A
-  // single-key shortcut for an unconfirmed destructive operation is
-  // a footgun, especially when the renamed button no longer maps to
-  // the letter "G." If a shortcut for the primary Add base action
-  // is wanted later, "A" is the obvious candidate.
-  //
-  // Bare letter keys (no Cmd/Ctrl). Same editable-focus guard as the
-  // undo/Escape handlers so the shortcuts don't fire while the user is
-  // typing in any input or textarea. No Shift, Alt, or modifier required;
-  // gated to plain key strokes so keyboard navigation with modifiers
-  // (e.g. browser Find: Cmd+H, Cmd+S) is not affected.
-  //
-  // Placement: must be AFTER the useSavedPalettesActions() call that
-  // returns `gplImport` (same TDZ constraint as the Escape handler above).
-  // `harmonize` declares earlier in the component body.
-  useEffect(() => {
-    const handler = (e) => {
-      // Modifier-gated keys are claimed by the browser or by the existing
-      // undo handler. Only fire on plain letter presses.
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      // Skip when typing in any input or textarea so the letter lands in
-      // the field, not the shortcut.
-      const target = e.target;
-      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
-      const isEditable = tag === 'input' || tag === 'textarea' || (target && target.isContentEditable);
-      if (isEditable) return;
-      // Don't intercept while a modal or editor is open. Esc dismisses
-      // those; layering shortcuts on top would be surprising.
-      if (gplImport || pinEditor || editingIndex !== null) return;
-      const key = e.key.toLowerCase();
-      if (key === 's') {
-        e.preventDefault();
-        const node = saveNameInputRef.current;
-        if (node) {
-          // scrollIntoView with smooth + center keeps the save panel visible
-          // even when the user pressed S from way up the page.
-          try { node.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
-          node.focus();
-        }
-      } else if (key === 'h') {
-        e.preventDefault();
-        harmonize();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [baseColors, lockedRamps, safeAnchor, gplImport, pinEditor, editingIndex]);
-  // Dep array notes: `baseColors`, `lockedRamps`, and `safeAnchor` are
-  // what harmonize reads directly (the H shortcut). `gplImport` /
-  // `pinEditor` / `editingIndex` gate both shortcuts (modal-open
-  // suppression). The S shortcut only reads from a ref, so it adds no
-  // deps. Everything else the handlers touch is via setters (which
-  // always see fresh state) or refs (which sidestep closures). If you
-  // add a new shortcut whose action function reads more state, add
-  // those reads here too.
-
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- THEME_TOKENS is pure static; deps=[theme] is correct
-  const t = useMemo(() => THEME_TOKENS[theme] || THEME_TOKENS.dark, [theme]);
-
-  // Helper for accent shadows. In dark mode we use the full neon glow; in
-  // neutral/light we dial the intensity way down so accent borders read but
-  // don't vibrate against the calmer background.
-  const accentGlow = (hexAccent, baseAlpha = 0.4) => {
-    const { r, g, b } = hexToRgb(hexAccent);
-    const alpha = baseAlpha * t.glowStrong;
-    if (alpha < 0.05) return 'none';
-    return `0 0 25px rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
-
-  // For section heading neon text-shadow. Takes a hex and optional pixel
-  // size (default 8 to match the original section heading glow). Returns
-  // 'none' on non-dark themes since glow-on-light is illegible.
-  const accentTextGlow = (hexAccent, px = 8) => {
-    if (t.glowStrong < 0.5) return 'none';
-    return `0 0 ${px}px ${hexAccent}`;
-  };
-
-  // Section heading text color. In dark mode we use the neon accent directly
-  // (e.g. cyan for ramps, pink for harmony). In neutral/light, neon text
-  // against a light background is unreadable, so we shift to a much darker
-  // variant of the same hue family. The mappings are tuned so each accent
-  // stays distinguishable from its neighbors (cyan vs purple stay clearly
-  // different) while remaining legible.
-  //
-  // IMPORTANT: When you change a mapping here, change it everywhere the
-  // accent is used as chrome - section heading text, section heading
-  // textShadow glow, style labels (Punchy/Balanced/Muted), accent borders
-  // and glows. Use themedAccent() below as the single source of truth for
-  // any chrome that needs the section accent.
-  const ACCENT_MAP = {
-    // Hex keys must be lowercase. Each value is { neutralText, neutralBorder, light }.
-    // Neutral needs OPPOSITE values for text vs border:
-    //   - Text on 18% gray card reads better as a light tint (cyan-100 etc.)
-    //   - Borders against the 18% gray page read better as a dark tint
-    //     (cyan-800 etc.) because the dark line crisply outlines the card
-    //     edge against the medium-value page bg.
-    // Light theme uses the same value for both text and border (dark tint
-    // works against near-white cards).
-    '#00ffff': { neutralText: '#cffafe', neutralBorder: '#083344', light: '#155e75' }, // cyan/teal
-    '#67e8f9': { neutralText: '#cffafe', neutralBorder: '#083344', light: '#155e75' }, // cyan variant
-    '#ff00ff': { neutralText: '#fce7f3', neutralBorder: '#4a044e', light: '#86198f' }, // pink/fuchsia
-    '#ff006e': { neutralText: '#fce7f3', neutralBorder: '#4a044e', light: '#86198f' },
-    '#ffff00': { neutralText: '#fef9c3', neutralBorder: '#422006', light: '#854d0e' }, // yellow
-    '#00ff99': { neutralText: '#dcfce7', neutralBorder: '#052e16', light: '#166534' }, // green
-    '#a855f7': { neutralText: '#f3e8ff', neutralBorder: '#3b0764', light: '#6b21a8' }, // purple
-  };
-
-  // themedAccent: single source of truth for any chrome that uses a section
-  // accent color. Returns the canonical accent in dark mode, the LIGHT
-  // tint variant in neutral mode (for text colors on gray cards), or the
-  // dark tint in light mode. For BORDERS in neutral mode, use
-  // themedAccentBorder() instead.
-  const themedAccent = (hexAccent) => {
-    if (t.glowStrong > 0.5) return hexAccent;
-    const mapped = ACCENT_MAP[hexAccent.toLowerCase()];
-    if (!mapped) return '#1a1a1a';
-    if (theme === 'neutral') return mapped.neutralText;
-    return mapped.light;
-  };
-
-  // themedAccentBorder: like themedAccent but returns dark tints for
-  // Neutral mode where borders need to crisply outline cards against
-  // the gray page bg. In Dark and Light, identical to themedAccent.
-  const themedAccentBorder = (hexAccent) => {
-    if (t.glowStrong > 0.5) return hexAccent;
-    const mapped = ACCENT_MAP[hexAccent.toLowerCase()];
-    if (!mapped) return '#1a1a1a';
-    if (theme === 'neutral') return mapped.neutralBorder;
-    return mapped.light;
-  };
-
-  // Backward compatibility: keep sectionHeadColor pointing at themedAccent
-  // so callers don't have to change names. They do exactly the same thing.
-  const sectionHeadColor = themedAccent;
-
-  const dropPos = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    return (e.clientY - rect.top) < rect.height / 2 ? 'before' : 'after';
-  };
-  const makeSectionDragHandlers = (sectionKey) => ({
-    onDragOver: (e) => {
-      e.preventDefault();
-      const pos = dropPos(e);
-      setDragOver(prev => (prev && prev.key === sectionKey && prev.pos === pos) ? prev : { key: sectionKey, pos });
-    },
-    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(prev => (prev && prev.key === sectionKey) ? null : prev); },
-    onDrop: (e) => {
-      e.preventDefault();
-      const from = e.dataTransfer.getData('text/plain');
-      const pos = dropPos(e);
-      setDragOver(null);
-      if (!from || from === sectionKey || !DEFAULT_SECTION_ORDER.includes(from)) return;
-      setSectionOrder(prev => {
-        const next = prev.filter(k => k !== from);
-        let idx = next.indexOf(sectionKey);
-        if (pos === 'after') idx += 1;
-        next.splice(idx, 0, from);
-        return next;
-      });
-    },
+  // Hardware-lock toggle + bake-to-pins handlers (#113) live in
+  // useHardwareLock; document state flows through usePaletteState inside
+  // the hook, activeHardware/gamutPerRamp bound here.
+  const { toggleHardwareLock, bakeHardwareLock } = useHardwareLock({
+    activeHardware, gamutPerRamp, tagNextLabel, setExportFeedback,
   });
-  // Accent color per section (viz mirrors the live vizStyle accent).
-  const sectionAccent = (key) =>
-    key === 'ramps' ? '#00ffff'
-    : key === 'harmony' ? '#ff00ff'
-    : key === 'playground' ? '#00ff88'
-    : key === 'viz' ? (vizStyle === 'balanced' ? '#00ffff' : vizStyle === 'muted' ? '#a855f7' : '#ff00ff')
-    : key === 'saved' ? '#ffff00'
-    : key === 'history' ? '#a855f7'
-    : '#00ffff';
-  // Glowing insertion line on the hovered edge, colored to the dragged card.
-  const dropLine = (sectionKey) => {
-    if (!dragOver || dragOver.key !== sectionKey || !draggingKey) return null;
-    const c = sectionAccent(draggingKey);
-    return dragOver.pos === 'before'
-      ? `inset 0 6px 0 -2px ${c}, 0 0 14px ${c}`
-      : `inset 0 -6px 0 -2px ${c}, 0 0 14px ${c}`;
-  };
 
-  const sectionGrip = (sectionKey) => (
-    <span
-      draggable
-      onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', sectionKey); setDraggingKey(sectionKey); }}
-      onDragEnd={() => { setDraggingKey(null); setDragOver(null); }}
-      onClick={e => e.stopPropagation()}
-      style={{ cursor: 'grab', color: '#fff', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.95)) drop-shadow(0 0 1px rgba(0,0,0,0.8))' }}
-      className="hover:scale-125 transition-transform"
-      title="Drag to reorder this section"
-    >
-      <GripVertical size={16} />
-    </span>
-  );
-
-  // Ramp-card reorder. Mirrors makeSectionDragHandlers but on numeric indices,
-  // and stops propagation so the enclosing ramps-section drag handlers never
-  // also fire (a ramp drop must not be read as a section reorder).
-  const makeRampDragHandlers = (index) => ({
-    onDragOver: (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const pos = dropPos(e);
-      setRampDragOver(prev => (prev && prev.index === index && prev.pos === pos) ? prev : { index, pos });
-    },
-    onDragLeave: (e) => {
-      e.stopPropagation();
-      if (!e.currentTarget.contains(e.relatedTarget)) setRampDragOver(prev => (prev && prev.index === index) ? null : prev);
-    },
-    onDrop: (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const raw = e.dataTransfer.getData('application/x-ramp-index');
-      const pos = dropPos(e);
-      setRampDragOver(null);
-      if (raw === '') return;
-      const from = Number(raw);
-      if (Number.isNaN(from) || from === index) return;
-      const next = reorderRamps(from, index, pos);
-      setGamutPerRamp(prev => permuteStringKeyMap(prev, next));
-      tagNextLabel('Reorder ramps');
-    },
+  // Global keyboard shortcuts (#113): Escape (dismiss topmost) and the
+  // bare-letter S / H shortcuts live in useGlobalShortcuts. Placement: must
+  // stay AFTER the useSavedPalettesActions() call that returns gplImport and
+  // after harmonize is declared (temporal dead zone on the argument object).
+  useGlobalShortcuts({
+    gplImport, setGplImport, saveNameInputRef, harmonize,
+    baseColors, lockedRamps, safeAnchor,
   });
-  const rampDropLine = (index) => {
-    if (!rampDragOver || rampDragOver.index !== index || rampDragging === null) return null;
-    const c = '#00ffff';
-    return rampDragOver.pos === 'before'
-      ? `inset 0 6px 0 -2px ${c}, 0 0 14px ${c}`
-      : `inset 0 -6px 0 -2px ${c}, 0 0 14px ${c}`;
-  };
-  const rampGrip = (index) => (
-    <span
-      draggable
-      onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('application/x-ramp-index', String(index)); setRampDragging(index); }}
-      onDragEnd={() => { setRampDragging(null); setRampDragOver(null); }}
-      onClick={e => e.stopPropagation()}
-      style={{ cursor: 'grab', color: '#fff', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.95)) drop-shadow(0 0 1px rgba(0,0,0,0.8))' }}
-      className="hover:scale-125 transition-transform"
-      title="Drag to reorder this ramp"
-    >
-      <GripVertical size={16} />
-    </span>
-  );
 
-  const themeValue = useMemo(() => ({
-    t, themedAccent, themedAccentBorder, accentGlow, accentTextGlow, sectionHeadColor,
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }), [t]);
+
+  // Theme chrome helpers (#113): the resolved token bag (t), accent glow /
+  // themed-accent helpers, and the ThemeContext value memo live in
+  // useThemeHelpers.
+  const {
+    t, accentGlow, accentTextGlow, themedAccent, themedAccentBorder,
+    sectionHeadColor, themeValue,
+  } = useThemeHelpers(theme);
+
+  // Drag-to-reorder helpers (#113): section cards (state owned by
+  // usePanelLayout, bound here) and ramp cards (drag state owned by the
+  // hook; reorderRamps via the store, gamutPerRamp permuted through the
+  // setter because App.tsx owns it) live in useDragReorder.tsx.
+  const { makeSectionDragHandlers, dropLine, sectionGrip } = useSectionDrag({
+    dragOver, setDragOver, draggingKey, setDraggingKey,
+    setSectionOrder, DEFAULT_SECTION_ORDER, vizStyle,
+  });
+  const { makeRampDragHandlers, rampDropLine, rampGrip } = useRampDrag({
+    setGamutPerRamp, tagNextLabel,
+  });
+
   const layoutValue = useMemo(() => ({
     sectionOrder, makeSectionDragHandlers, dropLine, sectionGrip, historyOpen, setHistoryOpen,
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops

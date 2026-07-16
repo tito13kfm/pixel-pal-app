@@ -31,6 +31,10 @@ type OverridesMap = Record<string, Record<string, Record<string, string>>>;
 interface UseRampEditingParams {
   tagNextLabel: (label: string) => void;
   setExportFeedback: (v: string) => void;
+  // gamutPerRamp is App-local state (not store-backed), so its re-keying on
+  // remove/duplicate goes through this setter, mirroring how reorderRamps'
+  // caller permutes it (ARCHITECTURE.md invariant 3).
+  setGamutPerRamp: (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
 }
 
 export function useRampEditing(p: UseRampEditingParams) {
@@ -40,6 +44,8 @@ export function useRampEditing(p: UseRampEditingParams) {
     overrides, setOverrides,
     setHarmonyAnchor,
     setRampSizeOverrides, setRampSatOverrides,
+    setHueShiftStrengthPerRamp,
+    setLightnessCurvePerRamp, setSatCurvePerRamp,
     hiddenShades, setHiddenShades, setRampShuffleOffsets,
     lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
     editingIndex, setEditingIndex, setEditorHsv,
@@ -117,6 +123,14 @@ export function useRampEditing(p: UseRampEditingParams) {
     setRampSatOverrides(shiftBaseKeyedMap);
     setHiddenShades(shiftBaseKeyedMap);
     setRampShuffleOffsets(shiftBaseKeyedMap);
+    // Per-ramp advanced settings follow the same drop-and-shift rule
+    // (ARCHITECTURE.md invariant 3). These four were historically missed
+    // (tracked on #113): removing a ramp left a per-ramp hue shift,
+    // Advanced curve, or gamut strategy attached to the wrong index.
+    setHueShiftStrengthPerRamp(shiftBaseKeyedMap);
+    setLightnessCurvePerRamp(shiftBaseKeyedMap);
+    setSatCurvePerRamp(shiftBaseKeyedMap);
+    p.setGamutPerRamp(shiftBaseKeyedMap);
     // collapsedRamps is a Set, not an object map. Same shift semantics:
     // drop the removed index, shift later indices down by 1.
     setCollapsedRamps(prev => {
@@ -158,7 +172,8 @@ export function useRampEditing(p: UseRampEditingParams) {
 
   // duplicateRamp: append a copy of ramp `i` at the end of baseColors,
   // carrying over every per-base-keyed setting (overrides, size override,
-  // sat override, hidden shades, ramp shuffle offset, ai color name). The
+  // sat override, hidden shades, ramp shuffle offset, per-ramp hue shift,
+  // lightness/sat curves, gamut strategy, ai color name). The
   // new index is N = baseColors.length BEFORE the append, since we
   // append rather than insert. No existing indices shift, so other
   // base-keyed state doesn't need shifting.
@@ -197,6 +212,14 @@ export function useRampEditing(p: UseRampEditingParams) {
     setRampSatOverrides(appendDup);
     setHiddenShades(appendDup);
     setRampShuffleOffsets(appendDup);
+    // Per-ramp advanced settings are part of the ramp's identity too
+    // (ARCHITECTURE.md invariant 3); without these the duplicate rendered
+    // differently from its source whenever the source had a per-ramp hue
+    // shift, Advanced curve, or gamut strategy (tracked on #113).
+    setHueShiftStrengthPerRamp(appendDup);
+    setLightnessCurvePerRamp(appendDup);
+    setSatCurvePerRamp(appendDup);
+    p.setGamutPerRamp(appendDup as (prev: Record<string, unknown>) => Record<string, unknown>);
     p.setExportFeedback('Duplicated ramp');
     setTimeout(() => p.setExportFeedback(''), 2000);
   };
