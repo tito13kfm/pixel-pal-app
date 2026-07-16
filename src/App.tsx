@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Contrast, Cpu, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
-import { hexToHsl, hslToHex, hexToRgb, rgbToHex } from './lib/color';
+import { hexToHsl, hslToHex, hexToRgb } from './lib/color';
 import {
   WORD_POOL, spriteVase, spriteWalkman, spriteCassette,
   spriteDiamond, DEFAULT_SPRITE_LIBRARY,
@@ -38,7 +38,6 @@ import { applyMoodToHex } from './lib/mood';
 import { generateHarmony } from './lib/harmony';
 import { parsePiskelC } from './lib/palette-import';
 import { quantizeToHardware } from './lib/hardware-quantize';
-import { extractDominantColors } from './lib/image-extract';
 import { buildRampsForSnapshot } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
 import { isValidRampSize } from './lib/ramp-engine';
@@ -52,6 +51,7 @@ import { useExport } from './hooks/useExport';
 import { useTour } from './hooks/useTour';
 import { useSpriteImport } from './hooks/useSpriteImport';
 import { useImageExtract } from './hooks/useImageExtract';
+import { useImageExtractHandlers } from './hooks/useImageExtractHandlers';
 import { useImageRemap } from './hooks/useImageRemap';
 import { useImageRemapCompute } from './hooks/useImageRemapCompute';
 import { useHarmony } from './hooks/useHarmony';
@@ -95,7 +95,7 @@ if (typeof window !== 'undefined' && !(window as any).storage) {
   };
 }
 
-// rgbToHex, hexToHsl, hslToHex, hexToRgb: imported from ./lib/color.
+// hexToHsl, hslToHex, hexToRgb: imported from ./lib/color.
 // The HSV editor conversions (hexToHsv/hsvToHex) and the WCAG compare
 // helpers moved with their handlers to hooks/useRampEditing.ts (#113
 // slice 3).
@@ -393,86 +393,6 @@ export default function PixelPalGenerator() {
 
 
 
-  const handleImageUpload = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { setImageError('Please upload an image file'); return; }
-    setImageLoading(true); setImageError(''); setAiColorNames([]);
-    // Reset zoom and naturalSize so the new image starts at 1x and the
-    // onLoad handler captures fresh dimensions.
-    setImageZoom(1);
-    setImageNaturalSize({ width: 0, height: 0 });
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      setImageDataUrl(dataUrl);
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const maxDim = 150;
-          const scale = img.width > maxDim || img.height > maxDim ? Math.min(maxDim / img.width, maxDim / img.height) : 1;
-          const w = Math.max(1, Math.floor(img.width * scale));
-          const h = Math.max(1, Math.floor(img.height * scale));
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(img, 0, 0, w, h);
-          const imageData = ctx.getImageData(0, 0, w, h);
-          const colors = extractDominantColors(imageData, imageColorCount);
-          if (colors.length === 0) { setImageError('No colors found'); setImageLoading(false); return; }
-          const finalColors = colors.slice(0, imageColorCount);
-          tagNextLabel('Extract from image');
-          setBaseColors(finalColors);
-          setAiColorNames(finalColors.map((_, i) => `Color ${i + 1}`));
-          resetPaletteState();
-          setShuffleSeed(s => s + 1);
-          setImageLoading(false);
-        } catch (err) { setImageError('Failed: ' + err.message); setImageLoading(false); }
-      };
-      img.onerror = () => { setImageError('Failed to load'); setImageLoading(false); };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const reExtractFromImage = () => {
-    if (!imageDataUrl) return;
-    setImageLoading(true);
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const maxDim = 150;
-        const scale = img.width > maxDim || img.height > maxDim ? Math.min(maxDim / img.width, maxDim / img.height) : 1;
-        const w = Math.max(1, Math.floor(img.width * scale));
-        const h = Math.max(1, Math.floor(img.height * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, 0, 0, w, h);
-        const imageData = ctx.getImageData(0, 0, w, h);
-        const colors = extractDominantColors(imageData, imageColorCount);
-        const finalColors = colors.slice(0, imageColorCount);
-        tagNextLabel('Re-extract from image');
-        setBaseColors(finalColors);
-        setAiColorNames(finalColors.map((_, i) => `Color ${i + 1}`));
-        resetPaletteState();
-        setShuffleSeed(s => s + 1);
-        setImageLoading(false);
-      } catch (err) { setImageError('Failed: ' + err.message); setImageLoading(false); }
-    };
-    img.src = imageDataUrl;
-  };
-
-  const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); if (mode === 'image') setIsDragging(true); };
-  const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };
-  const handleDrop = (e) => {
-    e.preventDefault(); e.stopPropagation(); setIsDragging(false);
-    if (mode !== 'image') return;
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleImageUpload(file);
-  };
-
   useEffect(() => {
     if (!localStorage.getItem('pixel-pal-tour-seen')) {
       setTimeout(() => { startTour('onboarding'); }, 600);
@@ -528,73 +448,6 @@ export default function PixelPalGenerator() {
     setTourGuideId(null);
     setTourStep(0);
     restoreTourState();
-  };
-
-  useEffect(() => {
-    const pasteHandler = (e) => {
-      if (mode !== 'image') return;
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) { handleImageUpload(file); break; }
-        }
-      }
-    };
-    if (mode === 'image') {
-      window.addEventListener('paste', pasteHandler);
-      return () => window.removeEventListener('paste', pasteHandler);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }, [mode]);
-
-  const getPixelColorFromImage = (event) => {
-    if (!imageDataUrl) return null;
-    const img = event.currentTarget;
-    const rect = img.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const naturalX = Math.floor((x / rect.width) * img.naturalWidth);
-    const naturalY = Math.floor((y / rect.height) * img.naturalHeight);
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0);
-    try {
-      const data = ctx.getImageData(naturalX, naturalY, 1, 1).data;
-      return { hex: rgbToHex(data[0], data[1], data[2]), alpha: data[3] };
-    } catch { return null; }
-  };
-
-  const handleImageHover = (event) => {
-    if (!eyedropperActive) return;
-    const result = getPixelColorFromImage(event);
-    if (result && result.alpha > 0) setHoveredColor(result.hex);
-  };
-
-  const handleImageLeave = () => setHoveredColor(null);
-
-  const handleImageClick = (event) => {
-    if (!eyedropperActive) return;
-    const result = getPixelColorFromImage(event);
-    if (!result || result.alpha < 128) return;
-    if (!baseColors.includes(result.hex)) {
-      tagNextLabel('Eyedropper add');
-      setBaseColors(prev => [...prev, result.hex]);
-      setAiColorNames(prev => {
-        const padded = [...prev];
-        while (padded.length < baseColors.length) padded.push('');
-        padded.push('Eyedropper');
-        return padded;
-      });
-      // Non-reset path: respect lockedRamps. New ramp (just appended) is
-      // unlocked by default, so it'll receive the offset bump like any
-      // other unlocked ramp.
-      bumpShuffleSeed();
-    }
   };
 
   // ----- Image Remap Preview wiring -----
@@ -754,6 +607,22 @@ export default function PixelPalGenerator() {
     setLightnessCurvePerRamp({});
     setSatCurvePerRamp({});
   };
+
+  // From Image extraction handlers (#113): upload/drag-drop/paste decode +
+  // extract, re-extract, and the eyedropper live in useImageExtractHandlers.
+  // Panel state stays in useImageExtract (destructured above). Called here
+  // (not next to the state hook) because it binds resetPaletteState and
+  // bumpShuffleSeed, which are declared just above.
+  const {
+    handleImageUpload, reExtractFromImage,
+    handleDragOver, handleDragLeave, handleDrop,
+    handleImageHover, handleImageLeave, handleImageClick,
+  } = useImageExtractHandlers({
+    mode, imageDataUrl, setImageDataUrl, imageColorCount,
+    setImageLoading, setImageError, setIsDragging, eyedropperActive,
+    setImageZoom, setImageNaturalSize, setHoveredColor,
+    tagNextLabel, resetPaletteState, bumpShuffleSeed,
+  });
 
   // resetToDefaults: user-visible "wipe my session and start fresh"
   // action. Picks a new random base color, clears the AI prompt, runs
