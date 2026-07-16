@@ -1,7 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Contrast, Cpu, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, GripVertical, Gamepad2 } from 'lucide-react';
-import { hexToHsl, hslToHex, hexToRgb } from './lib/color';
+import { Copy, Shuffle, Palette, Sparkles, Download, Sun, Wand2, Upload, Image as ImageIcon, Dice5, Pipette, ChevronDown, ChevronUp, BarChart3, Save, Trash2, FolderOpen, Sliders, Pin, Contrast, Cpu, Plus, Columns, Lock, Unlock, History, RotateCcw, Edit2, Check, X, CopyPlus, Gamepad2 } from 'lucide-react';
 import { HARDWARE_PALETTES } from './lib/constants';
 import { TourPanel } from './components/TourPanel'
 import { TourOverlay } from './components/TourOverlay'
@@ -13,7 +12,6 @@ import { AdjacencyMatrix } from './components/AdjacencyMatrix';
 import { DitherBlend } from './components/DitherBlend';
 import { CrossRampDither } from './components/CrossRampDither';
 import { DITHER_PATTERNS } from './lib/viz-interaction';
-import { THEME_TOKENS } from './lib/theme';
 import { V2EngineNotice } from './components/V2EngineNotice';
 import { CvdActiveBadge } from './components/CvdActiveBadge';
 import { SectionCard } from './components/SectionCard';
@@ -29,14 +27,11 @@ import { InputPanel } from './components/panels/InputPanel';
 import { HeaderControls } from './components/panels/HeaderControls';
 import { DEFAULT_STYLE_PRESETS } from './lib/style-presets';
 import { buildRandomHex } from './lib/randomizer';
-import { generatePalette } from './lib/palette-generator';
-import { applyMoodToHex } from './lib/mood';
 import { generateHarmony } from './lib/harmony';
 import { quantizeToHardware } from './lib/hardware-quantize';
 import { buildRampsForSnapshot } from './lib/snapshot-ramps';
 import { buildRamp } from './lib/ramp-pipeline';
 import { labelsForRamp, filterHidden, resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp } from './lib/ramp-helpers';
-import { permuteStringKeyMap } from './lib/permute-indexed-state';
 import { ThemeProvider, LayoutProvider, PaletteProvider, EditorProvider } from './contexts';
 import { useDisplaySettings } from './hooks/useDisplaySettings';
 import { useVizSettings } from './hooks/useVizSettings';
@@ -49,6 +44,11 @@ import { useImageExtractHandlers } from './hooks/useImageExtractHandlers';
 import { useImageRemap } from './hooks/useImageRemap';
 import { useImageRemapCompute } from './hooks/useImageRemapCompute';
 import { useHarmony } from './hooks/useHarmony';
+import { usePaletteReset } from './hooks/usePaletteReset';
+import { useGenerationActions } from './hooks/useGenerationActions';
+import { useTourOrchestration } from './hooks/useTourOrchestration';
+import { useThemeHelpers } from './hooks/useThemeHelpers';
+import { useSectionDrag, useRampDrag } from './hooks/useDragReorder';
 import { useSideBySide } from './hooks/useSideBySide';
 import { useSideBySideCompute } from './hooks/useSideBySideCompute';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
@@ -92,7 +92,8 @@ if (typeof window !== 'undefined' && !(window as any).storage) {
   };
 }
 
-// hexToHsl, hslToHex, hexToRgb: imported from ./lib/color.
+// Color-math helpers (hexToHsl / hslToHex / hexToRgb / ...) live in
+// ./lib/color; the hooks that need them import them directly.
 // The HSV editor conversions (hexToHsv/hsvToHex) and the WCAG compare
 // helpers moved with their handlers to hooks/useRampEditing.ts (#113
 // slice 3).
@@ -210,19 +211,7 @@ export default function PixelPalGenerator() {
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,
   } = usePanelLayout();
-  // Ramp reorder drag state, deliberately SEPARATE from the section-level
-  // dragOver/draggingKey so card-drag (#44) and ramp-drag never collide.
-  const [rampDragOver, setRampDragOver] = useState<{ index: number; pos: 'before' | 'after' } | null>(null);
-  const [rampDragging, setRampDragging] = useState<number | null>(null);
   const { updateInfo, setUpdateInfo, updateReady, setUpdateReady, updateDownloading, setUpdateDownloading } = useUpdater();
-  const tourSnapshot = useRef(null);
-  // Brief inline feedback shown next to the "Add to Palette" button on the
-  // Single Color tab. Separate from exportFeedback because the export
-  // badge lives near the bottom of the page and is invisible to a user
-  // working at the top. Clears itself via setTimeout.
-  const [addBaseFeedback, setAddBaseFeedback] = useState('');
-  const [harmonizeMode, setHarmonizeMode] = useState('complement');
-  const [harmonizeBaseline, setHarmonizeBaseline] = useState(null);
   // ----- Image Remap Preview -----
   // Separate image slot from the From Image extraction feature. The user
   // uploads a reference image and remaps every pixel to the nearest color
@@ -269,7 +258,6 @@ export default function PixelPalGenerator() {
   // the field for immediate typing. Set via the ref attribute on the
   // input element down in the JSX tree.
   const saveNameInputRef = useRef(null);
-  const resetConfirmTimerRef = useRef(null);
 
   // Active hardware palette object when locked, otherwise null. Resolved
   // here once so the ramp useMemos don't re-do the find on every iteration.
@@ -369,82 +357,19 @@ export default function PixelPalGenerator() {
     lastSavedPath, setLastSavedPath, sessionRampGplFolder, setSessionRampGplFolder,
   });
 
-  const handleGenerate = () => {
-    tagNextLabel(mode === 'color' ? 'New palette' : 'Shuffle');
-    if (mode === 'color') {
-      setBaseColors([colorInput]); setAiColorNames([]);
-      resetPaletteState();
-      // Hard reset path: lockedRamps just got cleared. Bump shuffleSeed
-      // directly rather than via bumpShuffleSeed, because the latter
-      // reads the OLD lockedRamps closure value and would take the
-      // lock-aware branch on a render where lock has already been
-      // cleared in the same batched update.
-      setShuffleSeed(s => s + 1);
-    } else {
-      // Non-reset path: respect existing lockedRamps so the user can
-      // hold one ramp in place and Generate to re-roll only the others.
-      bumpShuffleSeed();
-    }
-  };
 
 
 
-  useEffect(() => {
-    if (!localStorage.getItem('pixel-pal-tour-seen')) {
-      setTimeout(() => { startTour('onboarding'); }, 600);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-
-
-  function handleTourMarkSeen() {
-    localStorage.setItem('pixel-pal-tour-seen', '1');
-  }
-
-  const SETUP_SETTERS = {
-    export: setExportOpen,
-    harmony: setHarmonyOpen,
-  };
-
-  const runTourSetup = (setupId) => {
-    const setter = SETUP_SETTERS[setupId];
-    if (setter) setter(true);
-  };
-
-  const snapshotTourState = () => {
-    tourSnapshot.current = {
-      mode, exportOpen, hwPickerOpen, compareMode, harmonyOpen,
-    };
-  };
-
-  const restoreTourState = () => {
-    const s = tourSnapshot.current;
-    if (!s) return;
-    setMode(s.mode);
-    setExportOpen(s.exportOpen);
-    setHwPickerOpen(s.hwPickerOpen);
-    setCompareMode(s.compareMode);
-    if (!s.compareMode) { setCompareAnchor(null); setCompareResult(null); }
-    setHarmonyOpen(s.harmonyOpen);
-    tourSnapshot.current = null;
-  };
-
-  const startTour = (id) => {
-    if (!tourSnapshot.current) snapshotTourState();
-    setLauncherOpen(false);
-    setTourGuideId(id);
-    setTourStep(0);
-    setTourOpen(true);
-  };
-
-  const exitTour = () => {
-    if (tourGuideId === 'onboarding') handleTourMarkSeen();
-    setTourOpen(false);
-    setTourGuideId(null);
-    setTourStep(0);
-    restoreTourState();
-  };
+  // Tour orchestration (#113): start/exit, pre-tour UI snapshot/restore,
+  // per-guide setup staging, and the first-visit auto-start effect live in
+  // useTourOrchestration. Tour open/guide/step state stays in useTour
+  // (destructured above); panel setters are bound here because guides
+  // stage panels across domains.
+  const { startTour, exitTour, runTourSetup } = useTourOrchestration({
+    mode, setMode, exportOpen, setExportOpen, hwPickerOpen, setHwPickerOpen,
+    harmonyOpen, setHarmonyOpen,
+    tourGuideId, setTourGuideId, setTourOpen, setTourStep, setLauncherOpen,
+  });
 
   // ----- Image Remap Preview wiring -----
   // The compute pipeline (active-palette derivation, upload/clear/download
@@ -465,96 +390,15 @@ export default function PixelPalGenerator() {
     remapDownloadConfirmPending, setRemapDownloadConfirmPending,
   });
 
-  // randomizeColor: roll a new random hex into the colorInput field. Does
-  // NOT touch baseColors, the ramp customizations, or history. The user
-  // decides what to do with the new hex by clicking Add base (append it
-  // to the palette) or New palette (replace the palette with this hex).
-  //
-  // Previous behavior: destructive replace, same as handleGenerate. That
-  // got reported as confusing during usability session 2 followup work:
-  // a user wanting to "roll until I see something good, then add it" had
-  // no way to do that because every roll wiped their pins/locks/anchor.
-  // Non-destructive: replaces only the hex preview; pins/locks/anchor stay.
-  const randomizeColor = () => {
-    setColorInput(buildRandomHex());
-  };
 
-  // surpriseMe / buildAroundColor: backlog item F, the non-AI one-click
-  // multi-base generator. Both are full-palette-replace paths and follow the
-  // same contract as handleGenerate's 'color' branch: tag history, replace
-  // baseColors, resetPaletteState, then bump shuffleSeed DIRECTLY (locks were
-  // just cleared; bumpShuffleSeed reads the old lockedRamps closure and would
-  // take the wrong branch, see ARCHITECTURE.md rules 1-2). The active mood
-  // preset (#135) biases hue/chroma/lightness sampling when set.
-  const surpriseMe = () => {
-    const colors = generatePalette({ count: 5, mood: activeMood });
-    tagNextLabel(activeMood ? `Surprise Me (${activeMood.name})` : 'Surprise Me');
-    setColorInput(colors[0]);
-    setBaseColors(colors);
-    setAiColorNames([]);
-    setEditingIndex(null);
-    resetPaletteState();
-    setShuffleSeed(s => s + 1);
-  };
-
-  // Seeded variant: the current colorInput hex is kept VERBATIM as base 1
-  // (never mood-clamped; the user's pick wins) and 4 companions are derived
-  // around its hue.
-  const buildAroundColor = () => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(colorInput)) {
-      setAddBaseFeedback('Invalid hex');
-      setTimeout(() => setAddBaseFeedback(''), 2000);
-      return;
-    }
-    const colors = generatePalette({ count: 5, seedHex: colorInput, mood: activeMood });
-    tagNextLabel(`Palette around ${colorInput.toLowerCase()}`);
-    setBaseColors(colors);
-    setAiColorNames([]);
-    setEditingIndex(null);
-    resetPaletteState();
-    setShuffleSeed(s => s + 1);
-  };
-
-  // Add the current Single Color tab's colorInput to baseColors as a new
-  // base, without leaving the Single Color tab. Lets users batch-build a
-  // multi-base palette by picking colors one at a time. The colorInput
-  // state stays as-is so the user can keep adjusting.
-  // Duplicate detection: case-insensitive hex compare. On a duplicate we
-  // do NOT add a second entry; the feedback message becomes "Already in
-  // palette" rather than the success count. Hex is normalized to lowercase
-  // before write to match the storage convention used elsewhere.
-  const addColorAsBase = () => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(colorInput)) {
-      setAddBaseFeedback('Invalid hex');
-      setTimeout(() => setAddBaseFeedback(''), 2000);
-      return;
-    }
-    const norm = colorInput.toLowerCase();
-    const alreadyPresent = baseColors.some(h => h.toLowerCase() === norm);
-    if (alreadyPresent) {
-      setAddBaseFeedback('Already in palette');
-      setTimeout(() => setAddBaseFeedback(''), 2000);
-      return;
-    }
-    const newLen = baseColors.length + 1;
-    tagNextLabel('Add base color');
-    setRampSizeOverrides(prev => ({ ...prev, [baseColors.length]: rampSize }));
-    setBaseColors(prev => [...prev, norm]);
-    setAiColorNames(prev => {
-      const padded = [...prev];
-      while (padded.length < baseColors.length) padded.push('');
-      padded.push(`Color ${newLen}`);
-      return padded;
-    });
-    setAddBaseFeedback(`Added: now ${newLen} ramp${newLen === 1 ? '' : 's'}`);
-    setTimeout(() => setAddBaseFeedback(''), 2000);
-  };
-
-  // Harmony add handlers (append derived harmony colors as new bases) live
-  // in useHarmony; HarmonyPanel receives them via props below.
-  const { addHarmonyColor, addHarmonyPair, addHarmonyMany } = useHarmony({
-    baseColors, setBaseColors, setAiColorNames,
-  });
+  // Harmony handlers (#113): the add-as-base handlers, the global Harmonize
+  // action + its restore baseline, and the harmonizeMode/harmonizeBaseline
+  // state live in useHarmony; HarmonyPanel receives them via props below.
+  const {
+    addHarmonyColor, addHarmonyPair, addHarmonyMany,
+    harmonize, restoreHarmonizeBaseline,
+    harmonizeMode, setHarmonizeMode, harmonizeBaseline,
+  } = useHarmony({ safeAnchor, activeMood, tagNextLabel, setExportFeedback });
 
 
   // Per-ramp / per-shade editing handlers (#113 slice 3): remove/duplicate,
@@ -573,36 +417,27 @@ export default function PixelPalGenerator() {
   } = useRampEditing({ tagNextLabel, setExportFeedback });
 
 
-  // resetPaletteState: clears every customization layer that the eight
-  // full-palette-replace paths share. Callers are still responsible for
-  // setting baseColors (or aiColorNames when applicable),
-  // tagging the next history label via tagNextLabel, and bumping the shuffle seed if their path
-  // requires it. Preserves rampSize, hardwareLock, moodPreset, theme, CRT,
-  // CVD on purpose: those are session-level settings, not per-palette state.
-  //
-  // See ARCHITECTURE.md "Cross-cutting state-maintenance rules" rule 1.
-  // If you add new base-keyed or per-palette state, add its setter here
-  // (and verify each of the 8 call sites still does the right thing).
-  const resetPaletteState = () => {
-    setOverrides({}); setPinEditor(null); setHarmonyAnchor(0);
-    setRampSizeOverrides({}); setRampSatOverrides({}); setHueShiftStrengthPerRamp({});
-    setHiddenShades({}); setRampShuffleOffsets({});
-    setCompareAnchor(null); setCompareResult(null);
-    setCollapsedRamps(new Set()); setLockedRamps(new Set());
-    setSbsLeft('working'); setSbsRight(null);
-    setSbsLeftPayload(null); setSbsRightPayload(null);
-    setSbsLeftError(''); setSbsRightError('');
-    setSbsLeftLoading(false); setSbsRightLoading(false);
-    setHueShiftStrength(1.0);
-    // Image remap: clear the cached output and error. The uploaded image
-    // itself stays (the user uploaded it intentionally and likely wants to
-    // remap against the new palette). See IMAGE_REMAP_PLAN.md reset paths.
-    setRemapOutput(null);
-    setRemapOutputSignature(null);
-    setRemapError('');
-    setLightnessCurvePerRamp({});
-    setSatCurvePerRamp({});
-  };
+  // Shared reset paths (#113): resetPaletteState (the customization wipe
+  // all eight full-palette-replace paths call; see ARCHITECTURE.md rule 1)
+  // and the two-click resetToDefaults live in usePaletteReset. The SBS +
+  // remap setters it clears and the reset-confirm state are bound here.
+  const { resetPaletteState, resetToDefaults } = usePaletteReset({
+    setSbsLeft, setSbsRight, setSbsLeftPayload, setSbsRightPayload,
+    setSbsLeftError, setSbsRightError, setSbsLeftLoading, setSbsRightLoading,
+    setRemapOutput, setRemapOutputSignature, setRemapError,
+    confirmReset, setConfirmReset, setColorInput, tagNextLabel,
+  });
+
+  // Single Color tab actions (#113): New palette, the random hex roller,
+  // Surprise Me / Around This (#135), and Add-to-Palette (with its inline
+  // feedback string) live in useGenerationActions.
+  const {
+    addBaseFeedback, handleGenerate, randomizeColor,
+    surpriseMe, buildAroundColor, addColorAsBase,
+  } = useGenerationActions({
+    mode, colorInput, setColorInput, activeMood,
+    tagNextLabel, resetPaletteState, bumpShuffleSeed,
+  });
 
   // From Image extraction handlers (#113): upload/drag-drop/paste decode +
   // extract, re-extract, and the eyedropper live in useImageExtractHandlers.
@@ -620,106 +455,7 @@ export default function PixelPalGenerator() {
     tagNextLabel, resetPaletteState, bumpShuffleSeed,
   });
 
-  // resetToDefaults: user-visible "wipe my session and start fresh"
-  // action. Picks a new random base color, clears the AI prompt, runs
-  // the shared reset, and bumps the shuffle seed. Tags history so it's
-  // undoable. Two-click confirmation pattern: first click arms, second
-  // commits. Auto-disarms after 3 seconds.
-  const resetToDefaults = () => {
-    if (confirmReset) {
-      if (resetConfirmTimerRef.current) { clearTimeout(resetConfirmTimerRef.current); resetConfirmTimerRef.current = null; }
-      setConfirmReset(false);
-      tagNextLabel('Reset to defaults');
-      const fresh = buildRandomHex();
-      setColorInput(fresh);
-      setBaseColors([fresh]);
-      setAiColorNames([]);
-      setEditingIndex(null);
-      resetPaletteState();
-      // Hard-reset path: lockedRamps just got cleared. Bump shuffleSeed
-      // directly rather than via bumpShuffleSeed, since the latter reads
-      // the OLD lockedRamps closure and would take the lock-aware branch
-      // on a render where lock has already been cleared in the same
-      // batched update. Same reasoning as handleGenerate.
-      setShuffleSeed(s => s + 1);
-      return;
-    }
-    setConfirmReset(true);
-    if (resetConfirmTimerRef.current) clearTimeout(resetConfirmTimerRef.current);
-    resetConfirmTimerRef.current = setTimeout(() => {
-      setConfirmReset(false);
-      resetConfirmTimerRef.current = null;
-    }, 3000);
-  };
 
-  // harmonize: rotate the hue of every UNLOCKED non-anchor base to a
-  // color-theory position relative to the harmony anchor. Saturation and
-  // lightness preserved per base. Mode controls the slot pattern used.
-  // On first press the current base colors are saved as a baseline so
-  // the user can restore pre-harmonize hues without relying on undo.
-  const harmonize = useCallback(() => {
-    if (baseColors.length < 2) {
-      setExportFeedback('Need at least 2 ramps to harmonize');
-      setTimeout(() => setExportFeedback(''), 2000);
-      return;
-    }
-    const anchorIdx = safeAnchor;
-    const anchorHex = baseColors[anchorIdx];
-    if (!anchorHex) return;
-    const anchorHsl = hexToHsl(anchorHex);
-    const targets = [];
-    for (let i = 0; i < baseColors.length; i++) {
-      if (i === anchorIdx) continue;
-      if (lockedRamps.has(i)) continue;
-      targets.push(i);
-    }
-    if (targets.length === 0) {
-      setExportFeedback('No unlocked ramps to harmonize');
-      setTimeout(() => setExportFeedback(''), 2000);
-      return;
-    }
-    if (!harmonizeBaseline) setHarmonizeBaseline(baseColors.slice());
-    const HARMONIZE_MODE_SLOTS = {
-      complement:         [180],
-      analogous:          [30, 330, 15, 345, 45, 315, 20, 340, 60, 300, 10],
-      triadic:            [120, 240, 60, 180, 300, 30, 90, 150, 210, 270, 330],
-      'split-complement': [150, 210, 30, 330, 120, 240, 60, 180, 90, 270, 45],
-      square:             [90, 180, 270, 45, 135, 225, 315, 30, 60, 120, 150],
-      tetradic:           [60, 240, 180, 120, 300, 30, 90, 150, 210, 270, 330],
-    };
-    const slots = HARMONIZE_MODE_SLOTS[harmonizeMode] || HARMONIZE_MODE_SLOTS.complement;
-    const newBaseColors = baseColors.slice();
-    for (let k = 0; k < targets.length; k++) {
-      const i = targets[k];
-      const slot = slots[k % slots.length];
-      const orig = hexToHsl(baseColors[i]);
-      const newH = ((anchorHsl.h + slot) % 360 + 360) % 360;
-      newBaseColors[i] = hslToHex({ h: newH, s: orig.s, l: orig.l });
-      // Mood bias (#135): clamp the rotated color into the active mood's
-      // hue/chroma/lightness envelope. Applied AFTER the rotation so the
-      // color-theory relationship drives placement and the mood constrains
-      // it. The anchor is untouched (it never enters this loop).
-      if (activeMood) newBaseColors[i] = applyMoodToHex(newBaseColors[i], activeMood);
-    }
-    const modeLabel = harmonizeMode.replace('-', ' ');
-    const moodSuffix = activeMood ? `, ${activeMood.name}` : '';
-    tagNextLabel(`Harmonize (${targets.length}, ${modeLabel}${moodSuffix})`);
-    setBaseColors(newBaseColors);
-    setCompareAnchor(null);
-    setCompareResult(null);
-    setExportFeedback(`Harmonized ${targets.length} ramp${targets.length === 1 ? '' : 's'}: ${modeLabel}${moodSuffix}`);
-    setTimeout(() => setExportFeedback(''), 2000);
-  }, [baseColors, safeAnchor, lockedRamps, harmonizeBaseline, harmonizeMode, activeMood, setExportFeedback, setHarmonizeBaseline, tagNextLabel, setBaseColors, setCompareAnchor, setCompareResult]);
-  const restoreHarmonizeBaseline = useCallback(() => {
-    if (!harmonizeBaseline) return;
-    tagNextLabel('Restore pre-harmonize hues');
-    setBaseColors(harmonizeBaseline.slice());
-    setHarmonizeBaseline(null);
-    setCompareAnchor(null);
-    setCompareResult(null);
-    setExportFeedback('Restored original hues');
-    setTimeout(() => setExportFeedback(''), 2000);
-  }, [harmonizeBaseline, tagNextLabel, setBaseColors, setHarmonizeBaseline, setCompareAnchor, setCompareResult, setExportFeedback]);
 
   useEffect(() => {
     const randomHex = buildRandomHex();
@@ -755,7 +491,6 @@ export default function PixelPalGenerator() {
       });
     }
     prevBaseLenRef.current = curr;
-    if (harmonizeBaseline && harmonizeBaseline.length !== curr) setHarmonizeBaseline(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
   }, [baseColors.length]);
 
@@ -856,196 +591,26 @@ export default function PixelPalGenerator() {
   });
 
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- THEME_TOKENS is pure static; deps=[theme] is correct
-  const t = useMemo(() => THEME_TOKENS[theme] || THEME_TOKENS.dark, [theme]);
+  // Theme chrome helpers (#113): the resolved token bag (t), accent glow /
+  // themed-accent helpers, and the ThemeContext value memo live in
+  // useThemeHelpers.
+  const {
+    t, accentGlow, accentTextGlow, themedAccent, themedAccentBorder,
+    sectionHeadColor, themeValue,
+  } = useThemeHelpers(theme);
 
-  // Helper for accent shadows. In dark mode we use the full neon glow; in
-  // neutral/light we dial the intensity way down so accent borders read but
-  // don't vibrate against the calmer background.
-  const accentGlow = (hexAccent, baseAlpha = 0.4) => {
-    const { r, g, b } = hexToRgb(hexAccent);
-    const alpha = baseAlpha * t.glowStrong;
-    if (alpha < 0.05) return 'none';
-    return `0 0 25px rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
-
-  // For section heading neon text-shadow. Takes a hex and optional pixel
-  // size (default 8 to match the original section heading glow). Returns
-  // 'none' on non-dark themes since glow-on-light is illegible.
-  const accentTextGlow = (hexAccent, px = 8) => {
-    if (t.glowStrong < 0.5) return 'none';
-    return `0 0 ${px}px ${hexAccent}`;
-  };
-
-  // Section heading text color. In dark mode we use the neon accent directly
-  // (e.g. cyan for ramps, pink for harmony). In neutral/light, neon text
-  // against a light background is unreadable, so we shift to a much darker
-  // variant of the same hue family. The mappings are tuned so each accent
-  // stays distinguishable from its neighbors (cyan vs purple stay clearly
-  // different) while remaining legible.
-  //
-  // IMPORTANT: When you change a mapping here, change it everywhere the
-  // accent is used as chrome - section heading text, section heading
-  // textShadow glow, style labels (Punchy/Balanced/Muted), accent borders
-  // and glows. Use themedAccent() below as the single source of truth for
-  // any chrome that needs the section accent.
-  const ACCENT_MAP = {
-    // Hex keys must be lowercase. Each value is { neutralText, neutralBorder, light }.
-    // Neutral needs OPPOSITE values for text vs border:
-    //   - Text on 18% gray card reads better as a light tint (cyan-100 etc.)
-    //   - Borders against the 18% gray page read better as a dark tint
-    //     (cyan-800 etc.) because the dark line crisply outlines the card
-    //     edge against the medium-value page bg.
-    // Light theme uses the same value for both text and border (dark tint
-    // works against near-white cards).
-    '#00ffff': { neutralText: '#cffafe', neutralBorder: '#083344', light: '#155e75' }, // cyan/teal
-    '#67e8f9': { neutralText: '#cffafe', neutralBorder: '#083344', light: '#155e75' }, // cyan variant
-    '#ff00ff': { neutralText: '#fce7f3', neutralBorder: '#4a044e', light: '#86198f' }, // pink/fuchsia
-    '#ff006e': { neutralText: '#fce7f3', neutralBorder: '#4a044e', light: '#86198f' },
-    '#ffff00': { neutralText: '#fef9c3', neutralBorder: '#422006', light: '#854d0e' }, // yellow
-    '#00ff99': { neutralText: '#dcfce7', neutralBorder: '#052e16', light: '#166534' }, // green
-    '#a855f7': { neutralText: '#f3e8ff', neutralBorder: '#3b0764', light: '#6b21a8' }, // purple
-  };
-
-  // themedAccent: single source of truth for any chrome that uses a section
-  // accent color. Returns the canonical accent in dark mode, the LIGHT
-  // tint variant in neutral mode (for text colors on gray cards), or the
-  // dark tint in light mode. For BORDERS in neutral mode, use
-  // themedAccentBorder() instead.
-  const themedAccent = (hexAccent) => {
-    if (t.glowStrong > 0.5) return hexAccent;
-    const mapped = ACCENT_MAP[hexAccent.toLowerCase()];
-    if (!mapped) return '#1a1a1a';
-    if (theme === 'neutral') return mapped.neutralText;
-    return mapped.light;
-  };
-
-  // themedAccentBorder: like themedAccent but returns dark tints for
-  // Neutral mode where borders need to crisply outline cards against
-  // the gray page bg. In Dark and Light, identical to themedAccent.
-  const themedAccentBorder = (hexAccent) => {
-    if (t.glowStrong > 0.5) return hexAccent;
-    const mapped = ACCENT_MAP[hexAccent.toLowerCase()];
-    if (!mapped) return '#1a1a1a';
-    if (theme === 'neutral') return mapped.neutralBorder;
-    return mapped.light;
-  };
-
-  // Backward compatibility: keep sectionHeadColor pointing at themedAccent
-  // so callers don't have to change names. They do exactly the same thing.
-  const sectionHeadColor = themedAccent;
-
-  const dropPos = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    return (e.clientY - rect.top) < rect.height / 2 ? 'before' : 'after';
-  };
-  const makeSectionDragHandlers = (sectionKey) => ({
-    onDragOver: (e) => {
-      e.preventDefault();
-      const pos = dropPos(e);
-      setDragOver(prev => (prev && prev.key === sectionKey && prev.pos === pos) ? prev : { key: sectionKey, pos });
-    },
-    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(prev => (prev && prev.key === sectionKey) ? null : prev); },
-    onDrop: (e) => {
-      e.preventDefault();
-      const from = e.dataTransfer.getData('text/plain');
-      const pos = dropPos(e);
-      setDragOver(null);
-      if (!from || from === sectionKey || !DEFAULT_SECTION_ORDER.includes(from)) return;
-      setSectionOrder(prev => {
-        const next = prev.filter(k => k !== from);
-        let idx = next.indexOf(sectionKey);
-        if (pos === 'after') idx += 1;
-        next.splice(idx, 0, from);
-        return next;
-      });
-    },
+  // Drag-to-reorder helpers (#113): section cards (state owned by
+  // usePanelLayout, bound here) and ramp cards (drag state owned by the
+  // hook; reorderRamps via the store, gamutPerRamp permuted through the
+  // setter because App.tsx owns it) live in useDragReorder.tsx.
+  const { makeSectionDragHandlers, dropLine, sectionGrip } = useSectionDrag({
+    dragOver, setDragOver, draggingKey, setDraggingKey,
+    setSectionOrder, DEFAULT_SECTION_ORDER, vizStyle,
   });
-  // Accent color per section (viz mirrors the live vizStyle accent).
-  const sectionAccent = (key) =>
-    key === 'ramps' ? '#00ffff'
-    : key === 'harmony' ? '#ff00ff'
-    : key === 'playground' ? '#00ff88'
-    : key === 'viz' ? (vizStyle === 'balanced' ? '#00ffff' : vizStyle === 'muted' ? '#a855f7' : '#ff00ff')
-    : key === 'saved' ? '#ffff00'
-    : key === 'history' ? '#a855f7'
-    : '#00ffff';
-  // Glowing insertion line on the hovered edge, colored to the dragged card.
-  const dropLine = (sectionKey) => {
-    if (!dragOver || dragOver.key !== sectionKey || !draggingKey) return null;
-    const c = sectionAccent(draggingKey);
-    return dragOver.pos === 'before'
-      ? `inset 0 6px 0 -2px ${c}, 0 0 14px ${c}`
-      : `inset 0 -6px 0 -2px ${c}, 0 0 14px ${c}`;
-  };
-
-  const sectionGrip = (sectionKey) => (
-    <span
-      draggable
-      onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', sectionKey); setDraggingKey(sectionKey); }}
-      onDragEnd={() => { setDraggingKey(null); setDragOver(null); }}
-      onClick={e => e.stopPropagation()}
-      style={{ cursor: 'grab', color: '#fff', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.95)) drop-shadow(0 0 1px rgba(0,0,0,0.8))' }}
-      className="hover:scale-125 transition-transform"
-      title="Drag to reorder this section"
-    >
-      <GripVertical size={16} />
-    </span>
-  );
-
-  // Ramp-card reorder. Mirrors makeSectionDragHandlers but on numeric indices,
-  // and stops propagation so the enclosing ramps-section drag handlers never
-  // also fire (a ramp drop must not be read as a section reorder).
-  const makeRampDragHandlers = (index) => ({
-    onDragOver: (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const pos = dropPos(e);
-      setRampDragOver(prev => (prev && prev.index === index && prev.pos === pos) ? prev : { index, pos });
-    },
-    onDragLeave: (e) => {
-      e.stopPropagation();
-      if (!e.currentTarget.contains(e.relatedTarget)) setRampDragOver(prev => (prev && prev.index === index) ? null : prev);
-    },
-    onDrop: (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const raw = e.dataTransfer.getData('application/x-ramp-index');
-      const pos = dropPos(e);
-      setRampDragOver(null);
-      if (raw === '') return;
-      const from = Number(raw);
-      if (Number.isNaN(from) || from === index) return;
-      const next = reorderRamps(from, index, pos);
-      setGamutPerRamp(prev => permuteStringKeyMap(prev, next));
-      tagNextLabel('Reorder ramps');
-    },
+  const { makeRampDragHandlers, rampDropLine, rampGrip } = useRampDrag({
+    setGamutPerRamp, tagNextLabel,
   });
-  const rampDropLine = (index) => {
-    if (!rampDragOver || rampDragOver.index !== index || rampDragging === null) return null;
-    const c = '#00ffff';
-    return rampDragOver.pos === 'before'
-      ? `inset 0 6px 0 -2px ${c}, 0 0 14px ${c}`
-      : `inset 0 -6px 0 -2px ${c}, 0 0 14px ${c}`;
-  };
-  const rampGrip = (index) => (
-    <span
-      draggable
-      onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('application/x-ramp-index', String(index)); setRampDragging(index); }}
-      onDragEnd={() => { setRampDragging(null); setRampDragOver(null); }}
-      onClick={e => e.stopPropagation()}
-      style={{ cursor: 'grab', color: '#fff', filter: 'drop-shadow(0 0 1.5px rgba(0,0,0,0.95)) drop-shadow(0 0 1px rgba(0,0,0,0.8))' }}
-      className="hover:scale-125 transition-transform"
-      title="Drag to reorder this ramp"
-    >
-      <GripVertical size={16} />
-    </span>
-  );
 
-  const themeValue = useMemo(() => ({
-    t, themedAccent, themedAccentBorder, accentGlow, accentTextGlow, sectionHeadColor,
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
-  }), [t]);
   const layoutValue = useMemo(() => ({
     sectionOrder, makeSectionDragHandlers, dropLine, sectionGrip, historyOpen, setHistoryOpen,
   // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(sp2-d): legacy dep array, verify when @ts-nocheck drops
