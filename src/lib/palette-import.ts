@@ -1,4 +1,5 @@
 import { rgbToHex, rgbToHsl, hexToHsl } from './color';
+import type { CycleRangeMeta } from './palette-export';
 
 export interface PiskelSprite {
   pattern: string[];
@@ -141,6 +142,42 @@ export const parseGpl = (text: string): GplPalette | null => {
 
     if (colors.length === 0) return null;
     return { name: name || 'Imported Palette', colors };
+  } catch {
+    return null;
+  }
+};
+
+// ---------- Palette-cycle sidecar (issue #140) ----------
+// Reverse of buildCycleJson (palette-export.ts). Validates the
+// 'pixel-pal-cycle' envelope and each cycle range's shape/bounds; returns
+// null on anything malformed so the caller can show one generic error,
+// matching parseGpl's null-on-failure convention.
+export interface ParsedCycleJson {
+  palette: string[];
+  cycles: CycleRangeMeta[];
+}
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
+export const parseCycleJson = (text: string): ParsedCycleJson | null => {
+  try {
+    if (typeof text !== 'string') return null;
+    const doc = JSON.parse(text);
+    if (!doc || typeof doc !== 'object') return null;
+    if (doc.format !== 'pixel-pal-cycle') return null;
+    if (!Array.isArray(doc.palette) || doc.palette.length === 0) return null;
+    if (!doc.palette.every((h: unknown) => typeof h === 'string' && HEX_COLOR_RE.test(h))) return null;
+    if (!Array.isArray(doc.cycles) || doc.cycles.length === 0) return null;
+    const paletteLen = doc.palette.length;
+    const cycles: CycleRangeMeta[] = [];
+    for (const c of doc.cycles) {
+      if (!c || typeof c !== 'object') return null;
+      const { low, high, rate, reverse } = c;
+      if (!Number.isInteger(low) || !Number.isInteger(high)) return null;
+      if (low < 0 || high >= paletteLen || low > high) return null;
+      if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) return null;
+      if (typeof reverse !== 'boolean') return null;
+      cycles.push({ low, high, rate, reverse });
+    }
+    return { palette: doc.palette.map((h: string) => h.toLowerCase()), cycles };
   } catch {
     return null;
   }

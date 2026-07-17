@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { rotateCycle } from '../lib/viz-interaction';
 import { buildCycleJson } from '../lib/palette-export';
+import { parseCycleJson } from '../lib/palette-import';
 import { saveFile } from '../lib/save-file';
 import { DEFAULT_SPRITE_LIBRARY } from '../lib/constants';
 
@@ -44,9 +45,11 @@ export function PaletteCycleEditor({ rows, borderColor }: PaletteCycleEditorProp
   const [playing, setPlaying] = useState(true);
   const [reverse, setReverse] = useState(false);
   const [spriteKey, setSpriteKey] = useState('vase');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const offsetRef = useRef(0);
   const stripRef = useRef<HTMLCanvasElement>(null);
   const spriteRef = useRef<HTMLCanvasElement>(null);
+  const loadInputRef = useRef<HTMLInputElement>(null);
 
   const rowsKey = JSON.stringify(rows);
 
@@ -146,6 +149,44 @@ export function PaletteCycleEditor({ rows, borderColor }: PaletteCycleEditorProp
     });
   };
 
+  // Reverse of handleDownload (issue #140): match the sidecar's palette
+  // against the currently visible rows by exact hex sequence (case-
+  // insensitive), since a sidecar carries no row index of its own, only the
+  // colors it was exported from. Only the first cycle range is applied; a
+  // sidecar can carry more, but the editor only ever holds one selection at
+  // a time (see the "Multiple simultaneous cycle ranges" follow-up on #140).
+  const handleLoadFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const parsed = parseCycleJson(text);
+      if (!parsed) {
+        setLoadError('Not a valid pixel-pal-cycle.json file.');
+        return;
+      }
+      const row = rows.findIndex((r) => r.length === parsed.palette.length
+        && r.every((hex, i) => hex.toLowerCase() === parsed.palette[i]));
+      if (row === -1) {
+        setLoadError('No visible ramp matches this file\'s colors. Its ramp may have changed since export.');
+        return;
+      }
+      const cycle = parsed.cycles[0];
+      // Snap to the nearest fixed FPS option: a hand-edited or future sidecar
+      // could carry a rate outside FPS_OPTIONS, which would leave the <select>
+      // with no matching value selected.
+      const nearestFps = FPS_OPTIONS.reduce((best, opt) =>
+        Math.abs(opt - cycle.rate) < Math.abs(best - cycle.rate) ? opt : best);
+      setLoadError(null);
+      setPending(null);
+      setSel({ row, low: cycle.low, high: cycle.high });
+      setFps(nearestFps);
+      setReverse(cycle.reverse);
+      setPlaying(true);
+      offsetRef.current = 0;
+    };
+    reader.readAsText(file);
+  };
+
   const stripWidth = sel ? rows[sel.row].length * STRIP_CELL_W : 0;
   const sprite = (DEFAULT_SPRITE_LIBRARY as Record<string, { pattern: string[] }>)[spriteKey];
   const spriteW = sprite ? sprite.pattern[0].length * SPRITE_SCALE : 0;
@@ -178,6 +219,26 @@ export function PaletteCycleEditor({ rows, borderColor }: PaletteCycleEditorProp
           </div>
         ))}
       </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => loadInputRef.current?.click()}
+          title="Load a previously exported pixel-pal-cycle.json onto a matching visible ramp"
+          className="px-2.5 py-1 rounded font-bold border-2 transition-all text-[11px] uppercase tracking-wider border-cyan-400 text-cyan-100 hover:bg-cyan-400/20"
+        >
+          Load Cycle JSON
+        </button>
+        <input
+          ref={loadInputRef}
+          type="file"
+          accept=".json,application/json"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLoadFile(f); e.target.value = ''; }}
+          className="hidden"
+        />
+      </div>
+      {loadError && (
+        <p className="text-[11px] text-red-300">{loadError}</p>
+      )}
 
       {!sel && !pending && (
         <p className="text-[11px] text-cyan-100/70 italic">

@@ -26,6 +26,10 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   (`auto` strategy, matching the ramp engine's default) before being written
   as hex, so out-of-sRGB chroma/lightness/hue combinations still produce a
   valid base color. (#129)
+- Palette Cycling: "Load Cycle JSON" button on the cycle designer imports a
+  previously exported `pixel-pal-cycle.json` sidecar back in, matching its
+  palette against the currently visible ramps by exact hex sequence and
+  restoring the selected range, playback rate, and direction. (#140)
 
 ### Changed
 - OKLCH base-color editor: the Chroma slider now shows a warning icon and
