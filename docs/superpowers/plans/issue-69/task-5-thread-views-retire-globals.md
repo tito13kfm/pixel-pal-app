@@ -1,5 +1,17 @@
 # Task 5 — Thread aggregate views to `rampsActive`; retire the global selectors
 
+**Status: ✅ Done.** Every non-card consumer now reads `rampsActive` /
+`buildRampsForSnapshot(snap)` (Visualization, Playground, Remap, side-by-side,
+sprite preview) and all exports render per-ramp: `export.ts`
+`collectPaletteEntries`/`filteredRamp` take `rampsActive` (dropped
+`selectRampsForStyle`); `useExport` per-ramp Copy/Download and whole-palette
+gpl/pal/ase/strip use `activeStyleFor(i)` with a `-mixed` filename tag when
+styles diverge. `vizStyle`/`gplStyle`/`rampExportStyle` (+ setters, persist
+effects, and their `ui:` keys) are removed; the RampsPanel "Ramp export:"
+toggle and the ExportPanel/Viz style trios are gone. `npm test` (591 tests),
+type gate, `npm run build`, `npm run deadcode:ci` (0 new), and `npm run test:e2e`
+(53 passed) all green.
+
 > Read `../README.md` first.
 
 **Depends on:** Task 4 (`rampsActive`, `activeStyleFor`).
