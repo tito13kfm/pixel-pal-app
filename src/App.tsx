@@ -369,6 +369,7 @@ export default function PixelPalGenerator() {
   const { startTour, exitTour, runTourSetup } = useTourOrchestration({
     mode, setMode, exportOpen, setExportOpen, hwPickerOpen, setHwPickerOpen,
     harmonyOpen, setHarmonyOpen,
+    savedOpen, setSavedOpen, sbsOpen, setSbsOpen, cvdMode, setCvdMode,
     tourGuideId, setTourGuideId, setTourOpen, setTourStep, setLauncherOpen,
   });
 
@@ -997,6 +998,7 @@ export default function PixelPalGenerator() {
         {/* ---------- Saved Palettes (collapsible) ---------- */}
         <SectionCard
           sectionKey="saved" accent="#ffff00" bg={t.cardBgYellow} glow={0.25}
+          headerTourId="saved-header"
           open={savedOpen} onToggle={() => setSavedOpen(o => !o)}
           headerTitle={savedOpen ? "Collapse the Saved Palettes section" : "Expand the Saved Palettes section"}
           chevronColor="#a5f3fc"
@@ -1094,20 +1096,23 @@ export default function PixelPalGenerator() {
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ TIP:</strong> Click any swatch to copy its hex code.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ DICE:</strong> Rolls a random hex into the Single Color input. Click again to re-roll.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SURPRISE ME:</strong> The AI invents a subject AND generates its palette in one shot. Uses one API call.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ IMPORT:</strong> Drop a Piskel C file to add custom preview sprites.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ COPY:</strong> Click the cyan icon on custom sprites to copy their source code.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SPRITES:</strong> Drop a Piskel C file to add custom preview sprites. Click the cyan icon on a custom sprite to copy its source code.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ EDIT:</strong> Click the slider icon on any ramp to adjust its base color with HSV sliders or a color picker.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ PIN:</strong> Click the pushpin on any shade (except the base) to lock that shade to a custom hex. The base shade is always your chosen base color, so pinning it would do nothing. Pins are per-style: a pin on a Balanced swatch only affects the Balanced ramp. Click a pinned pin again to unpin.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ STYLE TUNING:</strong> Punchy / Balanced / Muted are not fixed: the Style Tuning box at the top of Color Ramps has Reach and Chroma falloff sliders for each style, plus a Reset Styles button to restore the defaults.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ PIN:</strong> Hover any shade (except the base) to reveal its pushpin, then click it to lock that shade to a custom hex. The base shade is always your chosen base color, so pinning it would do nothing. Pins are per-style: a pin on a Balanced swatch only affects the Balanced ramp. Click a pinned pin again to unpin.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ HIDE SHADE:</strong> Right-click any swatch to hide that shade across all 3 styles for that base. Hidden shades are excluded from .gpl / .txt exports and the visualization. Use the Restore button on the ramp card to bring them back. The last visible shade in a ramp cannot be hidden.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ CONTRAST:</strong> Hover any ramp swatch to see WCAG AA contrast ratios against its neighbors. Click the WCAG Check button to enter pick-two mode: click an anchor, then any other ramp swatch to see the ratio, AA tier, and a live foreground/background preview.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ CONTRAST:</strong> Hover any ramp swatch to see WCAG AA contrast ratios against its neighbors. Click the WCAG Check button to enter pick-two mode: click an anchor, then any other ramp swatch to see the ratio, AA tier, and live text samples showing each color on the other.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ CVD SIM:</strong> The Pro / Deu / Tri buttons under the header simulate red-, green-, or blue-blindness across the whole palette view. Display-only: hex values and exports are unaffected. The eye button returns to normal vision.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ HARMONIZE:</strong> Rotates every unlocked non-anchor ramp to a color-theory position (complement, analogous, triadic, etc.) relative to the anchor ramp. Anchor is the ramp set in the Derive From selector. Lock any ramp to hold its hue in place during the rotation.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ LOCK RAMP:</strong> Click the lock icon on any ramp card to freeze it. Generate, Shuffle, and Harmonize all skip locked ramps. Pins and hidden shades are unaffected. Useful for protecting a finished ramp while iterating on the rest of the palette.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SIDE-BY-SIDE:</strong> Compare two palettes (the working palette or any saved palette) in mosaic, lightness bar, and chromatic plot views. Useful for comparing a candidate palette against an established one. Distinct from WCAG Check in the export bar, which checks two individual swatches for WCAG contrast.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ VIZ VIEWS:</strong> The Visualize & Compare section inspects the palette from several angles: Chromatic Plot (hue/saturation spread), Lightness Distribution (missing tonal ranges), Mosaic (raw swatches), Adjacency Matrix (pair contrast), Dither Blend (checker mixes), Palette Cycling, and an Image Preview that remaps any uploaded image to the palette.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SIDE-BY-SIDE:</strong> Compare two palettes (the working palette or any saved palette) by filling Slot B in Visualize & Compare; every view switches to a two-column layout. Useful for comparing a candidate palette against an established one. Distinct from WCAG Check in the export bar, which checks two individual swatches for WCAG contrast.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ REORDER:</strong> Drag the grip handle on any section header to rearrange the sections. A Reset Layout button appears above them whenever the order differs from the default.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ HARMONY:</strong> With multiple ramps, use the "Derive From" selector at the top of the Harmony Colors section to choose which ramp drives the harmony palette.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SAVE:</strong> Name and save palettes locally. They persist across browser sessions on this device. The Saved Palettes section also has a compact loader for the classic "inspired by" presets (DB16, PICO-8, Game Boy, etc).</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ LOCK:</strong> Click a hardware button (NES, Game Boy, CGA 16, EGA 64, C64) to enter a persistent lock mode. Every generated shade and harmony color snaps to the nearest hardware-legal hex. Click the active button again or "Unlock" to return to free generation. Non-destructive: your base colors and pins are preserved.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ HISTORY:</strong> The History section above the export bar lists your recent actions. Click any entry to jump to that state, or use Cmd/Ctrl+Z and Cmd/Ctrl+Y for sequential undo/redo. Last 20 actions are remembered per browser session; a page reload starts fresh.</p>
-          <p><strong className={t.tipPanelStrong}>▸ .GPL:</strong> Standard GIMP palette format, importable into Piskel, Aseprite, GIMP, Krita, and most pixel art tools.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ HISTORY:</strong> The History section above the export bar lists your recent actions. Click any entry to jump to that state, or use Cmd/Ctrl+Z and Cmd/Ctrl+Y for sequential undo/redo. Last 50 actions are remembered per browser session; a page reload starts fresh.</p>
+          <p><strong className={t.tipPanelStrong}>▸ EXPORT FORMATS:</strong> .gpl is the standard GIMP palette format (Piskel, Aseprite, GIMP, Krita). .pal is JASC format for GrafX2 and friends. Adobe .ase targets Photoshop / Illustrator / Krita (not Aseprite). The PNG strip works with any tool's eyedropper, and .txt is a plain hex list.</p>
           </div>}
         </div>
         </div>{/* end CVD filter wrapper */}
@@ -1289,7 +1294,12 @@ export default function PixelPalGenerator() {
         open={tourOpen}
         guideId={tourGuideId}
         step={tourStep}
-        appState={{ mode, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors, harmonized: harmonizeBaseline != null }}
+        appState={{
+          mode, imageDataUrl, exportOpen, compareMode, hwPickerOpen, baseColors,
+          harmonized: harmonizeBaseline != null,
+          savedOpen, savedCount: savedPalettes.length, sbsOpen, cvdMode,
+          hiddenCount: Object.values(hiddenShades).reduce((n: number, arr: any) => n + (Array.isArray(arr) ? arr.length : 0), 0),
+        }}
         runSetup={runTourSetup}
         onSetStep={setTourStep}
         onExit={exitTour}

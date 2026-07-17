@@ -94,6 +94,34 @@ test.describe('tour copy references real UI elements', () => {
     await expect(page.getByRole('button', { name: 'C64', exact: true })).toBeAttached()
   })
 
+  test('new guide labels are listed in the launcher', async ({ page }) => {
+    await openGuides(page)
+    await expect(page.getByText('Hide a shade', { exact: true })).toBeVisible()
+    await expect(page.getByText('Save & load palettes', { exact: true })).toBeVisible()
+    await expect(page.getByText('Compare side-by-side', { exact: true })).toBeVisible()
+    await expect(page.getByText('Simulate colorblindness', { exact: true })).toBeVisible()
+  })
+
+  test('Saved Palettes section controls exist', async ({ page }) => {
+    // save-palette steps 1-2
+    await page.getByRole('button', { name: /Saved Palettes/ }).click()
+    await expect(page.getByPlaceholder('Name this palette...')).toBeAttached()
+    await expect(page.getByRole('button', { name: 'Save Current', exact: true })).toBeAttached()
+  })
+
+  test('Visualize & Compare slot selectors exist', async ({ page }) => {
+    // side-by-side steps 1-2
+    await page.getByRole('button', { name: /Visualize & Compare/ }).click()
+    await expect(page.getByTitle('Pick a second palette to compare side-by-side (empty = single-column view)')).toBeAttached()
+  })
+
+  test('CVD simulation buttons exist in the header', async ({ page }) => {
+    // cvd-sim step 1 names Pro / Deu / Tri
+    await expect(page.getByTitle('Protanopia: simulates red-blindness (~1% of men)')).toBeVisible()
+    await expect(page.getByTitle('Deuteranopia: simulates green-blindness (~6% of men, most common CVD)')).toBeVisible()
+    await expect(page.getByTitle('Tritanopia: simulates blue-blindness (very rare)')).toBeVisible()
+  })
+
   test('Harmony Colors section and Harmonize button exist', async ({ page }) => {
     // harmonize step 2
     // Section heading is inside a toggle button; use text match
@@ -179,6 +207,62 @@ test.describe('tour auto-advance detectors fire correctly', () => {
     // compareMode edge fires.
     await page.getByRole('button', { name: 'WCAG Check', exact: true }).click()
     await expect(page.getByText('Pick two swatches')).toBeVisible({ timeout: 2000 })
+  })
+
+  test('hide-shade: right-clicking a swatch advances step 1', async ({ page }) => {
+    await openGuides(page)
+    await page.getByText('Hide a shade', { exact: true }).click()
+    await expect(page.getByText('Right-click a swatch')).toBeVisible()
+
+    // Documented action: right-click any shade swatch → hiddenCount edge fires.
+    await page.locator('button[title*="Right-click to hide this shade"]').first().click({ button: 'right' })
+    await expect(page.getByText('Hidden everywhere it matters')).toBeVisible({ timeout: 2000 })
+
+    await page.getByRole('button', { name: 'Next →' }).click()
+    await expect(page.getByText('Restore hidden shades')).toBeVisible({ timeout: 2000 })
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    await expect(page.locator('.tour-popover')).not.toBeAttached()
+  })
+
+  test('save-palette: opening the section then saving advances both detector steps', async ({ page }) => {
+    // savedOpen defaults false in a fresh context, so step 1's detector starts false.
+    await openGuides(page)
+    await page.getByText('Save & load palettes', { exact: true }).click()
+    await expect(page.getByText('Open Saved Palettes')).toBeVisible()
+
+    // Step 1 action: click the Saved Palettes header → savedOpen edge fires.
+    await page.getByRole('button', { name: /Saved Palettes/ }).click()
+    await expect(page.getByText('Name and save')).toBeVisible({ timeout: 2000 })
+
+    // Step 2 action: name the palette and save → savedCount edge fires.
+    await page.getByPlaceholder('Name this palette...').fill('tour test palette')
+    await page.getByRole('button', { name: 'Save Current', exact: true }).click()
+    await expect(page.getByText('Load it back')).toBeVisible({ timeout: 2000 })
+  })
+
+  test('side-by-side: Visualize & Compare header advances step 1', async ({ page }) => {
+    // sbsOpen defaults false in a fresh context, so step 1's detector starts false.
+    await openGuides(page)
+    await page.getByText('Compare side-by-side', { exact: true }).click()
+    await expect(page.getByText('Open Visualize & Compare')).toBeVisible()
+
+    // Step 1 action: click the section header → sbsOpen edge fires.
+    await page.getByRole('button', { name: /Visualize & Compare/ }).click()
+    await expect(page.getByText('Fill Slot B')).toBeVisible({ timeout: 2000 })
+
+    await page.getByRole('button', { name: 'Next →' }).click()
+    await expect(page.getByText('Read the views')).toBeVisible({ timeout: 2000 })
+  })
+
+  test('cvd-sim: picking a simulation advances step 1', async ({ page }) => {
+    // cvdMode defaults to 'none' in a fresh context, so step 1's detector starts false.
+    await openGuides(page)
+    await page.getByText('Simulate colorblindness', { exact: true }).click()
+    await expect(page.getByText('Pick a simulation')).toBeVisible()
+
+    // Documented action: click Deu → cvdMode edge fires.
+    await page.getByTitle('Deuteranopia: simulates green-blindness (~6% of men, most common CVD)').click()
+    await expect(page.getByText('Check and iterate')).toBeVisible({ timeout: 2000 })
   })
 
   test('hardware-lock: Export then Hardware Lock advances both steps', async ({ page }) => {

@@ -126,7 +126,7 @@ export function HeaderControls(props: HeaderControlsProps) {
             live OUTSIDE the filtered region so the active state stays
             readable in all modes. Aligned horizontally with the theme
             switcher on the right via an invisible spacer above. */}
-        <div className="flex gap-1 rounded border-2 p-1 pointer-events-auto" style={{ borderColor: t.panelBorder, background: t.panelBg }}>
+        <div data-tour-id="cvd-buttons" className="flex gap-1 rounded border-2 p-1 pointer-events-auto" style={{ borderColor: t.panelBorder, background: t.panelBg }}>
           {[
             { id: 'none',   label: 'None', hint: 'Normal vision (no simulation)' },
             { id: 'protan', label: 'Pro',  hint: 'Protanopia: simulates red-blindness (~1% of men)' },

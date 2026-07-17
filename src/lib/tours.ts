@@ -6,6 +6,11 @@ export interface TourAppState {
   hwPickerOpen: boolean
   baseColors: string[]
   harmonized: boolean
+  savedOpen: boolean
+  savedCount: number
+  sbsOpen: boolean
+  cvdMode: string
+  hiddenCount: number
 }
 
 export interface TourStep {
@@ -45,7 +50,7 @@ export const ONBOARDING_TOUR: TourGuide = {
     },
     {
       title: 'Palette ramps',
-      body: 'Generate a palette to see ramps here. Each ramp shows 2-64 shades, rendered in your choice of three contrast styles (Punchy, Balanced, Muted).',
+      body: 'Generate a palette to see ramps here. Each ramp shows 2-64 shades, rendered in your choice of three contrast styles (Punchy, Balanced, Muted, all fully editable).',
       target: 'ramp-area',
       advance: 'next',
       placement: 'auto',
@@ -155,6 +160,31 @@ export const TASK_GUIDES: TourGuide[] = [
     ],
   },
   {
+    id: 'hide-shade',
+    label: 'Hide a shade',
+    steps: [
+      {
+        title: 'Right-click a swatch',
+        body: 'Right-click (or long-press on touch) any shade swatch to hide that shade across all 3 styles for that base. The last visible shade in a ramp cannot be hidden.',
+        hint: '→ right-click any shade swatch',
+        target: 'ramp-area',
+        advance: 'detector',
+        detector: (s) => s.hiddenCount > 0,
+        placement: 'auto',
+      },
+      {
+        title: 'Hidden everywhere it matters',
+        body: 'Hidden shades are excluded from .gpl and .txt exports and from every visualization, so what you see is what you ship.',
+        advance: 'next',
+      },
+      {
+        title: 'Restore hidden shades',
+        body: 'A yellow Restore button appears on a ramp card whenever it has hidden shades. Click it to bring them all back.',
+        advance: 'next',
+      },
+    ],
+  },
+  {
     id: 'hardware-lock',
     label: 'Snap to hardware colors',
     steps: [
@@ -225,6 +255,64 @@ export const TASK_GUIDES: TourGuide[] = [
     ],
   },
   {
+    id: 'save-palette',
+    label: 'Save & load palettes',
+    steps: [
+      {
+        title: 'Open Saved Palettes',
+        body: 'The Saved Palettes section stores up to 100 palettes locally on this device. Open it to continue.',
+        hint: '→ click Saved Palettes',
+        target: 'saved-header',
+        advance: 'detector',
+        detector: (s) => s.savedOpen,
+        placement: 'bottom',
+      },
+      {
+        title: 'Name and save',
+        body: 'Type a name and click Save Current. Saved palettes persist across sessions in this browser.',
+        hint: '→ click Save Current',
+        target: 'save-controls',
+        setup: 'saved',
+        advance: 'detector',
+        detector: (s) => s.savedCount > 0,
+        placement: 'auto',
+      },
+      {
+        title: 'Load it back',
+        body: 'Click any saved palette to load it, replacing the current one. Use the pencil and trash icons to rename or delete, and the classic loader below the list for the "inspired by" presets (DB16, PICO-8, Game Boy, and more).',
+        advance: 'next',
+      },
+    ],
+  },
+  {
+    id: 'side-by-side',
+    label: 'Compare side-by-side',
+    steps: [
+      {
+        title: 'Open Visualize & Compare',
+        body: 'All comparison views live in the Visualize & Compare section. Open it to continue.',
+        hint: '→ click Visualize & Compare',
+        target: 'viz-header',
+        advance: 'detector',
+        detector: (s) => s.sbsOpen,
+        placement: 'bottom',
+      },
+      {
+        title: 'Fill Slot B',
+        body: 'Slot A holds the palette being visualized (your working palette by default). Pick a second palette in the Slot B dropdown, saved or classic, to switch every view into two-column compare mode.',
+        target: 'sbs-right-select',
+        setup: 'viz',
+        advance: 'next',
+        placement: 'auto',
+      },
+      {
+        title: 'Read the views',
+        body: 'The Chromatic Plot shows hue and saturation spread, the Lightness Distribution reveals missing tonal ranges, and the Mosaic lines up raw swatches. Clear Slot B to return to single-column view.',
+        advance: 'next',
+      },
+    ],
+  },
+  {
     id: 'export-gpl',
     label: 'Export your palette',
     steps: [
@@ -288,6 +376,26 @@ export const TASK_GUIDES: TourGuide[] = [
       {
         title: 'Read the result',
         body: 'The panel shows AA and AAA pass/fail for normal and large text contrast ratios.',
+        advance: 'next',
+      },
+    ],
+  },
+  {
+    id: 'cvd-sim',
+    label: 'Simulate colorblindness',
+    steps: [
+      {
+        title: 'Pick a simulation',
+        body: 'The buttons under the header simulate color vision deficiency: Pro (protanopia, red-blind), Deu (deuteranopia, green-blind), Tri (tritanopia, blue-blind). Click one to filter the whole palette view.',
+        hint: '→ click Pro, Deu, or Tri',
+        target: 'cvd-buttons',
+        advance: 'detector',
+        detector: (s) => s.cvdMode !== 'none',
+        placement: 'bottom',
+      },
+      {
+        title: 'Check and iterate',
+        body: 'The simulation is display-only: hex values and exports are unaffected. If two swatches become hard to tell apart, push their lightness or hue further apart. The eye button returns to normal vision.',
         advance: 'next',
       },
     ],

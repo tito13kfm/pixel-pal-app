@@ -412,13 +412,13 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
 ## Tour / onboarding system
 
 Data in `lib/tours.ts`: `ONBOARDING_TOUR` (auto-fires once, gated on
-`pixel-pal-tour-seen`) + `TASK_GUIDES` (seven how-to flows). Each step has a `target`
+`pixel-pal-tour-seen`) + `TASK_GUIDES` (eleven how-to flows). Each step has a `target`
 (`data-tour-id`), `advance: 'next' | 'detector'`, and optional `detector(appState)`
 predicate + `setup` id. `TourOverlay.tsx` (a portal with an SVG even-odd cutout +
 popover) per step: resets the detector baseline, runs `setup`, rAF-waits for the target
 to mount (≤ 2 s, then degrades to a centered card + Next), captures the baseline AFTER
 mount, positions via `lib/tour-runtime.ts` (floating-ui, `strategy: 'fixed'`,
 viewport-clamped), and arms `autoUpdate`. It auto-advances on a detector false→true edge.
-App.tsx wires `runTourSetup` (only the `export` / `harmony` panel setters),
-`snapshotTourState` / `restoreTourState` (save + restore mode / panels / compare
-around a tour run), and feeds the live `appState`.
+App.tsx wires `runTourSetup` (the `export` / `harmony` / `saved` / `viz` panel setters),
+`snapshotTourState` / `restoreTourState` (save + restore mode / panels / compare /
+CVD simulation around a tour run), and feeds the live `appState`.

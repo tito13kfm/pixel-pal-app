@@ -3,8 +3,9 @@
 //
 // Extracted from App.tsx. The tour's own open/guide/step state lives in
 // useTour (a plain state bag); this hook spans the OTHER domains a guide
-// needs to stage (input mode, export/harmony/hardware panels, compare
-// mode), which is why the orchestration was long stuck in App.tsx. Panel
+// needs to stage (input mode, export/harmony/hardware/saved/viz panels,
+// compare mode, CVD simulation), which is why the orchestration was long
+// stuck in App.tsx. Panel
 // setters arrive via params; compare state flows through the Zustand-backed
 // usePaletteState(). Owns only the pre-tour snapshot ref.
 import { useEffect, useRef } from 'react';
@@ -20,6 +21,12 @@ interface UseTourOrchestrationParams {
   setHwPickerOpen: (v: boolean) => void;
   harmonyOpen: boolean;
   setHarmonyOpen: (v: boolean) => void;
+  savedOpen: boolean;
+  setSavedOpen: (v: boolean) => void;
+  sbsOpen: boolean;
+  setSbsOpen: (v: boolean) => void;
+  cvdMode: string;
+  setCvdMode: (v: string) => void;
   // useTour() state (App.tsx destructures the hook and passes through).
   tourGuideId: string | null;
   setTourGuideId: (v: string | null) => void;
@@ -36,12 +43,16 @@ type TourSnapshot = {
   hwPickerOpen: boolean;
   compareMode: boolean;
   harmonyOpen: boolean;
+  savedOpen: boolean;
+  sbsOpen: boolean;
+  cvdMode: string;
 };
 
 export function useTourOrchestration(p: UseTourOrchestrationParams) {
   const {
     mode, setMode, exportOpen, setExportOpen, hwPickerOpen, setHwPickerOpen,
     harmonyOpen, setHarmonyOpen,
+    savedOpen, setSavedOpen, sbsOpen, setSbsOpen, cvdMode, setCvdMode,
     tourGuideId, setTourGuideId, setTourOpen, setTourStep, setLauncherOpen,
   } = p;
   const { compareMode, setCompareMode, setCompareAnchor, setCompareResult } = usePaletteState();
@@ -55,6 +66,8 @@ export function useTourOrchestration(p: UseTourOrchestrationParams) {
   const SETUP_SETTERS: Record<string, (v: boolean) => void> = {
     export: setExportOpen,
     harmony: setHarmonyOpen,
+    saved: setSavedOpen,
+    viz: setSbsOpen,
   };
 
   const runTourSetup = (setupId: string) => {
@@ -65,6 +78,7 @@ export function useTourOrchestration(p: UseTourOrchestrationParams) {
   const snapshotTourState = () => {
     tourSnapshot.current = {
       mode, exportOpen, hwPickerOpen, compareMode, harmonyOpen,
+      savedOpen, sbsOpen, cvdMode,
     };
   };
 
@@ -77,6 +91,9 @@ export function useTourOrchestration(p: UseTourOrchestrationParams) {
     setCompareMode(s.compareMode);
     if (!s.compareMode) { setCompareAnchor(null); setCompareResult(null); }
     setHarmonyOpen(s.harmonyOpen);
+    setSavedOpen(s.savedOpen);
+    setSbsOpen(s.sbsOpen);
+    setCvdMode(s.cvdMode);
     tourSnapshot.current = null;
   };
 

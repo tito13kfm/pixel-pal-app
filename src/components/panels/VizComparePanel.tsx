@@ -435,6 +435,7 @@ export function VizComparePanel({
   return (
     <SectionCard
       sectionKey="viz" accent={styleAccent} bg={t.cardBgViz} glow={0.4}
+      headerTourId="viz-header"
       open={sbsOpen} onToggle={() => setSbsOpen(o => !o)}
       headerTitle={sbsOpen ? "Collapse the Visualize & Compare section" : "Expand the Visualize & Compare section"}
       chevronColor="#a5f3fc"
@@ -613,6 +614,7 @@ export function VizComparePanel({
             <select
               value={sbsRight === null ? '' : sbsRight}
               onChange={(e) => setSbsRight(parseSlot(e.target.value))}
+              data-tour-id="sbs-right-select"
               title="Pick a second palette to compare side-by-side (empty = single-column view)"
               className="w-full px-2 py-1.5 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-sm font-mono"
             >

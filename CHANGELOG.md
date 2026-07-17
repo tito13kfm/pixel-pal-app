@@ -19,6 +19,15 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 ## [Unreleased]
 
 ### Added
+- Four new "Show me how" guides (#53): Hide a shade, Save & load palettes,
+  Compare side-by-side, and Simulate colorblindness, each with spotlight
+  targets and auto-advance detectors (hidden-shade count, saved-palette
+  count, section-open state, CVD mode). Tour exit now also restores the
+  Saved Palettes / Visualize & Compare open state and the CVD simulation
+  to their pre-tour values.
+- Four new Tips bullets (#53): STYLE TUNING (Punchy/Balanced/Muted are
+  editable), CVD SIM (Pro/Deu/Tri simulation buttons), VIZ VIEWS (what each
+  Visualize & Compare view shows), and REORDER (drag-handle section layout).
 - Native OKLCH sliders (Light/Chroma/Hue) for the base-color editor, alongside
   the existing HSV sliders. An HSV/OKLCH toggle in the "Adjust Base" panel
   switches which color space the sliders show; both write through the same
@@ -32,6 +41,12 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   restoring the selected range, playback rate, and direction. (#140)
 
 ### Changed
+- Tips panel cleanup (#53): the two Piskel bullets (IMPORT / COPY) merged
+  into one SPRITES tip; the .GPL bullet expanded into EXPORT FORMATS
+  covering all five formats; the PIN tip now explains the hover-reveal
+  pushpin; the CONTRAST tip describes the WCAG panel's actual anchor +
+  text-sample preview. Onboarding step 3 notes the contrast styles are
+  editable.
 - OKLCH base-color editor: the Chroma slider now shows a warning icon and
   tints orange when the dragged value is out of sRGB gamut, alongside a
   tooltip disclosing the chroma it's actually clamped to. The slider/swatch
@@ -40,6 +55,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   (#146)
 
 ### Fixed
+- HISTORY tip claimed "Last 20 actions": the undo/redo cap has been 50
+  (`HISTORY_DEPTH_CAP`) since the history panel landed. (#53)
 - Removing or duplicating a ramp now re-keys the per-ramp advanced settings
   (`hueShiftStrengthPerRamp`, `lightnessCurvePerRamp`, `satCurvePerRamp`,
   `gamutPerRamp`) like every other base-keyed structure. Previously,
