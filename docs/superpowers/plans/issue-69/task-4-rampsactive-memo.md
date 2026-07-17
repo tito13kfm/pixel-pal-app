@@ -1,5 +1,11 @@
 # Task 4 — `rampsActive` memo + snapshot producers
 
+**Status: ✅ Done.** `App.tsx` now has `activeStyleFor` + the `rampsActive` memo
+(defaults to `rampsPunchy` output since no consumer or override exists yet).
+`buildWorkingSnapshot` carries the new fields via `workingRenderInputs`;
+`buildClassicSnapshot` defaults them to punchy/empty. `npm test` (594 tests),
+type gate, and `npm run build` all green; `npm run deadcode:ci` reports 0 new.
+
 > Read `../README.md` first.
 
 **Depends on:** Task 2 (buildRamp per-ramp) + Task 3 (store fields + `workingRenderInputs`).
