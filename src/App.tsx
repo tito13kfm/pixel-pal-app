@@ -330,9 +330,10 @@ export default function PixelPalGenerator() {
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
   const rampsMuted = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'muted', i)), [liveRampSnapshot]);
 
-  // rampsActive + the per-ramp picker + custom-scalar sliders (#69) live in
-  // useRampStyleActions; kept out of App.tsx to stay under the #113 line ratchet.
-  const { activeStyleFor, rampsActive, setRampStyleOverride, setRampScalar } = useRampStyleActions({
+  // Per-ramp style controls (#69), kept out of App.tsx for the #113 ratchet:
+  // rampsActive + picker + custom sliders (useRampStyleActions) and named
+  // custom-style save/load (useSavedStylesActions); both spread into RampsPanel.
+  const rampStyleActions = useRampStyleActions({
     liveRampSnapshot,
     rampStyleOverrides,
     rampStyleScalars,
@@ -341,11 +342,8 @@ export default function PixelPalGenerator() {
     setRampStyleOverrides,
     setRampStyleScalars,
   });
-
-  // Named save/load of custom ramp styles (#69 capability 4): a compact
-  // in-editor load/save UI, wired here so the hook shares App.tsx's
-  // tagNextLabel + the raw per-ramp style setters.
-  const { savedStyles, saveStyle, loadStyleOntoRamp, deleteStyle } = useSavedStylesActions({
+  const { activeStyleFor, rampsActive } = rampStyleActions;
+  const savedStyleActions = useSavedStylesActions({
     setRampStyleScalars,
     setRampStyleOverrides,
     tagNextLabel,
@@ -849,17 +847,11 @@ export default function PixelPalGenerator() {
             rampsPunchy={rampsPunchy}
             rampsBalanced={rampsBalanced}
             rampsMuted={rampsMuted}
-            rampsActive={rampsActive}
-            activeStyleFor={activeStyleFor}
+            {...rampStyleActions}
+            {...savedStyleActions}
             rampStyleOverrides={rampStyleOverrides}
-            setRampStyleOverride={setRampStyleOverride}
             setRampStyleOverrides={setRampStyleOverrides}
             rampStyleScalars={rampStyleScalars}
-            setRampScalar={setRampScalar}
-            savedStyles={savedStyles}
-            saveStyle={saveStyle}
-            loadStyleOntoRamp={loadStyleOntoRamp}
-            deleteStyle={deleteStyle}
             paletteDefaultStyle={paletteDefaultStyle}
             setPaletteDefaultStyle={setPaletteDefaultStyle}
             stylePresets={stylePresets}
