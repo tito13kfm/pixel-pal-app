@@ -413,7 +413,7 @@ export function RampsPanel(props: RampsPanelProps) {
           <div key={i} {...(makeRampDragHandlers(i) as any)} data-ramp-index={i} className="mb-4 last:mb-0 relative rounded-lg p-4" style={{ border: `2px solid ${cardBorder}`, boxShadow: [`0 0 14px ${cardGlow}`, rampDropLine(i), highlightedRamp === i ? '0 0 0 3px #ff2ec4, 0 0 22px rgba(255,46,196,0.6)' : null].filter(Boolean).join(', ') }}>
             <div className="absolute top-1/2 right-0 -translate-y-1/2 z-10">{rampGrip(i)}</div>
             <div className="absolute -top-2 right-2 flex gap-1 z-10">
-              <button onClick={() => toggleBaseEditor(i)} title={editingIndex === i ? 'Close editor' : 'Edit base color'} className={`w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center ${editingIndex === i ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-cyan-500 text-white border-cyan-200 hover:bg-cyan-400'}`} style={editingIndex === i ? { boxShadow: '0 0 10px #ffff00' } : { boxShadow: '0 0 8px rgba(0, 200, 255, 0.6)' }}>
+              <button onClick={() => toggleBaseEditor(i)} data-tour-id={i === 0 ? 'ramp-edit-btn' : undefined} title={editingIndex === i ? 'Close editor' : 'Edit base color'} className={`w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center ${editingIndex === i ? 'bg-yellow-300 text-purple-900 border-yellow-100' : 'bg-cyan-500 text-white border-cyan-200 hover:bg-cyan-400'}`} style={editingIndex === i ? { boxShadow: '0 0 10px #ffff00' } : { boxShadow: '0 0 8px rgba(0, 200, 255, 0.6)' }}>
                 <Sliders size={14} />
               </button>
               {!isLocked && (
@@ -423,6 +423,7 @@ export function RampsPanel(props: RampsPanelProps) {
               )}
               <button
                 onClick={() => toggleRampLock(i)}
+                data-tour-id={i === 0 ? 'ramp-lock-btn' : undefined}
                 title={isLocked
                   ? 'Unlock this ramp. Once unlocked, it will be affected by Generate, Shuffle, and Harmonize again.'
                   : 'Lock this ramp. The Generate/Shuffle buttons will skip it, and Harmonize will use it as a fixed reference. Pins and hidden shades are unaffected (they were per-ramp anyway).'}
@@ -564,6 +565,7 @@ export function RampsPanel(props: RampsPanelProps) {
                     )}
                   </div>
                   <RampAdvancedPanel
+                    dataTourId={i === 0 ? 'ramp-advanced-toggle' : undefined}
                     open={advancedOpen[String(i)] ?? false}
                     lightnessCurve={lightnessCurvePerRamp[String(i)] ?? LIGHTNESS_PRESETS.eased}
                     satCurve={satCurvePerRamp[String(i)] ?? SAT_PRESETS.flat}

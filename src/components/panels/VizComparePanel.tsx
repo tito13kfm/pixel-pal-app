@@ -454,6 +454,7 @@ export function VizComparePanel({
           <p className="text-[11px] text-cyan-100/70 italic mb-2 bg-black/60 rounded px-2 py-1">Upload an image. Every pixel snaps to the nearest color in the active palette (current style, hidden shades excluded, hardware lock honored). Auto-updates as you edit; 300ms debounce.</p>
           {!remapImageDataUrl && (
             <div
+              data-tour-id="remap-dropzone"
               onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setRemapDragOver(true); }}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (!remapDragOver) setRemapDragOver(true); }}
               onDragLeave={(e) => {

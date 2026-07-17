@@ -19,15 +19,23 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 ## [Unreleased]
 
 ### Added
-- Four new "Show me how" guides (#53): Hide a shade, Save & load palettes,
-  Compare side-by-side, and Simulate colorblindness, each with spotlight
-  targets and auto-advance detectors (hidden-shade count, saved-palette
-  count, section-open state, CVD mode). Tour exit now also restores the
-  Saved Palettes / Visualize & Compare open state and the CVD simulation
-  to their pre-tour values.
-- Four new Tips bullets (#53): STYLE TUNING (Punchy/Balanced/Muted are
+- Nine new "Show me how" guides (#53): Hide a shade, Save & load palettes,
+  Compare side-by-side, Simulate colorblindness, Lock a ramp, Shape a ramp
+  (Advanced), One-click palette (Surprise Me), Remap an image to your
+  palette, and Import a .gpl palette, each with spotlight targets and
+  auto-advance detectors (hidden-shade count, saved-palette count,
+  section-open state, CVD mode, locked-ramp count, Advanced-disclosure
+  state, base-color count, remap-image loaded, GPL-import-modal open). The
+  guide launcher now groups all sixteen guides under four category headings
+  (Generate / Edit & Refine / Check & Compare / Save & Export). Tour exit
+  now also restores the Saved Palettes / Visualize & Compare open state and
+  the CVD simulation to their pre-tour values.
+- Six new Tips bullets (#53): STYLE TUNING (Punchy/Balanced/Muted are
   editable), CVD SIM (Pro/Deu/Tri simulation buttons), VIZ VIEWS (what each
-  Visualize & Compare view shows), and REORDER (drag-handle section layout).
+  Visualize & Compare view shows), REORDER (drag-handle section layout),
+  PLAYGROUND (the Pixel Playground drawing tools), ADVANCED (the per-ramp
+  curve/gamut/hue-shift editor), and IMPORT .GPL (loading a GIMP palette
+  file).
 - Native OKLCH sliders (Light/Chroma/Hue) for the base-color editor, alongside
   the existing HSV sliders. An HSV/OKLCH toggle in the "Adjust Base" panel
   switches which color space the sliders show; both write through the same
@@ -57,6 +65,10 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 ### Fixed
 - HISTORY tip claimed "Last 20 actions": the undo/redo cap has been 50
   (`HISTORY_DEPTH_CAP`) since the history panel landed. (#53)
+- SURPRISE ME tip still described the pre-0.25.0 AI path ("The AI invents a
+  subject... Uses one API call"). Rewritten to cover the current local
+  golden-angle generator, Around This, and Mood presets, none of which had
+  any tip coverage. (#53)
 - Removing or duplicating a ramp now re-keys the per-ramp advanced settings
   (`hueShiftStrengthPerRamp`, `lightnessCurvePerRamp`, `satCurvePerRamp`,
   `gamutPerRamp`) like every other base-keyed structure. Previously,

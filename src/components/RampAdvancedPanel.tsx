@@ -12,6 +12,7 @@ interface RampAdvancedPanelProps {
   hueShift: number;
   hueShiftOverridden: boolean;
   sizeLocked?: boolean;
+  dataTourId?: string;
   onToggle: () => void;
   onLightnessCurveChange: (pts: CurvePoints) => void;
   onSatCurveChange: (pts: CurvePoints) => void;
@@ -23,7 +24,7 @@ interface RampAdvancedPanelProps {
 const GAMUTS: GamutStrategySerialized[] = ['auto', 'clip', 'chroma-preserve'];
 
 export const RampAdvancedPanel: React.FC<RampAdvancedPanelProps> = ({
-  open, lightnessCurve, satCurve, gamut, hueShift, hueShiftOverridden, sizeLocked,
+  open, lightnessCurve, satCurve, gamut, hueShift, hueShiftOverridden, sizeLocked, dataTourId,
   onToggle, onLightnessCurveChange, onSatCurveChange, onGamutChange, onHueShiftChange, onHueShiftReset,
 }) => {
   return (
@@ -31,6 +32,7 @@ export const RampAdvancedPanel: React.FC<RampAdvancedPanelProps> = ({
       <button
         type="button"
         onClick={onToggle}
+        data-tour-id={dataTourId}
         aria-expanded={open}
         style={{ background: 'transparent', color: open ? '#ffea00' : '#888', border: 'none', cursor: 'pointer', fontSize: 12, padding: 0, fontFamily: 'monospace' }}
       >

@@ -11,6 +11,11 @@ export interface TourAppState {
   sbsOpen: boolean
   cvdMode: string
   hiddenCount: number
+  lockedCount: number
+  advancedOpenAny: boolean
+  remapLoaded: boolean
+  gplImportOpen: boolean
+  editorOpen: boolean
 }
 
 export interface TourStep {
@@ -24,11 +29,20 @@ export interface TourStep {
   placement?: 'top' | 'bottom' | 'left' | 'right' | 'auto'
 }
 
+export type TourCategory = 'Generate' | 'Edit & Refine' | 'Check & Compare' | 'Save & Export'
+
 export interface TourGuide {
   id: string
   label: string
+  // Launcher grouping. Omitted on ONBOARDING_TOUR, which renders outside the
+  // TASK_GUIDES grid; every TASK_GUIDES entry sets one.
+  category?: TourCategory
   steps: TourStep[]
 }
+
+// Launcher render order. TourPanel groups TASK_GUIDES under these headings,
+// in this sequence, skipping any category with no guides.
+export const TOUR_CATEGORY_ORDER: TourCategory[] = ['Generate', 'Edit & Refine', 'Check & Compare', 'Save & Export']
 
 export const ONBOARDING_TOUR: TourGuide = {
   id: 'onboarding',
@@ -69,6 +83,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'hex-palette',
     label: 'Generate from a hex color',
+    category: 'Generate',
     steps: [
       {
         title: 'Switch to Single Color',
@@ -107,6 +122,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'image-import',
     label: 'Extract from an image',
+    category: 'Generate',
     steps: [
       {
         title: 'Switch to From Image',
@@ -135,6 +151,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'pin-shade',
     label: 'Pin a shade to a custom hex',
+    category: 'Edit & Refine',
     steps: [
       {
         title: 'Generate a palette first',
@@ -162,6 +179,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'hide-shade',
     label: 'Hide a shade',
+    category: 'Edit & Refine',
     steps: [
       {
         title: 'Right-click a swatch',
@@ -185,8 +203,182 @@ export const TASK_GUIDES: TourGuide[] = [
     ],
   },
   {
+    id: 'lock-ramp',
+    label: 'Lock a ramp',
+    category: 'Edit & Refine',
+    steps: [
+      {
+        title: 'Generate a palette first',
+        body: 'Any input mode works, and Lock is most useful with two or more ramps: lock one, then regenerate the rest around it.',
+        target: 'ramp-area',
+        advance: 'detector',
+        detector: (s) => s.baseColors[0] !== '#ff00ff' || s.imageDataUrl !== null,
+        placement: 'auto',
+      },
+      {
+        title: 'Click the lock icon',
+        body: 'Click the lock icon on a ramp card to freeze it.',
+        hint: '→ click the lock icon',
+        target: 'ramp-lock-btn',
+        advance: 'detector',
+        detector: (s) => s.lockedCount > 0,
+        placement: 'auto',
+      },
+      {
+        title: 'What locking protects',
+        body: 'Generate, Shuffle, and Harmonize all skip locked ramps, and Harmonize uses a locked ramp as a fixed reference point. Pins and hidden shades are unaffected either way, since they were already per-ramp. Click the lock again to release it.',
+        advance: 'next',
+      },
+    ],
+  },
+  {
+    id: 'shape-ramp',
+    label: 'Shape a ramp (Advanced)',
+    category: 'Edit & Refine',
+    steps: [
+      {
+        title: 'Generate a palette first',
+        body: 'Any input mode works. You need at least one ramp before shaping it.',
+        target: 'ramp-area',
+        advance: 'detector',
+        detector: (s) => s.baseColors[0] !== '#ff00ff' || s.imageDataUrl !== null,
+        placement: 'auto',
+      },
+      {
+        title: 'Open the ramp editor',
+        body: 'Click the sliders icon on a ramp card to open its editor.',
+        hint: '→ click the sliders icon',
+        target: 'ramp-edit-btn',
+        advance: 'detector',
+        detector: (s) => s.editorOpen,
+        placement: 'auto',
+      },
+      {
+        title: 'Open Advanced',
+        body: 'Inside the editor, click ▸ Advanced to reveal the lightness and saturation curve editors, gamut strategy, and hue-shift control.',
+        hint: '→ click ▸ Advanced',
+        target: 'ramp-advanced-toggle',
+        advance: 'detector',
+        detector: (s) => s.advancedOpenAny,
+        placement: 'auto',
+      },
+      {
+        title: 'What each control does',
+        body: 'The Lightness and Saturation curves reshape how those values fall across the ramp (drag anchors, click empty space to add one, right-click or drag off-edge to delete). Gamut strategy controls how out-of-range colors get pulled back into sRGB. Hue shift rotates hue slightly as lightness changes, for a less flat, more painterly ramp.',
+        advance: 'next',
+      },
+    ],
+  },
+  {
+    id: 'surprise-me',
+    label: 'One-click palette (Surprise Me)',
+    category: 'Generate',
+    steps: [
+      {
+        title: 'Switch to Single Color',
+        body: 'Surprise Me and Around This live on the Single Color tab.',
+        hint: '→ click Single Color',
+        target: 'mode-single',
+        advance: 'detector',
+        detector: (s) => s.mode === 'color',
+        placement: 'bottom',
+      },
+      {
+        title: 'Pick a mood (optional)',
+        body: 'The mood dropdown next to the generator buttons biases the result toward a genre feel (Cozy Farm, Cyberpunk Neon, Gothic Horror, and more). Leave it on "No mood" for pleasing mid-tone defaults.',
+        target: 'generator-row',
+        advance: 'next',
+        placement: 'auto',
+      },
+      {
+        title: 'Click Surprise Me',
+        body: 'One click builds a whole 5-ramp palette: base colors picked with golden-angle hue spacing and perceptual separation so they work together. Instant, local, no AI or network call.',
+        hint: '→ click Surprise Me',
+        target: 'surprise-me-btn',
+        advance: 'detector',
+        detector: (s) => s.baseColors.length === 5,
+        placement: 'auto',
+      },
+      {
+        title: 'Keep rolling, or anchor a color',
+        body: 'Click Surprise Me again for a fresh set. Around This does the same thing but keeps your current hex exactly as base 1, building 4 companions around it instead of replacing it.',
+        advance: 'next',
+      },
+    ],
+  },
+  {
+    id: 'remap-image',
+    label: 'Remap an image to your palette',
+    category: 'Check & Compare',
+    steps: [
+      {
+        title: 'Generate a palette first',
+        body: 'Any input mode works. You need at least one ramp before remapping an image against it.',
+        target: 'ramp-area',
+        advance: 'detector',
+        detector: (s) => s.baseColors[0] !== '#ff00ff' || s.imageDataUrl !== null,
+        placement: 'auto',
+      },
+      {
+        title: 'Open Visualize & Compare',
+        body: 'The Image Preview tool lives in the Visualize & Compare section. Open it to continue.',
+        hint: '→ click Visualize & Compare',
+        target: 'viz-header',
+        advance: 'detector',
+        detector: (s) => s.sbsOpen,
+        placement: 'bottom',
+      },
+      {
+        title: 'Upload an image',
+        body: 'Drag any image onto the drop zone, or browse for a file. Every pixel snaps to the nearest color in your active palette (current style, hidden shades excluded, hardware lock honored if active).',
+        target: 'remap-dropzone',
+        setup: 'viz',
+        advance: 'detector',
+        detector: (s) => s.remapLoaded,
+        placement: 'auto',
+      },
+      {
+        title: 'Tune and download',
+        body: 'The preview auto-updates as you edit the palette (300ms debounce). Pick a dither mode (Floyd-Steinberg, Atkinson, or Stucki) for smoother gradients, set a download scale, then export the remapped image as a PNG.',
+        advance: 'next',
+      },
+    ],
+  },
+  {
+    id: 'import-gpl',
+    label: 'Import a .gpl palette',
+    category: 'Save & Export',
+    steps: [
+      {
+        title: 'Open the Export panel',
+        body: 'GPL import lives in the Export & Tools panel. Open it to continue.',
+        hint: '→ click Export & Tools',
+        target: 'export-header',
+        advance: 'detector',
+        detector: (s) => s.exportOpen,
+        placement: 'bottom',
+      },
+      {
+        title: 'Import a .gpl file',
+        body: 'Click Import .gpl and choose a GIMP palette file exported from Piskel, Aseprite, GIMP, Krita, or any GIMP-compatible tool.',
+        hint: '→ click Import .gpl',
+        target: 'gpl-import-btn',
+        setup: 'export',
+        advance: 'detector',
+        detector: (s) => s.gplImportOpen,
+        placement: 'auto',
+      },
+      {
+        title: 'Choose how to apply it',
+        body: 'Use all as bases loads every imported color as its own ramp (capped at 16). Auto-pick representatives clusters the imported colors and picks a smaller set of representative bases instead. Either way, this replaces your current palette.',
+        advance: 'next',
+      },
+    ],
+  },
+  {
     id: 'hardware-lock',
     label: 'Snap to hardware colors',
+    category: 'Edit & Refine',
     steps: [
       {
         title: 'Open the Export panel',
@@ -217,6 +409,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'harmonize',
     label: 'Harmonize ramps',
+    category: 'Edit & Refine',
     steps: [
       {
         title: 'Switch to Single Color',
@@ -257,6 +450,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'save-palette',
     label: 'Save & load palettes',
+    category: 'Save & Export',
     steps: [
       {
         title: 'Open Saved Palettes',
@@ -287,6 +481,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'side-by-side',
     label: 'Compare side-by-side',
+    category: 'Check & Compare',
     steps: [
       {
         title: 'Open Visualize & Compare',
@@ -315,6 +510,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'export-gpl',
     label: 'Export your palette',
+    category: 'Save & Export',
     steps: [
       {
         title: 'Open the Export panel',
@@ -346,6 +542,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'wcag-compare',
     label: 'Check contrast (WCAG)',
+    category: 'Check & Compare',
     steps: [
       {
         title: 'Open the Export panel',
@@ -383,6 +580,7 @@ export const TASK_GUIDES: TourGuide[] = [
   {
     id: 'cvd-sim',
     label: 'Simulate colorblindness',
+    category: 'Check & Compare',
     steps: [
       {
         title: 'Pick a simulation',

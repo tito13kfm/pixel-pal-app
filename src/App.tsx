@@ -1097,7 +1097,9 @@ export default function PixelPalGenerator() {
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ DICE:</strong> Rolls a random hex into the Single Color input. Click again to re-roll.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SURPRISE ME:</strong> Replaces the palette with 5 base colors picked to work together. Around This does the same but keeps your current hex verbatim as base 1. Both are instant and local (no AI). Pick a Mood next to them to bias the result toward a genre feel.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SPRITES:</strong> Drop a Piskel C file to add custom preview sprites. Click the cyan icon on a custom sprite to copy its source code.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ PLAYGROUND:</strong> The Pixel Playground section is a 64x64 pixel canvas with pencil, eraser, fill, eyedropper, line, rectangle, and ellipse tools, painting directly with your current palette's shades.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ EDIT:</strong> Click the slider icon on any ramp to adjust its base color with HSV sliders or a color picker.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ ADVANCED:</strong> Inside a ramp's editor, open ▸ Advanced for lightness and saturation curve editors, a gamut strategy selector, and a hue-shift control, for more control over how a ramp's shades are generated.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ STYLE TUNING:</strong> Punchy / Balanced / Muted are not fixed: the Style Tuning box at the top of Color Ramps has Reach and Chroma falloff sliders for each style, plus a Reset Styles button to restore the defaults.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ PIN:</strong> Hover any shade (except the base) to reveal its pushpin, then click it to lock that shade to a custom hex. The base shade is always your chosen base color, so pinning it would do nothing. Pins are per-style: a pin on a Balanced swatch only affects the Balanced ramp. Click a pinned pin again to unpin.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ HIDE SHADE:</strong> Right-click any swatch to hide that shade across all 3 styles for that base. Hidden shades are excluded from .gpl / .txt exports and the visualization. Use the Restore button on the ramp card to bring them back. The last visible shade in a ramp cannot be hidden.</p>
@@ -1112,7 +1114,8 @@ export default function PixelPalGenerator() {
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SAVE:</strong> Name and save palettes locally. They persist across browser sessions on this device. The Saved Palettes section also has a compact loader for the classic "inspired by" presets (DB16, PICO-8, Game Boy, etc).</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ LOCK:</strong> Click a hardware button (NES, Game Boy, CGA 16, EGA 64, C64) to enter a persistent lock mode. Every generated shade and harmony color snaps to the nearest hardware-legal hex. Click the active button again or "Unlock" to return to free generation. Non-destructive: your base colors and pins are preserved.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ HISTORY:</strong> The History section above the export bar lists your recent actions. Click any entry to jump to that state, or use Cmd/Ctrl+Z and Cmd/Ctrl+Y for sequential undo/redo. Last 50 actions are remembered per browser session; a page reload starts fresh.</p>
-          <p><strong className={t.tipPanelStrong}>▸ EXPORT FORMATS:</strong> .gpl is the standard GIMP palette format (Piskel, Aseprite, GIMP, Krita). .pal is JASC format for GrafX2 and friends. Adobe .ase targets Photoshop / Illustrator / Krita (not Aseprite). The PNG strip works with any tool's eyedropper, and .txt is a plain hex list.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ EXPORT FORMATS:</strong> .gpl is the standard GIMP palette format (Piskel, Aseprite, GIMP, Krita). .pal is JASC format for GrafX2 and friends. Adobe .ase targets Photoshop / Illustrator / Krita (not Aseprite). The PNG strip works with any tool's eyedropper, and .txt is a plain hex list.</p>
+          <p><strong className={t.tipPanelStrong}>▸ IMPORT .GPL:</strong> Click Import .gpl in Export &amp; Tools to load a GIMP palette file. Choose "Use all as bases" (capped at 16) or "Auto-pick representatives" to cluster it down to a smaller set. Replaces the current palette.</p>
           </div>}
         </div>
         </div>{/* end CVD filter wrapper */}
@@ -1299,6 +1302,11 @@ export default function PixelPalGenerator() {
           harmonized: harmonizeBaseline != null,
           savedOpen, savedCount: savedPalettes.length, sbsOpen, cvdMode,
           hiddenCount: Object.values(hiddenShades).reduce((n: number, arr: any) => n + (Array.isArray(arr) ? arr.length : 0), 0),
+          lockedCount: lockedRamps.size,
+          advancedOpenAny: Object.values(advancedOpen).some(Boolean),
+          remapLoaded: remapImageDataUrl !== null,
+          gplImportOpen: gplImport !== null,
+          editorOpen: editingIndex !== null,
         }}
         runSetup={runTourSetup}
         onSetStep={setTourStep}
