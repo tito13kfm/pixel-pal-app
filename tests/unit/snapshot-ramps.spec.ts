@@ -50,4 +50,25 @@ describe('buildRampsForSnapshot', () => {
     expect(ramps[1]).toHaveLength(64);
     expect(ramps[2]).toHaveLength(5); // 65 is out of range -> global
   });
+
+  it('with no styleOverride, resolves each ramp\'s own active style from the snapshot', () => {
+    const snap = {
+      baseColors: ['#3366cc', '#cc6633', '#33cc66'],
+      rampSize: 5,
+      paletteDefaultStyle: 'muted' as const,
+      rampStyleOverrides: { 0: 'punchy' as const },
+    };
+    const mixed = buildRampsForSnapshot(snap);
+    const allMuted = buildRampsForSnapshot(snap, 'muted');
+    const allPunchy = buildRampsForSnapshot(snap, 'punchy');
+    // index 0 overridden to punchy, indices 1 and 2 fall back to the muted default
+    expect(mixed[0]).toEqual(allPunchy[0]);
+    expect(mixed[1]).toEqual(allMuted[1]);
+    expect(mixed[2]).toEqual(allMuted[2]);
+  });
+
+  it('with no styleOverride and no paletteDefaultStyle, defaults to punchy', () => {
+    const snap = { baseColors: ['#3366cc'], rampSize: 5 };
+    expect(buildRampsForSnapshot(snap)).toEqual(buildRampsForSnapshot(snap, 'punchy'));
+  });
 });

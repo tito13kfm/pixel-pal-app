@@ -4,7 +4,8 @@ import type { CurvePoints } from './curve';
 import type { GamutStrategy } from './oklch';
 import { HARDWARE_PALETTES } from './constants';
 import { hexToHsl, hslToHex } from './color';
-import { styleToScalars, DEFAULT_STYLE_PRESETS } from './style-presets';
+import { resolveRampScalars, DEFAULT_STYLE_PRESETS } from './style-presets';
+import type { RampStyle } from './style-presets';
 import { quantizeToHardware } from './hardware-quantize';
 import { seededHueDelta } from './snapshot-ramps';
 import type { RampSnapshot } from './snapshot-ramps';
@@ -41,6 +42,7 @@ export function buildRamp(snapshot: RampSnapshot, style: string, baseIndex: numb
     shuffleSeed = 0,
     rampShuffleOffsets = {},
     stylePresets = DEFAULT_STYLE_PRESETS,
+    rampStyleScalars = {},
   } = snapshot;
 
   // Migrate legacy string presets from curvePerRamp into lightnessCurvePerRamp.
@@ -80,7 +82,12 @@ export function buildRamp(snapshot: RampSnapshot, style: string, baseIndex: numb
   // it does live.)
   const effectiveHueShift = (hueShiftStrengthPerRamp as Record<number, number>)[i] ?? hueShiftStrength;
 
-  const { reach, chromaFalloff } = styleToScalars(style, stylePresets);
+  const { reach, chromaFalloff } = resolveRampScalars({
+    style: style as RampStyle,
+    baseIndex: i,
+    stylePresets,
+    rampStyleScalars,
+  });
   const effectiveSeed = (shuffleSeed || 0) + ((rampShuffleOffsets as Record<number, number>)[i] || 0);
   const hueJitter = effectiveSeed !== 0 ? seededHueDelta(effectiveSeed, i) : 0;
 
