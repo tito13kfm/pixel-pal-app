@@ -47,6 +47,14 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   previously exported `pixel-pal-cycle.json` sidecar back in, matching its
   palette against the currently visible ramps by exact hex sequence and
   restoring the selected range, playback rate, and direction. (#140)
+- Per-ramp active style (#69): each ramp in the Color Ramps card now picks its
+  own Punchy/Balanced/Muted style via a picker in its "Adjust Base" editor,
+  with a palette-wide default style plus a "Set All Ramps → Default" action.
+  Dragging a ramp's Reach or Chroma-falloff slider auto-switches it to a new
+  Custom style, tuned per ramp without touching the named presets. Custom
+  looks can be saved by name and loaded back onto any ramp. A "Compare All 3
+  Styles" toggle on the card restores the old stacked Punchy/Balanced/Muted
+  view on demand.
 
 ### Changed
 - Tips panel cleanup (#53): the two Piskel bullets (IMPORT / COPY) merged
@@ -61,6 +69,21 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   divergence itself is unchanged (still resolves on mode switch or editor
   reopen, per #146); this only makes it visible instead of tooltip-only.
   (#146)
+- Every view that renders ramps (Color Ramps, Mosaic, Adjacency, Dither,
+  Visualization, Side-by-side, Remap, sprite previews, whole-palette export)
+  now renders each ramp at its own active style instead of one global style
+  shared by the whole palette; the Color Ramps card shows one strip per ramp
+  by default (was all three stacked). Per-ramp style, per-ramp custom
+  tuning, and the palette default style are now part of the undo history and
+  the saved-palette payload, so they travel with reorder and persist across
+  save/load like every other per-ramp setting. (#69)
+
+### Removed
+- The global Punchy/Balanced/Muted style selectors (`vizStyle`,
+  `rampExportStyle`, `gplStyle`): style is no longer a session-level UI pref
+  shared by the whole palette. Loading a palette saved before this change
+  maps its old global style into the new per-ramp default so it renders the
+  same as before. (#69)
 
 ### Fixed
 - HISTORY tip claimed "Last 20 actions": the undo/redo cap has been 50
