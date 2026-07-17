@@ -27,6 +27,14 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   as hex, so out-of-sRGB chroma/lightness/hue combinations still produce a
   valid base color. (#129)
 
+### Changed
+- OKLCH base-color editor: the Chroma slider now shows a warning icon and
+  tints orange when the dragged value is out of sRGB gamut, alongside a
+  tooltip disclosing the chroma it's actually clamped to. The slider/swatch
+  divergence itself is unchanged (still resolves on mode switch or editor
+  reopen, per #146); this only makes it visible instead of tooltip-only.
+  (#146)
+
 ### Fixed
 - Removing or duplicating a ramp now re-keys the per-ramp advanced settings
   (`hueShiftStrengthPerRamp`, `lightnessCurvePerRamp`, `satCurvePerRamp`,
