@@ -435,6 +435,7 @@ export function VizComparePanel({
   return (
     <SectionCard
       sectionKey="viz" accent={styleAccent} bg={t.cardBgViz} glow={0.4}
+      headerTourId="viz-header"
       open={sbsOpen} onToggle={() => setSbsOpen(o => !o)}
       headerTitle={sbsOpen ? "Collapse the Visualize & Compare section" : "Expand the Visualize & Compare section"}
       chevronColor="#a5f3fc"
@@ -453,6 +454,7 @@ export function VizComparePanel({
           <p className="text-[11px] text-cyan-100/70 italic mb-2 bg-black/60 rounded px-2 py-1">Upload an image. Every pixel snaps to the nearest color in the active palette (current style, hidden shades excluded, hardware lock honored). Auto-updates as you edit; 300ms debounce.</p>
           {!remapImageDataUrl && (
             <div
+              data-tour-id="remap-dropzone"
               onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setRemapDragOver(true); }}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (!remapDragOver) setRemapDragOver(true); }}
               onDragLeave={(e) => {
@@ -613,6 +615,7 @@ export function VizComparePanel({
             <select
               value={sbsRight === null ? '' : sbsRight}
               onChange={(e) => setSbsRight(parseSlot(e.target.value))}
+              data-tour-id="sbs-right-select"
               title="Pick a second palette to compare side-by-side (empty = single-column view)"
               className="w-full px-2 py-1.5 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-sm font-mono"
             >

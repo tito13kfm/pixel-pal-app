@@ -59,7 +59,7 @@ export function SavedPalettesPanel({
       <p className="text-[11px] text-yellow-100/70 italic bg-black/60 rounded px-2 py-1">▸ Palettes save locally to your browser. They persist across sessions but stay on this device.</p>
 
       {/* Save current palette */}
-      <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-black/60 rounded border-2 border-yellow-500/40 p-3">
+      <div data-tour-id="save-controls" className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-black/60 rounded border-2 border-yellow-500/40 p-3">
         <input
           ref={saveNameInputRef}
           type="text"

@@ -412,13 +412,26 @@ loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
 ## Tour / onboarding system
 
 Data in `lib/tours.ts`: `ONBOARDING_TOUR` (auto-fires once, gated on
-`pixel-pal-tour-seen`) + `TASK_GUIDES` (seven how-to flows). Each step has a `target`
+`pixel-pal-tour-seen`) + `TASK_GUIDES` (sixteen how-to flows, grouped into four
+launcher categories via `TourGuide.category` + `TOUR_CATEGORY_ORDER`: Generate,
+Edit & Refine, Check & Compare, Save & Export; `TourPanel.tsx` renders one
+section per category, skipping empty ones). Each step has a `target`
 (`data-tour-id`), `advance: 'next' | 'detector'`, and optional `detector(appState)`
 predicate + `setup` id. `TourOverlay.tsx` (a portal with an SVG even-odd cutout +
 popover) per step: resets the detector baseline, runs `setup`, rAF-waits for the target
 to mount (≤ 2 s, then degrades to a centered card + Next), captures the baseline AFTER
 mount, positions via `lib/tour-runtime.ts` (floating-ui, `strategy: 'fixed'`,
 viewport-clamped), and arms `autoUpdate`. It auto-advances on a detector false→true edge.
-App.tsx wires `runTourSetup` (only the `export` / `harmony` panel setters),
-`snapshotTourState` / `restoreTourState` (save + restore mode / panels / compare
-around a tour run), and feeds the live `appState`.
+App.tsx wires `runTourSetup` (the `export` / `harmony` / `saved` / `viz` panel setters),
+`snapshotTourState` / `restoreTourState` (save + restore mode / panels / compare /
+CVD simulation around a tour run), and feeds the live `appState`.
+
+Gotcha for e2e detector-walk tests: some step targets share a page with an always-
+present static instructional paragraph containing the SAME words as the step's own
+title (e.g. Image Preview's "Upload an image. Every pixel snaps..." vs. the
+remap-image guide's step title "Upload an image"). A plain `getByText(...)` matches
+both and can resolve to the STATIC text well before the tour's own 400ms step
+transition completes, letting a test act too early (e.g. upload a file before the
+target it's supposed to interact with has even mounted). Assert on
+`getByRole('heading', { name: ... })` to pin the check to the tour popover's own
+`<h3>`, not prose elsewhere on the page.
