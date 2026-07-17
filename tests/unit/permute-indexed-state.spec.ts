@@ -49,6 +49,10 @@ describe('permuteRampState', () => {
     rampShuffleOffsets: { '2': 9 },
     lightnessCurvePerRamp: { '1': [[0, 0], [1, 1]] },
     satCurvePerRamp: { '0': [[0, 0.2]] },
+    // Per-ramp style maps (#69): one distinct value per ramp so a
+    // permutation that put a value on the wrong ramp is caught.
+    rampStyleOverrides: { '0': 'muted', '1': 'custom', '2': 'balanced' },
+    rampStyleScalars: { '1': { reach: 0.11, chromaFalloff: 0.22 } },
     lockedRamps: [0, 2],
     collapsedRamps: [1],
     harmonyAnchor: 2,
@@ -69,10 +73,29 @@ describe('permuteRampState', () => {
     expect(out.rampShuffleOffsets).toEqual({ '1': 9 });
     expect(out.lightnessCurvePerRamp).toEqual({ '0': [[0, 0], [1, 1]] });
     expect(out.satCurvePerRamp).toEqual({ '2': [[0, 0.2]] });
+    // old 0->2, old 1->0, old 2->1
+    expect(out.rampStyleOverrides).toEqual({ '2': 'muted', '0': 'custom', '1': 'balanced' });
+    expect(out.rampStyleScalars).toEqual({ '0': { reach: 0.11, chromaFalloff: 0.22 } });
 
     expect(out.lockedRamps).toEqual([1, 2]);   // old 0->2, old 2->1
     expect(out.collapsedRamps).toEqual([0]);   // old 1->0
     expect(out.harmonyAnchor).toEqual(1);      // old 2 -> 1
+  });
+
+  it('moves last ramp to first: per-ramp style maps follow the permutation', () => {
+    const perm = computePermutation(3, 2, 0, 'before'); // next = [1,2,0]
+    const out = permuteRampState(state, perm);
+    // old 0->1, old 1->2, old 2->0
+    expect(out.rampStyleOverrides).toEqual({ '1': 'muted', '2': 'custom', '0': 'balanced' });
+    expect(out.rampStyleScalars).toEqual({ '2': { reach: 0.11, chromaFalloff: 0.22 } });
+  });
+
+  it('adjacent swap keeps each style value on its own ramp', () => {
+    const perm = computePermutation(3, 1, 0, 'before'); // swaps ramps 0 and 1; next = [1,0,2]
+    const out = permuteRampState(state, perm);
+    // old 0->1, old 1->0, old 2->2
+    expect(out.rampStyleOverrides).toEqual({ '1': 'muted', '0': 'custom', '2': 'balanced' });
+    expect(out.rampStyleScalars).toEqual({ '0': { reach: 0.11, chromaFalloff: 0.22 } });
   });
 
   it('no-op permutation returns equal data', () => {

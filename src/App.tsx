@@ -128,6 +128,9 @@ export default function PixelPalGenerator() {
     lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
     lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
+    // Per-ramp style fields (#69). Read here for workingRenderInputs +
+    // snapshotInputs; their setters are wired by the later UI tasks.
+    paletteDefaultStyle, rampStyleOverrides, rampStyleScalars,
     editingIndex, setEditingIndex, editorHsv, setEditorHsv,
     editorOklch, editorMode,
     pinEditor, setPinEditor, compareMode, setCompareMode,
@@ -230,9 +233,11 @@ export default function PixelPalGenerator() {
   // whole-state snapshots (NOT diff patches), 50-entry cap, session-only. The
   // document core is owned by usePaletteState; useHistory is wired to it via
   // buildSnapshot / applySnapshotFields / resetTransientEditors. The watcher's
-  // dep array (snapshotInputs) is the 17 snapshot INPUT values, it deliberately
+  // dep array (snapshotInputs) is the snapshot INPUT values, it deliberately
   // OMITS lightnessCurvePerRamp / satCurvePerRamp (preserved verbatim from the
-  // pre-extraction behavior; do not "complete" it to 19). `tagNextLabel`
+  // pre-extraction behavior; do not "complete" it with those two). The per-ramp
+  // style fields (#69) ARE included deliberately: editing a ramp's style,
+  // scalars, or the palette default must push a history entry. `tagNextLabel`
   // replaces the old scattered `pendingLabelRef.current = ...` handler writes:
   // tagged actions (Generate, Harmonize, Load, …) call it before mutating state;
   // untagged changes fall back to inferLabel. See src/hooks/useHistory.ts.
@@ -249,6 +254,7 @@ export default function PixelPalGenerator() {
       overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
       hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
       lockedRamps, collapsedRamps, stylePresets,
+      paletteDefaultStyle, rampStyleOverrides, rampStyleScalars,
     ],
   });
 
@@ -308,7 +314,10 @@ export default function PixelPalGenerator() {
     shuffleSeed,
     rampShuffleOffsets,
     stylePresets,
-  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+    paletteDefaultStyle,
+    rampStyleOverrides,
+    rampStyleScalars,
+  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets, paletteDefaultStyle, rampStyleOverrides, rampStyleScalars]);
 
   const liveRampSnapshot = useMemo(() => workingRenderInputs(), [workingRenderInputs]);
 
