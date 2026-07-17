@@ -2,11 +2,13 @@ import React from 'react';
 import {
   Sun, ChevronUp, ChevronDown, RotateCcw, Lock, Unlock, Shuffle,
   CopyPlus, Copy, Download, Sparkles, Sliders, Plus, Pin, Trash2, Cpu,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import { RampAdvancedPanel } from '../RampAdvancedPanel';
 import ShadeCountControl from '../ShadeCountControl';
 import { hexToRgb } from '../../lib/color';
+import { gamutMap, oklchToOklab, oklabToLinearRgb, isInGamut } from '../../lib/oklch';
 import { wcagContrast, wcagAaTier } from '../../lib/wcag';
 import { LIGHTNESS_PRESETS, SAT_PRESETS } from '../../lib/curve';
 import type { CurvePoints } from '../../lib/curve';
@@ -205,6 +207,15 @@ export function RampsPanel(props: RampsPanelProps) {
 
   const { t, themedAccent, accentTextGlow: _accentTextGlow } = useTheme();
   const accentTextGlow = _accentTextGlow as (hex: string, px?: number) => string;
+
+  // #146: the OKLCH Chroma slider shows the raw dragged value, which can sit
+  // outside sRGB gamut while the committed base color is silently clamped
+  // (updateEditorOklch gamut-maps before writing hex; editorOklch itself
+  // deliberately does not, so the drag stays continuous, see that hook).
+  // This only surfaces the divergence visually; it doesn't change it.
+  const oklchOutOfGamut = editorMode === 'oklch' && editingIndex !== null &&
+    !isInGamut(oklabToLinearRgb(oklchToOklab(editorOklch)));
+  const oklchClamped = oklchOutOfGamut ? gamutMap(editorOklch, 'auto') : null;
 
   // Internal Swatch component closes over RampsPanel props for copy/compare/pin
   const Swatch = ({
@@ -496,9 +507,19 @@ export function RampsPanel(props: RampsPanelProps) {
                       <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{Math.round(editorOklch.L * 100)}%</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-mono text-yellow-200 w-12">Chroma</span>
-                      <input type="range" min={0} max={0.4} step={0.001} value={editorOklch.C} onChange={(e) => updateEditorOklch({ ...editorOklch, C: Number(e.target.value) })} title={`Chroma: ${editorOklch.C.toFixed(3)} (out-of-gamut values are clamped)`} className="flex-1 accent-yellow-400" />
-                      <span className="text-[11px] font-mono text-yellow-100 w-10 text-right">{editorOklch.C.toFixed(3)}</span>
+                      <span className="text-[11px] font-mono text-yellow-200 w-12 flex items-center gap-1">
+                        Chroma
+                        {oklchOutOfGamut && (
+                          <span
+                            className="shrink-0 inline-flex"
+                            title={`Out of sRGB gamut, the committed color is clamped to Chroma ${oklchClamped!.C.toFixed(3)} (L and Hue unchanged)`}
+                          >
+                            <AlertTriangle size={11} className="text-orange-400" />
+                          </span>
+                        )}
+                      </span>
+                      <input type="range" min={0} max={0.4} step={0.001} value={editorOklch.C} onChange={(e) => updateEditorOklch({ ...editorOklch, C: Number(e.target.value) })} title={oklchOutOfGamut ? `Chroma: ${editorOklch.C.toFixed(3)}, out of gamut, clamped to ${oklchClamped!.C.toFixed(3)}` : `Chroma: ${editorOklch.C.toFixed(3)} (out-of-gamut values are clamped)`} className={`flex-1 ${oklchOutOfGamut ? 'accent-orange-400' : 'accent-yellow-400'}`} />
+                      <span className={`text-[11px] font-mono w-10 text-right ${oklchOutOfGamut ? 'text-orange-400' : 'text-yellow-100'}`} title={oklchOutOfGamut ? `Clamped to ${oklchClamped!.C.toFixed(3)}` : undefined}>{editorOklch.C.toFixed(3)}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-[11px] font-mono text-yellow-200 w-12">Hue</span>
