@@ -184,6 +184,9 @@ export function PaletteCycleEditor({ rows, borderColor }: PaletteCycleEditorProp
       setPlaying(true);
       offsetRef.current = 0;
     };
+    reader.onerror = () => {
+      setLoadError('Could not read the selected file.');
+    };
     reader.readAsText(file);
   };
 

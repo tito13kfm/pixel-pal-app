@@ -96,6 +96,30 @@ describe('PaletteCycleEditor: Load Cycle JSON (#140)', () => {
     expect(screen.getByTitle('Toggle cycle direction')).toHaveTextContent('Reverse');
   });
 
+  it('snaps an off-list rate to the nearest FPS option', async () => {
+    render(<PaletteCycleEditor rows={ROWS} />);
+    const json = JSON.stringify({
+      format: 'pixel-pal-cycle',
+      version: 1,
+      palette: ROWS[0],
+      cycles: [{ low: 0, high: 3, rate: 12, reverse: false }],
+    });
+    loadFile(json);
+
+    await screen.findByTitle('Download the cycle as a pixel-pal-cycle.json sidecar');
+    expect(screen.getByTitle('Cycle playback rate')).toHaveValue('10');
+  });
+
+  it('shows an error when the file cannot be read', async () => {
+    const readAsText = vi.spyOn(FileReader.prototype, 'readAsText').mockImplementation(function (this: FileReader) {
+      this.onerror?.(new ProgressEvent('error') as ProgressEvent<FileReader>);
+    });
+    render(<PaletteCycleEditor rows={ROWS} />);
+    loadFile('{}');
+    expect(await screen.findByText('Could not read the selected file.')).toBeInTheDocument();
+    readAsText.mockRestore();
+  });
+
   it('shows an error when no visible ramp matches the file colors', async () => {
     render(<PaletteCycleEditor rows={ROWS} />);
     const json = JSON.stringify({
