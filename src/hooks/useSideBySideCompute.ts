@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { CLASSIC_PALETTES } from '../lib/constants';
 import { buildRampsForSnapshot } from '../lib/snapshot-ramps';
 import type { RampSnapshot } from '../lib/snapshot-ramps';
+import type { RampStyle } from '../lib/style-presets';
 import { requestRemap } from '../lib/remap-worker-client';
 import type { RemapOptions } from '../lib/image-remap';
 
@@ -215,6 +216,9 @@ export function useSideBySideCompute(p: UseSideBySideComputeParams) {
       hiddenShades: {},
       hardwareLock: null,
       hueShiftStrength,
+      paletteDefaultStyle: 'punchy' as RampStyle,
+      rampStyleOverrides: {},
+      rampStyleScalars: {},
     };
   };
   const getSnapshotForSlot = (slot: SlotValue, cachedPayload: SavedPayload | null) => {

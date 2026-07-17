@@ -25,7 +25,7 @@ import { HarmonyPanel } from './components/panels/HarmonyPanel';
 import { RampsPanel, PixelSprite } from './components/panels/RampsPanel';
 import { InputPanel } from './components/panels/InputPanel';
 import { HeaderControls } from './components/panels/HeaderControls';
-import { DEFAULT_STYLE_PRESETS } from './lib/style-presets';
+import { DEFAULT_STYLE_PRESETS, resolveActiveStyle } from './lib/style-presets';
 import { buildRandomHex } from './lib/randomizer';
 import { generateHarmony } from './lib/harmony';
 import { quantizeToHardware } from './lib/hardware-quantize';
@@ -324,6 +324,18 @@ export default function PixelPalGenerator() {
   const rampsPunchy = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'punchy', i)), [liveRampSnapshot]);
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
   const rampsMuted = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'muted', i)), [liveRampSnapshot]);
+
+  // rampsActive: the single per-ramp render array (#69) - each ramp at its own
+  // resolved style, rather than one of the three global sets above. Not yet
+  // consumed by any view (Task 5); kept here so it exists and stays in sync.
+  const activeStyleFor = useCallback(
+    (i) => resolveActiveStyle(rampStyleOverrides, i, paletteDefaultStyle),
+    [rampStyleOverrides, paletteDefaultStyle],
+  );
+  const rampsActive = useMemo(
+    () => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, activeStyleFor(i), i)),
+    [liveRampSnapshot, activeStyleFor],
+  );
 
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.
   // briefly after a remove before the clamp effect runs, or after a load
