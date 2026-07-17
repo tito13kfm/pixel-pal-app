@@ -59,6 +59,7 @@ import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
 import { usePaletteState } from './hooks/usePaletteState';
 import { useRampStyleActions } from './hooks/useRampStyleActions';
+import { useSavedStylesActions } from './hooks/useSavedStylesActions';
 import { useSessionPrefs } from './hooks/useSessionPrefs';
 import { useHardwareLock } from './hooks/useHardwareLock';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
@@ -339,6 +340,15 @@ export default function PixelPalGenerator() {
     stylePresets,
     setRampStyleOverrides,
     setRampStyleScalars,
+  });
+
+  // Named save/load of custom ramp styles (#69 capability 4): a compact
+  // in-editor load/save UI, wired here so the hook shares App.tsx's
+  // tagNextLabel + the raw per-ramp style setters.
+  const { savedStyles, saveStyle, loadStyleOntoRamp, deleteStyle } = useSavedStylesActions({
+    setRampStyleScalars,
+    setRampStyleOverrides,
+    tagNextLabel,
   });
 
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.
@@ -846,6 +856,10 @@ export default function PixelPalGenerator() {
             setRampStyleOverrides={setRampStyleOverrides}
             rampStyleScalars={rampStyleScalars}
             setRampScalar={setRampScalar}
+            savedStyles={savedStyles}
+            saveStyle={saveStyle}
+            loadStyleOntoRamp={loadStyleOntoRamp}
+            deleteStyle={deleteStyle}
             paletteDefaultStyle={paletteDefaultStyle}
             setPaletteDefaultStyle={setPaletteDefaultStyle}
             stylePresets={stylePresets}

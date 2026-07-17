@@ -14,6 +14,7 @@ import { LIGHTNESS_PRESETS, SAT_PRESETS } from '../../lib/curve';
 import type { CurvePoints } from '../../lib/curve';
 import { DEFAULT_STYLE_PRESETS, resolveRampScalars } from '../../lib/style-presets';
 import type { StylePresets, RampStyle, StyleScalars } from '../../lib/style-presets';
+import type { SavedStyleEntry } from '../../hooks/useSavedStylesActions';
 import type { GamutStrategySerialized } from '../../lib/palette';
 import { DEFAULT_SPRITE_LIBRARY } from '../../lib/constants';
 import type { HardwarePalette } from '../../lib/hardware-quantize';
@@ -84,6 +85,11 @@ export interface RampsPanelProps {
   setRampStyleOverrides: React.Dispatch<React.SetStateAction<Record<number, RampStyle>>>;
   rampStyleScalars: Record<number, StyleScalars>;
   setRampScalar: (i: number, key: keyof StyleScalars, value: number) => void;
+  // named custom-style save/load (#69 capability 4)
+  savedStyles: SavedStyleEntry[];
+  saveStyle: (name: string, scalars: StyleScalars) => void;
+  loadStyleOntoRamp: (slug: string, i: number) => void;
+  deleteStyle: (slug: string) => void;
   paletteDefaultStyle: RampStyle;
   setPaletteDefaultStyle: React.Dispatch<React.SetStateAction<RampStyle>>;
   // style presets
@@ -220,6 +226,7 @@ export function RampsPanel(props: RampsPanelProps) {
     baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted,
     rampsActive, activeStyleFor, rampStyleOverrides, setRampStyleOverride, setRampStyleOverrides,
     rampStyleScalars, setRampScalar,
+    savedStyles, saveStyle, loadStyleOntoRamp, deleteStyle,
     paletteDefaultStyle, setPaletteDefaultStyle,
     stylePresets, setStylePresets, activeHardware,
     collapsedRamps, anyRampExpanded, lockedRamps,
@@ -250,6 +257,11 @@ export function RampsPanel(props: RampsPanelProps) {
   // at its active style; on restores the old stacked Punchy/Balanced/Muted
   // view. Not persisted - a plain useState, sticky across re-renders only.
   const [showAllStyles, setShowAllStyles] = useState(false);
+
+  // Named-style save input (#69 capability 4): only one Adjust Base editor is
+  // open at a time (editingIndex), so a single string is enough.
+  const [styleSaveName, setStyleSaveName] = useState('');
+  const [styleLoadSlug, setStyleLoadSlug] = useState('');
 
   // #146: the OKLCH Chroma slider shows the raw dragged value, which can sit
   // outside sRGB gamut while the committed base color is silently clamped
@@ -677,6 +689,54 @@ export function RampsPanel(props: RampsPanelProps) {
                             title={`Chroma falloff for this ramp: ${Math.round(scalars.chromaFalloff * 100)}% (dragging switches this ramp to Custom)`}
                           />
                           <span className="text-[11px] font-mono text-yellow-100 w-14 text-right">{Math.round(scalars.chromaFalloff * 100)}%</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-yellow-500/20">
+                          <select
+                            value={styleLoadSlug}
+                            onChange={(e) => setStyleLoadSlug(e.target.value)}
+                            title="Pick a saved custom style to apply to this ramp"
+                            className="px-2 py-1 rounded bg-black/60 text-yellow-100 border-2 border-yellow-700/60 focus:border-yellow-400 focus:outline-none text-[11px] font-mono min-w-[110px]"
+                          >
+                            <option value="">Load saved style...</option>
+                            {savedStyles.map(s => (
+                              <option key={s.slug} value={s.slug}>{s.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => { if (styleLoadSlug) loadStyleOntoRamp(styleLoadSlug, i); }}
+                            disabled={!styleLoadSlug}
+                            title="Apply the selected saved style to this ramp (stamps a copy; later edits here won't change the saved style)"
+                            className="text-[10px] px-2 py-1 rounded font-bold bg-purple-700 text-yellow-100 border-2 border-yellow-700/50 hover:bg-purple-600 transition-all uppercase tracking-wider disabled:opacity-40"
+                          >
+                            Load
+                          </button>
+                          {styleLoadSlug && (
+                            <button
+                              onClick={() => { deleteStyle(styleLoadSlug); setStyleLoadSlug(''); }}
+                              title="Delete the selected saved style"
+                              className="text-[10px] px-2 py-1 rounded font-bold bg-pink-700 text-pink-100 border-2 border-pink-500/50 hover:bg-pink-600 transition-all uppercase tracking-wider"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input
+                            type="text"
+                            value={styleSaveName}
+                            onChange={(e) => setStyleSaveName(e.target.value)}
+                            placeholder="Name this look..."
+                            title="Name for saving this ramp's current custom reach/falloff as a reusable style"
+                            className="px-2 py-1 rounded bg-black/60 text-yellow-100 font-mono text-[11px] border-2 border-yellow-700/60 focus:border-yellow-400 focus:outline-none flex-1 min-w-[110px]"
+                          />
+                          <button
+                            onClick={() => { if (styleSaveName.trim()) { saveStyle(styleSaveName, scalars); setStyleSaveName(''); } }}
+                            disabled={!styleSaveName.trim()}
+                            title="Save this ramp's current reach/falloff as a named style"
+                            className="text-[10px] px-2 py-1 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-100 hover:bg-yellow-300 transition-all uppercase tracking-wider disabled:opacity-40"
+                          >
+                            Save
+                          </button>
                         </div>
                       </div>
                     );
