@@ -12,8 +12,8 @@ import { gamutMap, oklchToOklab, oklabToLinearRgb, isInGamut } from '../../lib/o
 import { wcagContrast, wcagAaTier } from '../../lib/wcag';
 import { LIGHTNESS_PRESETS, SAT_PRESETS } from '../../lib/curve';
 import type { CurvePoints } from '../../lib/curve';
-import { DEFAULT_STYLE_PRESETS } from '../../lib/style-presets';
-import type { StylePresets, RampStyle } from '../../lib/style-presets';
+import { DEFAULT_STYLE_PRESETS, resolveRampScalars } from '../../lib/style-presets';
+import type { StylePresets, RampStyle, StyleScalars } from '../../lib/style-presets';
 import type { GamutStrategySerialized } from '../../lib/palette';
 import { DEFAULT_SPRITE_LIBRARY } from '../../lib/constants';
 import type { HardwarePalette } from '../../lib/hardware-quantize';
@@ -82,6 +82,8 @@ export interface RampsPanelProps {
   rampStyleOverrides: Record<number, RampStyle>;
   setRampStyleOverride: (i: number, style: RampStyle) => void;
   setRampStyleOverrides: React.Dispatch<React.SetStateAction<Record<number, RampStyle>>>;
+  rampStyleScalars: Record<number, StyleScalars>;
+  setRampScalar: (i: number, key: keyof StyleScalars, value: number) => void;
   paletteDefaultStyle: RampStyle;
   setPaletteDefaultStyle: React.Dispatch<React.SetStateAction<RampStyle>>;
   // style presets
@@ -217,6 +219,7 @@ export function RampsPanel(props: RampsPanelProps) {
     theme,
     baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted,
     rampsActive, activeStyleFor, rampStyleOverrides, setRampStyleOverride, setRampStyleOverrides,
+    rampStyleScalars, setRampScalar,
     paletteDefaultStyle, setPaletteDefaultStyle,
     stylePresets, setStylePresets, activeHardware,
     collapsedRamps, anyRampExpanded, lockedRamps,
@@ -648,6 +651,36 @@ export function RampsPanel(props: RampsPanelProps) {
                       <button onClick={() => setRampSatOverrides(prev => { const n = { ...prev }; delete n[i]; return n; })} title="Reset per-ramp saturation multiplier to 1.00x" className="text-[10px] px-2 py-1 rounded font-bold bg-purple-700 text-yellow-100 border-2 border-yellow-700/50 hover:bg-purple-600 transition-all uppercase tracking-wider">Reset</button>
                     )}
                   </div>
+                  {(() => {
+                    const scalars = resolveRampScalars({ style: activeStyleFor(i), baseIndex: i, stylePresets, rampStyleScalars });
+                    return (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-bold text-yellow-200 uppercase tracking-wider">Custom tuning (switches this ramp to Custom)</span>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-[11px] font-bold text-yellow-200 uppercase tracking-wider w-12">Reach</span>
+                          <input
+                            type="range" min={0} max={100}
+                            value={Math.round(scalars.reach * 100)}
+                            onChange={(e) => { tagNextLabel('Customize ramp style'); setRampScalar(i, 'reach', Number(e.target.value) / 100); }}
+                            className="flex-1 accent-yellow-400 min-w-[100px]"
+                            title={`Reach for this ramp: ${Math.round(scalars.reach * 100)}% (dragging switches this ramp to Custom)`}
+                          />
+                          <span className="text-[11px] font-mono text-yellow-100 w-14 text-right">{Math.round(scalars.reach * 100)}%</span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-[11px] font-bold text-yellow-200 uppercase tracking-wider w-12">Falloff</span>
+                          <input
+                            type="range" min={0} max={100}
+                            value={Math.round(scalars.chromaFalloff * 100)}
+                            onChange={(e) => { tagNextLabel('Customize ramp style'); setRampScalar(i, 'chromaFalloff', Number(e.target.value) / 100); }}
+                            className="flex-1 accent-yellow-400 min-w-[100px]"
+                            title={`Chroma falloff for this ramp: ${Math.round(scalars.chromaFalloff * 100)}% (dragging switches this ramp to Custom)`}
+                          />
+                          <span className="text-[11px] font-mono text-yellow-100 w-14 text-right">{Math.round(scalars.chromaFalloff * 100)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <RampAdvancedPanel
                     dataTourId={i === 0 ? 'ramp-advanced-toggle' : undefined}
                     open={advancedOpen[String(i)] ?? false}

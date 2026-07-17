@@ -1,5 +1,41 @@
 # Task 7 — Per-ramp custom scalar sliders + auto-switch to Custom
 
+**Status: Done.** The Adjust Base editor now always shows a "Custom tuning (switches
+this ramp to Custom)" group with Reach/Falloff sliders (0-100%, yellow accent to match
+the rest of the editor), populated via `resolveRampScalars` so they read the ramp's
+live value whether it's on a preset or already Custom. A new `setRampScalar(i, key,
+value)` writes `rampStyleScalars[i]` (seeding from the ramp's currently resolved
+scalars so the untouched key keeps its live value, same seeding logic as
+`setRampStyleOverride`) and sets `rampStyleOverrides[i] = 'custom'`; `RampsPanel.tsx`'s
+onChange handlers call `tagNextLabel('Customize ramp style')` right before invoking it,
+matching the existing convention (tag in the panel, not the setter). The global Style
+Tuning block (`stylePresets`) is untouched, confirmed by a dedicated test. Renamed the
+falloff row's label to "Falloff" (not "Chroma") to avoid colliding with the OKLCH
+editor's existing "Chroma" slider label in `getByText` queries.
+
+While this was in flight, a concurrent commit (`87543fa`) landed on the branch that
+extracted `activeStyleFor`/`rampsActive`/`setRampStyleOverride` out of `App.tsx` into a
+new typed `src/hooks/useRampStyleActions.ts`, to claw `App.tsx` back under the #113
+1350-line ratchet after Task 6. Rebasing onto it applied cleanly, but `setRampScalar`
+initially landed back inline in `App.tsx` (1361 lines, over budget) and called
+`resolveRampScalars`, which that commit had removed from `App.tsx`'s imports. Moved
+`setRampScalar` into `useRampStyleActions.ts` alongside its sibling `setRampStyleOverride`
+instead (same seeding pattern, same dependency list shape); `App.tsx` now just
+destructures it from the hook. Final size: 1344 lines.
+
+`npm test` (600 tests, up from 596), the type gate (`tsc --noEmit` on a de-`@ts-nocheck`d
+copy of `App.tsx`: diagnostic-only error count is 55, down from the pre-rebase baseline
+of 58, since the extraction commit moved several previously-untyped handlers into the
+typed hook file; `setRampScalar` living there too means it added zero new `App.tsx`
+errors), `npm run build`, and `npm run deadcode:ci` (0 new) all green. `npm run test:e2e`
+could not be run in this
+sandbox: the pre-installed Playwright Chromium (rev 1194) doesn't match the pinned
+`@playwright/test` 1.60.0's expected browser revision (1223), a pre-existing environment
+mismatch, not a signal about this change. Static review of `tests/e2e/*.ts` found no
+spec referencing the Adjust Base editor, Style Tuning, or any Reach/Chroma/Falloff
+control, so nothing there depends on this change; real CI's fresh Playwright install
+will be the actual e2e gate.
+
 > Read `../README.md` first.
 
 **Depends on:** Task 6 (per-ramp picker + custom-seed logic) + Task 3 (`rampStyleScalars`

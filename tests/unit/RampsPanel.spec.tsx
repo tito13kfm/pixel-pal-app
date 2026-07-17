@@ -52,6 +52,8 @@ const baseRampProps: RampsPanelProps = {
   rampStyleOverrides: {},
   setRampStyleOverride: noop as any,
   setRampStyleOverrides: noopDispatch,
+  rampStyleScalars: {},
+  setRampScalar: noop as any,
   paletteDefaultStyle: 'punchy',
   setPaletteDefaultStyle: noopDispatch,
   stylePresets: DEFAULT_STYLE_PRESETS,
@@ -194,6 +196,34 @@ test('palette default-style selector calls setPaletteDefaultStyle (#69)', () => 
   wrap({ setPaletteDefaultStyle });
   fireEvent.click(screen.getByTitle(/Set the palette default style to Muted/));
   expect(setPaletteDefaultStyle).toHaveBeenCalledWith('muted');
+});
+
+test('dragging the Reach slider on a Punchy ramp calls setRampScalar with the ramp index and key (#69)', () => {
+  const setRampScalar = vi.fn();
+  wrap({ editingIndex: 0, setRampScalar });
+  fireEvent.change(screen.getByTitle(/Reach for this ramp/), { target: { value: '60' } });
+  expect(setRampScalar).toHaveBeenCalledWith(0, 'reach', 0.6);
+});
+
+test('dragging the Chroma falloff slider on a Punchy ramp calls setRampScalar with the ramp index and key (#69)', () => {
+  const setRampScalar = vi.fn();
+  wrap({ editingIndex: 0, setRampScalar });
+  fireEvent.change(screen.getByTitle(/Chroma falloff for this ramp/), { target: { value: '40' } });
+  expect(setRampScalar).toHaveBeenCalledWith(0, 'chromaFalloff', 0.4);
+});
+
+test('the per-ramp picker reflects Custom once the ramp\'s override is custom (#69)', () => {
+  wrap({ editingIndex: 0, activeStyleFor: (_i) => 'custom', rampStyleOverrides: { 0: 'custom' } });
+  const customButton = screen.getByTitle(/Set this ramp's active style to Custom/);
+  expect(customButton.className).toMatch(/bg-yellow-400/);
+});
+
+test('the global Style Tuning block is untouched by the per-ramp sliders (#69)', () => {
+  const setStylePresets = vi.fn();
+  wrap({ editingIndex: 0, setStylePresets });
+  expect(screen.getByText('Style Tuning')).toBeInTheDocument();
+  fireEvent.change(screen.getByTitle(/Reach for this ramp/), { target: { value: '60' } });
+  expect(setStylePresets).not.toHaveBeenCalled();
 });
 
 test('does not render swatch rows when ramp collapsed', () => {

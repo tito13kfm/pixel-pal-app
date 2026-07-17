@@ -329,9 +329,9 @@ export default function PixelPalGenerator() {
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
   const rampsMuted = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'muted', i)), [liveRampSnapshot]);
 
-  // rampsActive + the per-ramp picker (#69) live in useRampStyleActions; kept
-  // out of App.tsx to stay under the #113 line ratchet.
-  const { activeStyleFor, rampsActive, setRampStyleOverride } = useRampStyleActions({
+  // rampsActive + the per-ramp picker + custom-scalar sliders (#69) live in
+  // useRampStyleActions; kept out of App.tsx to stay under the #113 line ratchet.
+  const { activeStyleFor, rampsActive, setRampStyleOverride, setRampScalar } = useRampStyleActions({
     liveRampSnapshot,
     rampStyleOverrides,
     rampStyleScalars,
@@ -844,6 +844,8 @@ export default function PixelPalGenerator() {
             rampStyleOverrides={rampStyleOverrides}
             setRampStyleOverride={setRampStyleOverride}
             setRampStyleOverrides={setRampStyleOverrides}
+            rampStyleScalars={rampStyleScalars}
+            setRampScalar={setRampScalar}
             paletteDefaultStyle={paletteDefaultStyle}
             setPaletteDefaultStyle={setPaletteDefaultStyle}
             stylePresets={stylePresets}

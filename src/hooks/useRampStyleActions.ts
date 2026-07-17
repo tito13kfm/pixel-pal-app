@@ -14,6 +14,10 @@
 //    from the ramp's current resolved {reach, chromaFalloff} so the Task 7
 //    sliders start where the ramp visually was, instead of snapping to the
 //    balanced-preset fallback resolveRampScalars would otherwise use.
+//  - setRampScalar(i, key, value): Task 7's per-ramp Reach/Chroma falloff
+//    sliders. Writes the dragged key into rampStyleScalars[i] (seeded from
+//    the ramp's current resolved scalars so the untouched key keeps its live
+//    value) and flips that ramp's override to 'custom'.
 import { useCallback, useMemo } from 'react';
 import { buildRamp } from '../lib/ramp-pipeline';
 import type { RampSnapshot } from '../lib/snapshot-ramps';
@@ -69,5 +73,18 @@ export function useRampStyleActions({
     setRampStyleOverrides(prev => ({ ...prev, [i]: style }));
   }, [rampStyleScalars, activeStyleFor, stylePresets, setRampStyleScalars, setRampStyleOverrides]);
 
-  return { activeStyleFor, rampsActive, setRampStyleOverride };
+  const setRampScalar = useCallback((i: number, key: keyof StyleScalars, value: number) => {
+    setRampStyleScalars(prev => {
+      const current = prev[i] ?? resolveRampScalars({
+        style: activeStyleFor(i),
+        baseIndex: i,
+        stylePresets,
+        rampStyleScalars: prev,
+      });
+      return { ...prev, [i]: { ...current, [key]: value } };
+    });
+    setRampStyleOverrides(prev => ({ ...prev, [i]: 'custom' }));
+  }, [activeStyleFor, stylePresets, setRampStyleScalars, setRampStyleOverrides]);
+
+  return { activeStyleFor, rampsActive, setRampStyleOverride, setRampScalar };
 }
