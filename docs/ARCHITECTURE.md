@@ -115,7 +115,7 @@ src/
     renderCount.ts      SP2 perf test harness (test-only). enableRenderCounts() /
                         recordRender(name) / getRenderCount(name). No-op in prod
                         (enabled=false by default). Used by tests/unit/render-isolation.spec.tsx.
-    color.ts            15 color math fns, // @ts-nocheck intentional
+    color.ts            15 color math fns, typed (dropped @ts-nocheck in #128)
     theme.ts            THEME_TOKENS (dark/neutral/light chrome tokens) + ThemeName /
                         ThemeTokens types; typed, extracted verbatim from App.tsx's old
                         `themeTokens` const
