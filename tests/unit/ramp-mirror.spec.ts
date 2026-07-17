@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildRamp } from '../../src/lib/ramp-pipeline';
 import { buildRampsForSnapshot } from '../../src/lib/snapshot-ramps';
+import { resolveActiveStyle } from '../../src/lib/style-presets';
 
 // The mirror is now STRUCTURAL: buildRampsForSnapshot delegates to the same
 // per-base buildRamp the live App.tsx memos call, so the two can't diverge by
@@ -36,6 +37,20 @@ describe('buildRamp ↔ buildRampsForSnapshot mirror', () => {
     };
     const viaSnapshot = buildRampsForSnapshot(live, 'punchy');
     const viaBuild = live.baseColors.map((_, i) => buildRamp(live, 'punchy', i));
+    expect(viaBuild).toEqual(viaSnapshot);
+  });
+
+  it('with no styleOverride, resolves each ramp\'s own active style (per-ramp mirror)', () => {
+    const snapWithOverrides = {
+      baseColors: ['#37cd76', '#1a2f6b', '#cc3344'],
+      rampSize: 7,
+      paletteDefaultStyle: 'muted' as const,
+      rampStyleOverrides: { 0: 'punchy' as const, 1: 'custom' as const },
+      rampStyleScalars: { 1: { reach: 0.4, chromaFalloff: 0.6 } },
+    };
+    const viaSnapshot = buildRampsForSnapshot(snapWithOverrides);
+    const viaBuild = snapWithOverrides.baseColors.map((_, i) =>
+      buildRamp(snapWithOverrides, resolveActiveStyle(snapWithOverrides.rampStyleOverrides, i, snapWithOverrides.paletteDefaultStyle), i));
     expect(viaBuild).toEqual(viaSnapshot);
   });
 });

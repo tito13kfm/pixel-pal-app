@@ -26,8 +26,6 @@ const base = {
   revealLastSaved: () => {},
   bakeHardwareLock: () => {},
   toggleHardwareLock: () => {},
-  gplStyle: 'punchy',
-  setGplStyle: () => {},
   exportFormat: 'gpl',
   setExportFormat: () => {},
   exportActiveFormat: () => {},

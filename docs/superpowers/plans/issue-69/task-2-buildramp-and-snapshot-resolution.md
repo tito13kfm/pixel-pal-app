@@ -1,5 +1,10 @@
 # Task 2 — `buildRamp` custom support + snapshot per-ramp resolution
 
+**Status: ✅ Done.** `buildRamp` resolves scalars via `resolveRampScalars`;
+`buildRampsForSnapshot` resolves each ramp's style via `resolveActiveStyle` when no
+`styleOverride` is passed. Characterization test byte-identical; new tests added to
+`ramp-pipeline-custom.spec.ts`, `snapshot-ramps.spec.ts`, `ramp-mirror.spec.ts`.
+
 > Read `../README.md` first.
 
 **Depends on:** Task 1 (`RampStyle`, `resolveActiveStyle`, `resolveRampScalars`).

@@ -34,8 +34,6 @@ const layout = {
 const baseProps: VizComparePanelProps = {
   sbsOpen: true,
   setSbsOpen: noop as any,
-  vizStyle: 'balanced',
-  setVizStyle: noop as any,
   vizSubOpen: {},
   toggleVizSub: noop,
   matrixColorSet: 'unique',
@@ -107,18 +105,11 @@ test('renders section title', () => {
   expect(screen.getByText('Visualize & Compare')).toBeInTheDocument();
 });
 
-test('renders style buttons Punchy/Balanced/Muted', () => {
+test('no global style selector (style is per-ramp, #69)', () => {
   wrap();
-  expect(screen.getByTitle(/Punchy ramps/)).toBeInTheDocument();
-  expect(screen.getByTitle(/Balanced ramps/)).toBeInTheDocument();
-  expect(screen.getByTitle(/Muted ramps/)).toBeInTheDocument();
-});
-
-test('calls setVizStyle when style button clicked', () => {
-  const setVizStyle = vi.fn();
-  wrap({ setVizStyle });
-  fireEvent.click(screen.getByTitle(/Punchy ramps/));
-  expect(setVizStyle).toHaveBeenCalledWith('punchy');
+  expect(screen.queryByTitle(/Punchy ramps/)).toBeNull();
+  expect(screen.queryByTitle(/Balanced ramps/)).toBeNull();
+  expect(screen.queryByTitle(/Muted ramps/)).toBeNull();
 });
 
 test('renders Image Preview upload area when no image loaded', () => {

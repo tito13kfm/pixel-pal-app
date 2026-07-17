@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sun, ChevronUp, ChevronDown, RotateCcw, Lock, Unlock, Shuffle,
   CopyPlus, Copy, Download, Sparkles, Sliders, Plus, Pin, Trash2, Cpu,
-  AlertTriangle,
+  AlertTriangle, Columns,
 } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import { RampAdvancedPanel } from '../RampAdvancedPanel';
@@ -12,13 +12,42 @@ import { gamutMap, oklchToOklab, oklabToLinearRgb, isInGamut } from '../../lib/o
 import { wcagContrast, wcagAaTier } from '../../lib/wcag';
 import { LIGHTNESS_PRESETS, SAT_PRESETS } from '../../lib/curve';
 import type { CurvePoints } from '../../lib/curve';
-import { DEFAULT_STYLE_PRESETS } from '../../lib/style-presets';
-import type { StylePresets } from '../../lib/style-presets';
+import { DEFAULT_STYLE_PRESETS, resolveRampScalars } from '../../lib/style-presets';
+import type { StylePresets, RampStyle, StyleScalars } from '../../lib/style-presets';
+import type { SavedStyleEntry } from '../../hooks/useSavedStylesActions';
 import type { GamutStrategySerialized } from '../../lib/palette';
 import { DEFAULT_SPRITE_LIBRARY } from '../../lib/constants';
 import type { HardwarePalette } from '../../lib/hardware-quantize';
 
 type SpriteLibrary = Record<string, { pattern: string[]; numShades?: number }>;
+
+// Per-style accent color + short label, used by the per-ramp picker, the
+// active-only preview box, and the pin editor's 'custom' branch.
+const STYLE_ACCENT: Record<RampStyle, string> = {
+  punchy: '#ff00ff',
+  balanced: '#00ffff',
+  muted: '#a855f7',
+  custom: '#facc15',
+};
+const STYLE_BORDER: Record<RampStyle, string> = {
+  punchy: 'border-pink-500/50',
+  balanced: 'border-cyan-500/50',
+  muted: 'border-purple-400/60',
+  custom: 'border-yellow-400/60',
+};
+const STYLE_LABEL: Record<RampStyle, string> = {
+  punchy: 'Punchy',
+  balanced: 'Balanced',
+  muted: 'Muted',
+  custom: 'Custom',
+};
+// Swatch border color per style (Tailwind class, matches the show-all-3 view).
+const STYLE_SWATCH_BORDER: Record<RampStyle, string> = {
+  punchy: 'border-pink-400',
+  balanced: 'border-cyan-400',
+  muted: 'border-purple-400',
+  custom: 'border-yellow-400',
+};
 
 interface FilteredRamp {
   hexes: string[];
@@ -42,15 +71,27 @@ interface CompareAnchor {
 export interface RampsPanelProps {
   // theme string for class conditions
   theme: string;
-  // ramp export style
-  rampExportStyle: string;
-  setRampExportStyle: (s: string) => void;
   // palette data
   baseColors: string[];
   aiColorNames: string[];
   rampsPunchy: string[][];
   rampsBalanced: string[][];
   rampsMuted: string[][];
+  // per-ramp active-style render array + resolver (#69)
+  rampsActive: string[][];
+  activeStyleFor: (i: number) => RampStyle;
+  rampStyleOverrides: Record<number, RampStyle>;
+  setRampStyleOverride: (i: number, style: RampStyle) => void;
+  setRampStyleOverrides: React.Dispatch<React.SetStateAction<Record<number, RampStyle>>>;
+  rampStyleScalars: Record<number, StyleScalars>;
+  setRampScalar: (i: number, key: keyof StyleScalars, value: number) => void;
+  // named custom-style save/load (#69 capability 4)
+  savedStyles: SavedStyleEntry[];
+  saveStyle: (name: string, scalars: StyleScalars) => void;
+  loadStyleOntoRamp: (slug: string, i: number) => void;
+  deleteStyle: (slug: string) => void;
+  paletteDefaultStyle: RampStyle;
+  setPaletteDefaultStyle: React.Dispatch<React.SetStateAction<RampStyle>>;
   // style presets
   stylePresets: StylePresets;
   setStylePresets: React.Dispatch<React.SetStateAction<StylePresets>>;
@@ -181,8 +222,12 @@ export function PixelSprite({ palette, scale = 6, spriteKey = 'vase', spriteLibr
 
 export function RampsPanel(props: RampsPanelProps) {
   const {
-    theme, rampExportStyle, setRampExportStyle,
+    theme,
     baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted,
+    rampsActive, activeStyleFor, rampStyleOverrides, setRampStyleOverride, setRampStyleOverrides,
+    rampStyleScalars, setRampScalar,
+    savedStyles, saveStyle, loadStyleOntoRamp, deleteStyle,
+    paletteDefaultStyle, setPaletteDefaultStyle,
     stylePresets, setStylePresets, activeHardware,
     collapsedRamps, anyRampExpanded, lockedRamps,
     hiddenShades, rampSizeOverrides, setRampSizeOverrides, rampSize,
@@ -207,6 +252,16 @@ export function RampsPanel(props: RampsPanelProps) {
 
   const { t, themedAccent, accentTextGlow: _accentTextGlow } = useTheme();
   const accentTextGlow = _accentTextGlow as (hex: string, px?: number) => string;
+
+  // Card-only comparison toggle (#69): default off shows one strip per ramp
+  // at its active style; on restores the old stacked Punchy/Balanced/Muted
+  // view. Not persisted - a plain useState, sticky across re-renders only.
+  const [showAllStyles, setShowAllStyles] = useState(false);
+
+  // Named-style save input (#69 capability 4): only one Adjust Base editor is
+  // open at a time (editingIndex), so a single string is enough.
+  const [styleSaveName, setStyleSaveName] = useState('');
+  const [styleLoadSlug, setStyleLoadSlug] = useState('');
 
   // #146: the OKLCH Chroma slider shows the raw dragged value, which can sit
   // outside sRGB gamut while the committed base color is silently clamped
@@ -314,12 +369,6 @@ export function RampsPanel(props: RampsPanelProps) {
   return (
     <div className="px-6 pb-6">
       <div className="flex items-center gap-2 flex-wrap justify-end mb-4">
-        <div className={`flex items-center gap-1 px-2 py-1 rounded border-2 ${t.controlPanelBg} ${t.controlPanelBorder}`} title="Style used by the Copy and Download buttons on each ramp card. Independent of the Visualization panel's style. Hidden shades are always excluded.">
-          <span className={`text-[10px] font-bold uppercase tracking-wider mr-1 ${theme === 'dark' ? 'text-cyan-200/80' : t.panelTextInactive}`}>Ramp export:</span>
-          <button onClick={() => setRampExportStyle('punchy')} title="Per-ramp Copy and Download use Punchy shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'punchy' ? { boxShadow: '0 0 8px #ff00ff' } : {}}>Punchy</button>
-          <button onClick={() => setRampExportStyle('balanced')} title="Per-ramp Copy and Download use Balanced shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'balanced' ? { boxShadow: '0 0 8px #00ffff' } : {}}>Balanced</button>
-          <button onClick={() => setRampExportStyle('muted')} title="Per-ramp Copy and Download use Muted shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'muted' ? { boxShadow: '0 0 8px #a855f7' } : {}}>Muted</button>
-        </div>
         {baseColors.length > 1 && (
           <button onClick={toggleAllRampsCollapse} title={anyRampExpanded ? 'Collapse every ramp card to its icon previews' : 'Expand every ramp card to show all swatches'} className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}>
             {anyRampExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -364,6 +413,36 @@ export function RampsPanel(props: RampsPanelProps) {
           ))}
         </div>
       </div>
+      <div className="mb-4 p-3 rounded border-2 border-cyan-700/40 bg-black/60 flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Default Style</span>
+        <div className="flex items-center rounded border-2 border-cyan-700/50 overflow-hidden text-[11px] font-bold uppercase tracking-wider">
+          {(['punchy', 'balanced', 'muted'] as const).map((sk) => (
+            <button
+              key={sk}
+              onClick={() => setPaletteDefaultStyle(sk)}
+              title={`Set the palette default style to ${STYLE_LABEL[sk]}. Ramps without their own override use this.`}
+              className={`px-3 py-1.5 transition-all ${paletteDefaultStyle === sk ? 'bg-cyan-400 text-purple-900' : 'bg-black/60 text-cyan-200 hover:bg-black/40'}`}
+            >
+              {STYLE_LABEL[sk]}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => { tagNextLabel('Set all ramp styles'); setRampStyleOverrides({}); }}
+          title="Clear every ramp's individual style override so all ramps fall back to the palette default style"
+          className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}
+        >
+          Set All Ramps → Default
+        </button>
+        <button
+          onClick={() => setShowAllStyles(v => !v)}
+          title={showAllStyles ? 'Show only each ramp\'s active style' : 'Show Punchy/Balanced/Muted stacked for every ramp, for comparison'}
+          className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${showAllStyles ? 'bg-yellow-300 text-purple-900 border-yellow-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}
+        >
+          <Columns size={14} />
+          {showAllStyles ? 'Comparing All 3' : 'Compare All 3 Styles'}
+        </button>
+      </div>
       {activeHardware && (
         <div className={`mb-4 p-2 rounded border-2 flex items-center gap-2 text-xs ${t.alertWarnBg} ${t.alertWarnBorder}`} style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.4)' }}>
           <Cpu size={14} className={`${t.alertWarnText} flex-shrink-0`} />
@@ -392,6 +471,11 @@ export function RampsPanel(props: RampsPanelProps) {
         const punchyBg = bgFromHex(fPunchyTop.hexes[fPunchyTop.hexes.length - 1] || punchy[punchy.length - 1], 0.7);
         const balancedBg = bgFromHex(fBalancedTop.hexes[fBalancedTop.hexes.length - 1] || balanced[balanced.length - 1], 0.7);
         const mutedBg = bgFromHex(fMutedTop.hexes[fMutedTop.hexes.length - 1] || muted[muted.length - 1], 0.7);
+        const activeStyle = activeStyleFor(i);
+        const active = rampsActive[i];
+        const labelsActive = labelsForRamp(active, effectiveBase);
+        const fActiveTop = filterHidden(active, labelsActive, i);
+        const activeBg = bgFromHex(fActiveTop.hexes[fActiveTop.hexes.length - 1] || active[active.length - 1], 0.7);
         const baseHex = baseColors[i];
         const lumChannel = (c: number) => {
           const v = c / 255;
@@ -442,7 +526,7 @@ export function RampsPanel(props: RampsPanelProps) {
               </button>
               <button
                 onClick={() => copyRampToClipboard(i)}
-                title={`Copy this ramp's hex values to clipboard at the active per-ramp export style (${rampExportStyle}). Change the style via the Punchy/Balanced/Muted toggle in the section header. Hidden shades excluded.`}
+                title={`Copy this ramp's hex values to clipboard at this ramp's active style. Hidden shades excluded.`}
                 className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-cyan-500 text-white border-cyan-200 hover:bg-cyan-400"
                 style={{ boxShadow: '0 0 8px rgba(0, 200, 255, 0.6)' }}
               >
@@ -450,7 +534,7 @@ export function RampsPanel(props: RampsPanelProps) {
               </button>
               <button
                 onClick={() => downloadSingleRampGpl(i)}
-                title={`Download this ramp as a single-ramp .gpl file at the active per-ramp export style (${rampExportStyle}). Change the style via the Punchy/Balanced/Muted toggle in the section header. Hidden shades excluded.`}
+                title={`Download this ramp as a single-ramp .gpl file at this ramp's active style. Hidden shades excluded.`}
                 className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-yellow-400 text-purple-900 border-yellow-200 hover:bg-yellow-300"
                 style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.6)' }}
               >
@@ -477,6 +561,21 @@ export function RampsPanel(props: RampsPanelProps) {
                   <div className="flex items-center rounded border-2 border-yellow-700/50 overflow-hidden text-[10px] font-bold uppercase tracking-wider">
                     <button onClick={() => updateEditorMode('hsv')} title="Edit with HSV sliders" className={`px-2 py-1 transition-all ${editorMode === 'hsv' ? 'bg-yellow-400 text-purple-900' : 'bg-black/60 text-yellow-200 hover:bg-black/40'}`}>HSV</button>
                     <button onClick={() => updateEditorMode('oklch')} title="Edit with perceptual OKLCH sliders (matches the ramp engine's color space)" className={`px-2 py-1 transition-all ${editorMode === 'oklch' ? 'bg-yellow-400 text-purple-900' : 'bg-black/60 text-yellow-200 hover:bg-black/40'}`}>OKLCH</button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-yellow-200 uppercase tracking-wider">Style</span>
+                    <div className="flex items-center rounded border-2 border-yellow-700/50 overflow-hidden text-[10px] font-bold uppercase tracking-wider">
+                      {(['punchy', 'balanced', 'muted', 'custom'] as const).map((sk) => (
+                        <button
+                          key={sk}
+                          onClick={() => { tagNextLabel('Change ramp style'); setRampStyleOverride(i, sk); }}
+                          title={`Set this ramp's active style to ${STYLE_LABEL[sk]}${sk === 'custom' ? ' (opens the reach/chroma falloff sliders for this ramp)' : ''}`}
+                          className={`px-2 py-1 transition-all ${activeStyleFor(i) === sk ? 'bg-yellow-400 text-purple-900' : 'bg-black/60 text-yellow-200 hover:bg-black/40'}`}
+                        >
+                          {sk === 'punchy' ? 'P' : sk === 'balanced' ? 'B' : sk === 'muted' ? 'M' : 'C'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="ml-auto">
                     <button onClick={() => setEditingIndex(null)} title="Close the base color editor" className="text-xs px-2 py-1 rounded font-bold bg-purple-700 text-cyan-100 border-2 border-cyan-500 hover:bg-purple-600 transition-all uppercase tracking-wider">Done</button>
@@ -564,6 +663,84 @@ export function RampsPanel(props: RampsPanelProps) {
                       <button onClick={() => setRampSatOverrides(prev => { const n = { ...prev }; delete n[i]; return n; })} title="Reset per-ramp saturation multiplier to 1.00x" className="text-[10px] px-2 py-1 rounded font-bold bg-purple-700 text-yellow-100 border-2 border-yellow-700/50 hover:bg-purple-600 transition-all uppercase tracking-wider">Reset</button>
                     )}
                   </div>
+                  {(() => {
+                    const scalars = resolveRampScalars({ style: activeStyleFor(i), baseIndex: i, stylePresets, rampStyleScalars });
+                    return (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-bold text-yellow-200 uppercase tracking-wider">Custom tuning (switches this ramp to Custom)</span>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-[11px] font-bold text-yellow-200 uppercase tracking-wider w-12">Reach</span>
+                          <input
+                            type="range" min={0} max={100}
+                            value={Math.round(scalars.reach * 100)}
+                            onChange={(e) => { tagNextLabel('Customize ramp style'); setRampScalar(i, 'reach', Number(e.target.value) / 100); }}
+                            className="flex-1 accent-yellow-400 min-w-[100px]"
+                            title={`Reach for this ramp: ${Math.round(scalars.reach * 100)}% (dragging switches this ramp to Custom)`}
+                          />
+                          <span className="text-[11px] font-mono text-yellow-100 w-14 text-right">{Math.round(scalars.reach * 100)}%</span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-[11px] font-bold text-yellow-200 uppercase tracking-wider w-12">Falloff</span>
+                          <input
+                            type="range" min={0} max={100}
+                            value={Math.round(scalars.chromaFalloff * 100)}
+                            onChange={(e) => { tagNextLabel('Customize ramp style'); setRampScalar(i, 'chromaFalloff', Number(e.target.value) / 100); }}
+                            className="flex-1 accent-yellow-400 min-w-[100px]"
+                            title={`Chroma falloff for this ramp: ${Math.round(scalars.chromaFalloff * 100)}% (dragging switches this ramp to Custom)`}
+                          />
+                          <span className="text-[11px] font-mono text-yellow-100 w-14 text-right">{Math.round(scalars.chromaFalloff * 100)}%</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-yellow-500/20">
+                          <select
+                            value={styleLoadSlug}
+                            onChange={(e) => setStyleLoadSlug(e.target.value)}
+                            title="Pick a saved custom style to apply to this ramp"
+                            className="px-2 py-1 rounded bg-black/60 text-yellow-100 border-2 border-yellow-700/60 focus:border-yellow-400 focus:outline-none text-[11px] font-mono min-w-[110px]"
+                          >
+                            <option value="">Load saved style...</option>
+                            {savedStyles.map(s => (
+                              <option key={s.slug} value={s.slug}>{s.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => { if (styleLoadSlug) loadStyleOntoRamp(styleLoadSlug, i); }}
+                            disabled={!styleLoadSlug}
+                            title="Apply the selected saved style to this ramp (stamps a copy; later edits here won't change the saved style)"
+                            className="text-[10px] px-2 py-1 rounded font-bold bg-purple-700 text-yellow-100 border-2 border-yellow-700/50 hover:bg-purple-600 transition-all uppercase tracking-wider disabled:opacity-40"
+                          >
+                            Load
+                          </button>
+                          {styleLoadSlug && (
+                            <button
+                              onClick={() => { deleteStyle(styleLoadSlug); setStyleLoadSlug(''); }}
+                              title="Delete the selected saved style"
+                              className="text-[10px] px-2 py-1 rounded font-bold bg-pink-700 text-pink-100 border-2 border-pink-500/50 hover:bg-pink-600 transition-all uppercase tracking-wider"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input
+                            type="text"
+                            value={styleSaveName}
+                            onChange={(e) => setStyleSaveName(e.target.value)}
+                            placeholder="Name this look..."
+                            title="Name for saving this ramp's current custom reach/falloff as a reusable style"
+                            className="px-2 py-1 rounded bg-black/60 text-yellow-100 font-mono text-[11px] border-2 border-yellow-700/60 focus:border-yellow-400 focus:outline-none flex-1 min-w-[110px]"
+                          />
+                          <button
+                            onClick={() => { if (styleSaveName.trim()) { saveStyle(styleSaveName, scalars); setStyleSaveName(''); } }}
+                            disabled={!styleSaveName.trim()}
+                            title="Save this ramp's current reach/falloff as a named style"
+                            className="text-[10px] px-2 py-1 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-100 hover:bg-yellow-300 transition-all uppercase tracking-wider disabled:opacity-40"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <RampAdvancedPanel
                     dataTourId={i === 0 ? 'ramp-advanced-toggle' : undefined}
                     open={advancedOpen[String(i)] ?? false}
@@ -585,21 +762,31 @@ export function RampsPanel(props: RampsPanelProps) {
 
             <div className="flex flex-col lg:flex-row gap-4 items-start">
               <div onClick={() => toggleRampCollapse(i)} title={collapsedRamps.has(i) ? 'Expand this ramp card' : 'Collapse this ramp card to icons only'} className="flex flex-row gap-3 items-start flex-shrink-0 flex-wrap cursor-pointer select-none hover:opacity-90 transition-opacity">
-                <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-pink-500/50" style={{ background: punchyBg, boxShadow: '0 0 12px rgba(255, 0, 255, 0.3)' }}>
-                  <PixelSprite palette={fPunchyTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#ff00ff'), textShadow: accentTextGlow('#ff00ff', 6) }}>Punchy</span>
-                  <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                </div>
-                <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-cyan-500/50" style={{ background: balancedBg, boxShadow: '0 0 12px rgba(0, 255, 255, 0.3)' }}>
-                  <PixelSprite palette={fBalancedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#00ffff'), textShadow: accentTextGlow('#00ffff', 6) }}>Balanced</span>
-                  <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                </div>
-                <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-purple-400/60" style={{ background: mutedBg, boxShadow: '0 0 12px rgba(168, 85, 247, 0.3)' }}>
-                  <PixelSprite palette={fMutedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>Muted</span>
-                  <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                </div>
+                {showAllStyles ? (
+                  <>
+                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-pink-500/50" style={{ background: punchyBg, boxShadow: '0 0 12px rgba(255, 0, 255, 0.3)' }}>
+                      <PixelSprite palette={fPunchyTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#ff00ff'), textShadow: accentTextGlow('#ff00ff', 6) }}>Punchy</span>
+                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
+                    </div>
+                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-cyan-500/50" style={{ background: balancedBg, boxShadow: '0 0 12px rgba(0, 255, 255, 0.3)' }}>
+                      <PixelSprite palette={fBalancedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#00ffff'), textShadow: accentTextGlow('#00ffff', 6) }}>Balanced</span>
+                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
+                    </div>
+                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-purple-400/60" style={{ background: mutedBg, boxShadow: '0 0 12px rgba(168, 85, 247, 0.3)' }}>
+                      <PixelSprite palette={fMutedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>Muted</span>
+                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`w-36 flex flex-col items-center gap-1 p-3 rounded border-2 ${STYLE_BORDER[activeStyle]}`} style={{ background: activeBg, boxShadow: `0 0 12px ${STYLE_ACCENT[activeStyle]}4d` }}>
+                    <PixelSprite palette={fActiveTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent(STYLE_ACCENT[activeStyle]), textShadow: accentTextGlow(STYLE_ACCENT[activeStyle], 6) }}>{STYLE_LABEL[activeStyle]}</span>
+                    <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
+                  </div>
+                )}
                 <span className="self-center pl-1" style={{ color: themedAccent('#00ffff') }} aria-hidden="true">
                   {collapsedRamps.has(i) ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
                 </span>
@@ -608,7 +795,7 @@ export function RampsPanel(props: RampsPanelProps) {
                 const fPunchy = fPunchyTop;
                 const fBalanced = fBalancedTop;
                 const fMuted = fMutedTop;
-                const rampLen = punchy.length;
+                const rampLen = showAllStyles ? punchy.length : active.length;
                 const adjTip = (rampHexes: string[], rampLabels: string[], k: number) => {
                   if (rampHexes.length <= 1) return null;
                   const here = rampHexes[k];
@@ -629,6 +816,21 @@ export function RampsPanel(props: RampsPanelProps) {
                   }
                   return `Contrast: ${parts.join(', ')}`;
                 };
+                if (!showAllStyles) {
+                  return (
+                    <div className="flex flex-col gap-3 flex-1 min-w-0">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: themedAccent(STYLE_ACCENT[activeStyle]), textShadow: accentTextGlow(STYLE_ACCENT[activeStyle], 6) }}>▸ {STYLE_LABEL[activeStyle]}</div>
+                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${fActiveTop.hexes.length}, minmax(0, 100px))` }}>
+                          {fActiveTop.hexes.map((hex, k) => {
+                            const origJ = fActiveTop.originalIndices[k];
+                            return <Swatch key={`a-${i}-${origJ}`} hex={hex} label={fActiveTop.labels[k] || ''} borderClass={STYLE_SWATCH_BORDER[activeStyle]} shadowRgba={`${STYLE_ACCENT[activeStyle]}4d`} baseIndex={i} shadeIndex={origJ} style={activeStyle} onContextMenu={() => hideShade(i, origJ, rampLen)} extraTooltip={adjTip(fActiveTop.hexes, fActiveTop.labels, k)} />;
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     <div>
@@ -665,12 +867,12 @@ export function RampsPanel(props: RampsPanelProps) {
             {pinEditor && pinEditor.baseIndex === i && (() => {
               const j = pinEditor.shadeIndex;
               const ps = pinEditor.style;
-              const sourceRamp = ps === 'balanced' ? rampsBalanced[i] : ps === 'muted' ? rampsMuted[i] : rampsPunchy[i];
+              const sourceRamp = ps === 'balanced' ? rampsBalanced[i] : ps === 'muted' ? rampsMuted[i] : ps === 'custom' ? rampsActive[i] : rampsPunchy[i];
               const currentHex = (sourceRamp && sourceRamp[j]) || baseColors[i];
               const pinned = isShadePinned(i, j, ps);
               const shadeLabel = labels[j] || `shade ${j + 1}`;
-              const styleLabel = ps === 'balanced' ? 'Balanced' : ps === 'muted' ? 'Muted' : 'Punchy';
-              const styleColor = ps === 'balanced' ? '#00ffff' : ps === 'muted' ? '#a855f7' : '#ff00ff';
+              const styleLabel = STYLE_LABEL[ps as RampStyle] || 'Punchy';
+              const styleColor = STYLE_ACCENT[ps as RampStyle] || '#ff00ff';
               return (
                 <div className="mt-4 p-3 rounded border-2 border-yellow-500/60 bg-black/60" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.25)' }}>
                   <div className="flex flex-wrap items-center gap-3">

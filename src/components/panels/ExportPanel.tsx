@@ -18,8 +18,6 @@ export interface ExportPanelProps {
   revealLastSaved: () => void;
   bakeHardwareLock: () => void;
   toggleHardwareLock: (id: string) => void;
-  gplStyle: string;
-  setGplStyle: (style: string) => void;
   exportFormat: string;
   setExportFormat: (format: string) => void;
   exportActiveFormat: () => void;
@@ -30,7 +28,7 @@ export function ExportPanel({
   copyPaletteToClipboard, exportLightnessPng, exportMosaicPng, getSnapshotForSlot,
   toggleCompareMode, compareMode, hardwareLock, hwPickerOpen, setHwPickerOpen,
   exportFeedback, lastSavedPath, revealLastSaved, bakeHardwareLock, toggleHardwareLock,
-  gplStyle, setGplStyle, exportFormat, setExportFormat, exportActiveFormat, handleGplFile,
+  exportFormat, setExportFormat, exportActiveFormat, handleGplFile,
 }: ExportPanelProps): ReactNode {
   const { t, themedAccentBorder, accentGlow, sectionHeadColor, accentTextGlow } = useTheme();
   const gplFileInputRef = useRef<HTMLInputElement>(null);
@@ -107,12 +105,10 @@ export function ExportPanel({
         )}
       </div>
       <div className="border-t border-white/10" />
-      {/* GPL row */}
+      {/* Export-format row. Each ramp exports at its own active style (#69),
+          so there is no whole-palette style selector here anymore. */}
       <div className="flex gap-2 items-center flex-wrap">
-        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sectionHeadColor('#ffff00') }}>export style:</span>
-        <button onClick={() => setGplStyle('punchy')} title="Export the .gpl using high-contrast Punchy ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
-        <button onClick={() => setGplStyle('balanced')} title="Export the .gpl using mid-contrast Balanced ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={gplStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
-        <button onClick={() => setGplStyle('muted')} title="Export the .gpl using low-contrast Muted ramps" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${gplStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={gplStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
+        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: sectionHeadColor('#ffff00') }}>export:</span>
         <select
           value={exportFormat}
           onChange={(e) => setExportFormat(e.target.value)}

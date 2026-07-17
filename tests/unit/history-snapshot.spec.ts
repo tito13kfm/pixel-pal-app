@@ -8,16 +8,18 @@ const base = {
   rampShuffleOffsets: {}, hardwareLock: null, hueShiftStrength: 1.0,
   lockedRamps: [], collapsedRamps: [], lightnessCurvePerRamp: {},
   satCurvePerRamp: {}, stylePresets: {},
+  paletteDefaultStyle: 'punchy', rampStyleOverrides: {}, rampStyleScalars: {},
 };
 
 describe('SNAPSHOT_FIELDS', () => {
-  it('names exactly the 18 document fields', () => {
+  it('names exactly the 21 document fields', () => {
     expect(SNAPSHOT_FIELDS).toEqual([
       'baseColors', 'aiColorNames', 'rampSize', 'shuffleSeed',
       'overrides', 'harmonyAnchor', 'rampSizeOverrides', 'rampSatOverrides',
       'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
       'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
       'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',
+      'paletteDefaultStyle', 'rampStyleOverrides', 'rampStyleScalars',
     ]);
   });
 });
@@ -51,6 +53,11 @@ describe('inferLabel', () => {
     expect(inferLabel(base, { ...base, harmonyAnchor: 2 })).toBe('Change harmony anchor');
     expect(inferLabel(base, { ...base, shuffleSeed: 1 })).toBe('Generate');
     expect(inferLabel(base, { ...base, collapsedRamps: [0] })).toBe('Collapse / expand ramps');
+  });
+  it('detects per-ramp style customize / change and default-style change (#69)', () => {
+    expect(inferLabel(base, { ...base, rampStyleScalars: { 0: { reach: 0.5, chromaFalloff: 0.5 } } })).toBe('Customize ramp style');
+    expect(inferLabel(base, { ...base, rampStyleOverrides: { 0: 'muted' } })).toBe('Change ramp style');
+    expect(inferLabel(base, { ...base, paletteDefaultStyle: 'balanced' })).toBe('Change default style');
   });
   it('falls back to Edit for unrecognized change', () => {
     expect(inferLabel(base, base)).toBe('Edit');

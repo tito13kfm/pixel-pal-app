@@ -37,13 +37,15 @@ src/
       ExportPanel.tsx   props-only (20 props: export handlers, hw-lock, feedback)
       SavedPalettesPanel.tsx  props-only (state from useSavedPalettes + handlers);
                         reads ThemeContext; imports CLASSIC_PALETTES from lib/constants
-      PlaygroundPanel.tsx props-only (7 props: pgOpen, vizStyle, setVizStyle,
-                        rampsBalanced/Muted/Punchy, isDark); reads ThemeContext.
-                        React.memo-wrapped (SP2 phase a): skips re-render on
-                        orthogonal state changes. Requires stable ThemeContext value
-                        (App.tsx computes `t = useMemo([theme])` for this).
-                        Remaining panels deferred to phase b/c (need handler wraps
-                        or context slicing first).
+      PlaygroundPanel.tsx props-only (3 props: pgOpen, rampsActive, isDark); reads
+                        ThemeContext. React.memo-wrapped (SP2 phase a): skips
+                        re-render on orthogonal state changes. Requires stable
+                        ThemeContext value (App.tsx computes `t = useMemo([theme])`
+                        for this). Remaining panels deferred to phase b/c (need
+                        handler wraps or context slicing first). The old vizStyle
+                        prop is gone (#69): the Playground now renders `rampsActive`,
+                        the per-ramp style array, instead of picking one of three
+                        global style sets.
       VizComparePanel.tsx SectionCard included as root (IIFE pattern); canvas
                         refs + 3 draw effects co-located; reads ThemeContext;
                         ~57 props (SBS slots, remap state, export callbacks)
@@ -53,9 +55,9 @@ src/
                         reads ThemeContext for vizDataBorder only.
                         React.memo-wrapped (SP2 phase b): skips re-render when its
                         props are unchanged.
-      RampsPanel.tsx    props-only (~77 props: baseColors, rampsPunchy/Balanced/Muted,
-                        style/size/sat overrides, per-ramp advanced curve state,
-                        hardware/compare/pin state, all ramp action callbacks);
+      RampsPanel.tsx    props-only (~90 props: baseColors, rampsPunchy/Balanced/Muted,
+                        rampsActive, style/size/sat overrides, per-ramp advanced curve
+                        state, hardware/compare/pin state, all ramp action callbacks);
                         Swatch + PixelSprite as internal components; reads ThemeContext
                         for themedAccent + accentTextGlow; accentTextGlow cast to
                         (hex, px?) signature to match 2-arg usage in ramp headers.
@@ -63,6 +65,21 @@ src/
                         (editorMode/editorOklch + updateEditorOklch/updateEditorMode,
                         #129): OKLCH edits go through lib/oklch's gamutMap('auto')
                         before being written back as hex.
+                        Per-ramp style (#69): `rampsActive` is the one render array
+                        every consumer reads (each ramp built at its own resolved
+                        style); `activeStyleFor`/`rampStyleOverrides`/
+                        `setRampStyleOverride`/`rampStyleScalars`/`setRampScalar`
+                        drive the per-ramp P/B/M/Custom picker + Reach/Chroma-falloff
+                        sliders in the Adjust Base editor header; `savedStyles`/
+                        `saveStyle`/`loadStyleOntoRamp`/`deleteStyle` back the compact
+                        named-style save/load UI in the same slot;
+                        `paletteDefaultStyle`/`setPaletteDefaultStyle` back the header
+                        "Default Style" row (segmented P/B/M + "Set All Ramps →
+                        Default"); local `showAllStyles` state toggles the card
+                        between one-strip-per-ramp (default) and the old stacked
+                        Punchy/Balanced/Muted comparison view ("Compare All 3
+                        Styles"). `rampExportStyle` (the old per-ramp Copy/Download
+                        selector) is gone: those actions now read `rampsActive`.
       InputPanel.tsx    props-only (54 props: mode/color/image/sprite input
                         state and handlers); reads ThemeContext for
                         t/themedAccentBorder/accentGlow; reuses PixelSprite
@@ -247,15 +264,31 @@ Invariants that must hold across edits:
    a computed shade past it; the static label table would otherwise mislabel.
    Pin / hardware-locked ramps (base hex absent from output) fall back to the static
    `shadeLabelsFor(n)` table.
-6. **Three independent style selectors, none in the undo snapshot:**
-   `rampExportStyle` (per-ramp Copy / Download), `vizStyle` (Visualize & Compare +
-   Playground), `gplStyle` (full-palette export bar).
+6. **Style is a per-ramp property (#69), not a global selector.** The three
+   independent global selectors this invariant used to describe
+   (`rampExportStyle` for per-ramp Copy/Download, `vizStyle` for Visualize &
+   Compare + Playground, `gplStyle` for the full-palette export bar) are
+   **retired**. In their place: `paletteDefaultStyle` (scalar fallback) +
+   `rampStyleOverrides` (sparse `Record<number, RampStyle>`) resolve each
+   ramp's active style via `resolveActiveStyle`
+   (`src/lib/style-presets.ts`); `rampStyleScalars` (sparse
+   `Record<number, StyleScalars>`) holds a ramp's own `{reach,
+   chromaFalloff}` when its override is `'custom'`, resolved via
+   `resolveRampScalars`. All three fields **are** in the undo snapshot and
+   the saved-palette payload (see `SNAPSHOT_FIELDS` /
+   `src/lib/history-snapshot.ts` and item 3 below). `rampsActive[i] =
+   buildRamp(liveRampSnapshot, activeStyleFor(i), i)` is the single render
+   array every consumer reads; `rampsPunchy`/`rampsBalanced`/`rampsMuted`
+   survive only for the Color Ramps card's "compare all three" toggle and
+   the pin editor. Design: `docs/superpowers/specs/2026-07-17-issue-69-per-ramp-style-design.md`.
 
 History (undo/redo) lives in `useHistory`: whole-state snapshots, 50-entry cap,
-300 ms debounce, session-only. Its watcher dep array is the **17** snapshot INPUTS and
-deliberately omits `lightnessCurvePerRamp` / `satCurvePerRamp` (preserved verbatim, do
-not "complete" it to 19). `usePaletteState` owns the document core (20 snapshot fields
-+ 6 editor/compare fields) and the three snapshot helpers `useHistory` consumes.
+300 ms debounce, session-only. Its watcher dep array is the **19** snapshot INPUTS
+(includes the #69 `paletteDefaultStyle`/`rampStyleOverrides`/`rampStyleScalars`
+trio) and deliberately omits `lightnessCurvePerRamp` / `satCurvePerRamp` (preserved
+verbatim, do not "complete" it to 21). `usePaletteState` owns the document core
+(`SNAPSHOT_FIELDS`, 21 fields including those two curve maps, + 6 editor/compare
+fields) and the three snapshot helpers `useHistory` consumes.
 
 **State slicing (SP2 phase b):** `usePaletteState`'s ramps-domain fields are now
 backed by a Zustand store, `src/store/rampsStore.ts` (`useRampsStore`), rather than
@@ -308,10 +341,19 @@ only chrome adapts.**
 Key inventory:
 
 - **UI prefs** (each: load-on-mount effect + mountRef-guarded persist effect):
-  `ui:theme`, `ui:cvdMode`, `ui:vizStyle`, `ui:gplStyle`, `ui:exportFormat`,
-  `ui:rampExportStyle`, `ui:rampSize`, `ui:panels`, `ui:sectionOrder`, `ui:vizSubOpen`.
+  `ui:theme`, `ui:cvdMode`, `ui:exportFormat`, `ui:rampSize`, `ui:panels`,
+  `ui:sectionOrder`, `ui:vizSubOpen`. `ui:vizStyle`, `ui:gplStyle`, and
+  `ui:rampExportStyle` are **retired** (#69): style is now per-ramp palette
+  identity (`paletteDefaultStyle`/`rampStyleOverrides`/`rampStyleScalars`),
+  not a UI pref, so it lives in the palette payload below instead of its own
+  key.
 - **Palettes:** `palettes:{slug}` → full `SavedPalettePayload` JSON. No separate index;
   the list is rebuilt by scanning the prefix.
+- **Named ramp styles (#69):** `styles:{slug}` → `{ name, savedAt, reach,
+  chromaFalloff }`, managed by `src/hooks/useSavedStylesActions.ts` (mirrors the
+  palette save/load flow at a much smaller scale). `SAVED_STYLE_LIMIT = 100`.
+  Loading one stamps a copy into that ramp's `rampStyleScalars` and flips its
+  override to `'custom'`, it is not a live reference.
 - **One-shot flags:** `pixel-pal-tour-seen`, `v2EngineNoticeDismissed`.
 
 `loadPalette` validates, clamps, and defaults **every** field (tolerates older
@@ -322,7 +364,12 @@ pre-v2 save ⇒ `setV2NoticePending(true)` (one-time migration banner; saves alw
 `curvePerRamp` string presets migrate into `lightnessCurvePerRamp` via `presetToPoints`.
 Old shared-style (non-per-style) `overrides` fail validation and are dropped
 (intentional breaking change). Save snapshots the FULL `customSprites` library so a
-loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`.
+loaded palette restores sprites it depended on. `SAVED_PALETTE_LIMIT = 100`. A
+pre-#69 payload has no `paletteDefaultStyle`/`rampStyleOverrides`/
+`rampStyleScalars`: `useSavedPalettesActions` migrates the legacy `vizStyle`
+(falling back to `gplStyle`, else `'punchy'`) into `paletteDefaultStyle` and
+leaves the two per-ramp maps empty, so every ramp shows the style the palette
+was last viewed at.
 
 ---
 

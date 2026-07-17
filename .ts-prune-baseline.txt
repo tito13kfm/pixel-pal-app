@@ -5,9 +5,9 @@
 # normalized to forward slashes since the gate runs on ubuntu-latest.
 src/lib/history-snapshot.ts:1 - SNAPSHOT_FIELDS
 src/lib/palette-export.ts:16 - dedupeEntries
-src/lib/palette.ts:8 - CurvePresetSerialized
-src/lib/palette.ts:78 - savePaletteToStorage
-src/lib/palette.ts:92 - deletePaletteFromStorage
-src/lib/palette.ts:107 - loadAllPaletteIndexEntries
+src/lib/palette.ts:9 - CurvePresetSerialized
+src/lib/palette.ts:86 - savePaletteToStorage
+src/lib/palette.ts:100 - deletePaletteFromStorage
+src/lib/palette.ts:115 - loadAllPaletteIndexEntries
 src/lib/randomizer.ts:6 - buildRandomDescription
 src/lib/viz-interaction.ts:172 - CycleRange

@@ -2,6 +2,22 @@
 
 > Read `../README.md` first.
 
+**Status: Done (docs/spec/changelog).** Added
+`docs/superpowers/specs/2026-07-17-issue-69-per-ramp-style-design.md`, updated
+`docs/ARCHITECTURE.md` (RampsPanel/PlaygroundPanel prop descriptions, invariant
+6, the snapshot/history field counts, the persistence key inventory including
+the new `styles:` namespace and the retired `ui:vizStyle`/`ui:gplStyle`/
+`ui:rampExportStyle` keys), and added the `[Unreleased]` CHANGELOG entries
+(Added/Changed/Removed). Full verification gate green: `npm test` (602/602),
+type gate (strip-`@ts-nocheck` copy + `tsc --noEmit`, pre-existing type-debt
+only, no new errors from this change), `npm run build`, `npm run build:web`,
+`npm run deadcode:ci` (0 new). `npm run test:e2e` was not run (this task made
+no source changes, docs-only diff, so there is no runtime surface to exercise;
+see the repo's e2e sandbox note in the plan handoff). **Version bump deferred**
+per this file's own instructions: proposing a MINOR bump (0.26.0) since
+per-ramp styles is a substantial new feature surface, per `CLAUDE.md`'s
+versioning rule, awaiting user sign-off before `npm version` + tagging.
+
 **Depends on:** the design is stable from the start, so the **spec + docs drafts can be
 written anytime (Wave A)**; the CHANGELOG finalization + version bump happen **last**,
 after Tasks 1–8 land.

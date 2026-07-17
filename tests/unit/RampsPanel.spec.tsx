@@ -42,13 +42,24 @@ const DEFAULT_STYLE_PRESETS = {
 
 const baseRampProps: RampsPanelProps = {
   theme: 'dark',
-  rampExportStyle: 'balanced',
-  setRampExportStyle: noop,
   baseColors: ['#ff6b35'],
   aiColorNames: ['Ember'],
   rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300']],
   rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400']],
   rampsMuted: [['#ddbbbb', '#cc6644', '#994422']],
+  rampsActive: [['#ff9999', '#ff6b35', '#aa3300']],
+  activeStyleFor: (_i) => 'punchy',
+  rampStyleOverrides: {},
+  setRampStyleOverride: noop as any,
+  setRampStyleOverrides: noopDispatch,
+  rampStyleScalars: {},
+  setRampScalar: noop as any,
+  savedStyles: [],
+  saveStyle: noop as any,
+  loadStyleOntoRamp: noop as any,
+  deleteStyle: noop as any,
+  paletteDefaultStyle: 'punchy',
+  setPaletteDefaultStyle: noopDispatch,
   stylePresets: DEFAULT_STYLE_PRESETS,
   setStylePresets: noopDispatch,
   activeHardware: null,
@@ -135,29 +146,12 @@ test('renders Style Tuning section', () => {
   expect(screen.getByText('Style Tuning')).toBeInTheDocument();
 });
 
-test('renders Ramp export label and style toggle buttons', () => {
+test('no global ramp-export style toggle (style is per-ramp, #69)', () => {
   wrap();
-  expect(screen.getByText('Ramp export:')).toBeInTheDocument();
-  // Punchy/Balanced/Muted appear in export toggle + sprite headers; use getAllByText
-  expect(screen.getAllByText('Punchy').length).toBeGreaterThanOrEqual(1);
-  expect(screen.getAllByText('Balanced').length).toBeGreaterThanOrEqual(1);
-  expect(screen.getAllByText('Muted').length).toBeGreaterThanOrEqual(1);
-});
-
-test('calls setRampExportStyle when Punchy clicked', () => {
-  const setRampExportStyle = vi.fn();
-  wrap({ setRampExportStyle });
-  const btn = screen.getAllByText('Punchy').find(el => el.tagName === 'BUTTON')!;
-  fireEvent.click(btn);
-  expect(setRampExportStyle).toHaveBeenCalledWith('punchy');
-});
-
-test('calls setRampExportStyle when Muted clicked', () => {
-  const setRampExportStyle = vi.fn();
-  wrap({ setRampExportStyle });
-  const btn = screen.getAllByText('Muted').find(el => el.tagName === 'BUTTON')!;
-  fireEvent.click(btn);
-  expect(setRampExportStyle).toHaveBeenCalledWith('muted');
+  // The retired "Ramp export:" Punchy/Balanced/Muted toggle is gone; per-ramp
+  // Copy/Download now use each ramp's own active style. The "▸ Punchy" etc.
+  // section labels (show-all-three view) still render when expanded.
+  expect(screen.queryByText('Ramp export:')).toBeNull();
 });
 
 test('renders color name in ramp card', () => {
@@ -165,11 +159,75 @@ test('renders color name in ramp card', () => {
   expect(screen.getAllByText('Ember').length).toBeGreaterThanOrEqual(1);
 });
 
-test('renders Punchy / Balanced / Muted section labels when expanded', () => {
+test('default view shows only the active style section label (#69)', () => {
   wrap();
+  expect(screen.getByText('▸ Punchy')).toBeInTheDocument();
+  expect(screen.queryByText('▸ Balanced')).not.toBeInTheDocument();
+  expect(screen.queryByText('▸ Muted')).not.toBeInTheDocument();
+});
+
+test('default view shows the ramp\'s active (non-punchy) style, not always Punchy (#69)', () => {
+  wrap({ activeStyleFor: (_i) => 'balanced', rampsActive: [['#ffaaaa', '#ff6b35', '#bb4400']] });
+  expect(screen.queryByText('▸ Punchy')).not.toBeInTheDocument();
+  expect(screen.getByText('▸ Balanced')).toBeInTheDocument();
+});
+
+test('toggling "Compare All 3 Styles" shows all three stacked sections (#69)', () => {
+  wrap();
+  expect(screen.queryByText('▸ Balanced')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('Compare All 3 Styles'));
   expect(screen.getByText('▸ Punchy')).toBeInTheDocument();
   expect(screen.getByText('▸ Balanced')).toBeInTheDocument();
   expect(screen.getByText('▸ Muted')).toBeInTheDocument();
+});
+
+test('per-ramp style picker calls setRampStyleOverride with the clicked style (#69)', () => {
+  const setRampStyleOverride = vi.fn();
+  wrap({ editingIndex: 0, setRampStyleOverride });
+  fireEvent.click(screen.getByTitle(/Set this ramp's active style to Balanced/));
+  expect(setRampStyleOverride).toHaveBeenCalledWith(0, 'balanced');
+});
+
+test('"Set All Ramps → Default" clears rampStyleOverrides (#69)', () => {
+  const setRampStyleOverrides = vi.fn();
+  wrap({ setRampStyleOverrides });
+  fireEvent.click(screen.getByText('Set All Ramps → Default'));
+  expect(setRampStyleOverrides).toHaveBeenCalledWith({});
+});
+
+test('palette default-style selector calls setPaletteDefaultStyle (#69)', () => {
+  const setPaletteDefaultStyle = vi.fn();
+  wrap({ setPaletteDefaultStyle });
+  fireEvent.click(screen.getByTitle(/Set the palette default style to Muted/));
+  expect(setPaletteDefaultStyle).toHaveBeenCalledWith('muted');
+});
+
+test('dragging the Reach slider on a Punchy ramp calls setRampScalar with the ramp index and key (#69)', () => {
+  const setRampScalar = vi.fn();
+  wrap({ editingIndex: 0, setRampScalar });
+  fireEvent.change(screen.getByTitle(/Reach for this ramp/), { target: { value: '60' } });
+  expect(setRampScalar).toHaveBeenCalledWith(0, 'reach', 0.6);
+});
+
+test('dragging the Chroma falloff slider on a Punchy ramp calls setRampScalar with the ramp index and key (#69)', () => {
+  const setRampScalar = vi.fn();
+  wrap({ editingIndex: 0, setRampScalar });
+  fireEvent.change(screen.getByTitle(/Chroma falloff for this ramp/), { target: { value: '40' } });
+  expect(setRampScalar).toHaveBeenCalledWith(0, 'chromaFalloff', 0.4);
+});
+
+test('the per-ramp picker reflects Custom once the ramp\'s override is custom (#69)', () => {
+  wrap({ editingIndex: 0, activeStyleFor: (_i) => 'custom', rampStyleOverrides: { 0: 'custom' } });
+  const customButton = screen.getByTitle(/Set this ramp's active style to Custom/);
+  expect(customButton.className).toMatch(/bg-yellow-400/);
+});
+
+test('the global Style Tuning block is untouched by the per-ramp sliders (#69)', () => {
+  const setStylePresets = vi.fn();
+  wrap({ editingIndex: 0, setStylePresets });
+  expect(screen.getByText('Style Tuning')).toBeInTheDocument();
+  fireEvent.change(screen.getByTitle(/Reach for this ramp/), { target: { value: '60' } });
+  expect(setStylePresets).not.toHaveBeenCalled();
 });
 
 test('does not render swatch rows when ramp collapsed', () => {
@@ -193,6 +251,7 @@ test('shows Collapse All when anyRampExpanded is true', () => {
     rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
     rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400'], ['#aaddff', '#00aaff', '#006699']],
     rampsMuted: [['#ddbbbb', '#cc6644', '#994422'], ['#bbccdd', '#4488bb', '#224455']],
+    rampsActive: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
   });
   expect(screen.getByText('Collapse All')).toBeInTheDocument();
 });
@@ -204,6 +263,7 @@ test('shows Expand All when anyRampExpanded is false', () => {
     rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
     rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400'], ['#aaddff', '#00aaff', '#006699']],
     rampsMuted: [['#ddbbbb', '#cc6644', '#994422'], ['#bbccdd', '#4488bb', '#224455']],
+    rampsActive: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
   });
   expect(screen.getByText('Expand All')).toBeInTheDocument();
 });
@@ -215,6 +275,7 @@ test('calls toggleAllRampsCollapse when Collapse All clicked', () => {
     rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
     rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400'], ['#aaddff', '#00aaff', '#006699']],
     rampsMuted: [['#ddbbbb', '#cc6644', '#994422'], ['#bbccdd', '#4488bb', '#224455']],
+    rampsActive: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
   });
   fireEvent.click(screen.getByText('Collapse All'));
   expect(toggleAllRampsCollapse).toHaveBeenCalledOnce();
@@ -274,6 +335,7 @@ test('shows remove button when multiple ramps', () => {
     rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
     rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400'], ['#aaddff', '#00aaff', '#006699']],
     rampsMuted: [['#ddbbbb', '#cc6644', '#994422'], ['#bbccdd', '#4488bb', '#224455']],
+    rampsActive: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
   });
   expect(screen.getAllByTitle('Remove this ramp').length).toBe(2);
 });

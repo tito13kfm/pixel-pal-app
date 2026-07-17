@@ -26,7 +26,8 @@ import { presetToPoints } from '../lib/curve';
 import type { CurvePoints } from '../lib/curve';
 import { parseGpl, subsetGplColors } from '../lib/palette-import';
 import { isValidRampSize } from '../lib/ramp-engine';
-import { DEFAULT_STYLE_PRESETS } from '../lib/style-presets';
+import { DEFAULT_STYLE_PRESETS, RAMP_STYLES } from '../lib/style-presets';
+import type { RampStyle, StyleScalars } from '../lib/style-presets';
 import { DEFAULT_SPRITE_LIBRARY, HARDWARE_PALETTES } from '../lib/constants';
 import { isPreV2Palette } from '../components/V2EngineNotice';
 
@@ -70,10 +71,6 @@ interface UseSavedPalettesActionsParams {
   setRenameError: (v: string) => void;
 
   // Cross-domain wiring (non-store state owned by other hooks / App.tsx).
-  gplStyle: string;
-  setGplStyle: (v: string) => void;
-  vizStyle: string;
-  setVizStyle: (v: string) => void;
   spriteKey: string;
   setSpriteKey: (v: string) => void;
   customSprites: Record<string, unknown>;
@@ -103,6 +100,9 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
     lightnessCurvePerRamp, setLightnessCurvePerRamp,
     satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets, setPinEditor,
+    paletteDefaultStyle, setPaletteDefaultStyle,
+    rampStyleOverrides, setRampStyleOverrides,
+    rampStyleScalars, setRampStyleScalars,
   } = usePaletteState();
 
   // gplImport: parsed .gpl modal state. See handleGplFile / applyGplImport.
@@ -179,8 +179,6 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
       baseColors,
       aiColorNames,
       rampSize,
-      gplStyle: p.gplStyle,
-      vizStyle: p.vizStyle,
       spriteKey: p.spriteKey,
       shuffleSeed, // critical: ramps are deterministic only if we restore this exactly
       customSprites: p.customSprites, // snapshot the full custom sprite library
@@ -205,6 +203,11 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
       gamutPerRamp: p.gamutPerRamp,
       advancedOpen: p.advancedOpen,
       stylePresets,
+      // Per-ramp style (#69): the palette-default scalar style + the two
+      // per-ramp maps. Old payloads lack these; load() migrates via vizStyle.
+      paletteDefaultStyle,
+      rampStyleOverrides,
+      rampStyleScalars,
       engineVersion: 2, // frozen constant: marks this as a v2 save so load() won't fire the migration notice (#70)
     };
     p.setSavedBusy(true);
@@ -272,8 +275,8 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
       // one-time notice. Migration persists lazily on the user's next save
       // (the save payload always writes engineVersion: 2). (#70)
       if (isPreV2Palette(parsed)) p.setV2NoticePending(true);
-      if (['punchy', 'balanced', 'muted'].includes(parsed.gplStyle)) p.setGplStyle(parsed.gplStyle);
-      if (['punchy', 'balanced', 'muted'].includes(parsed.vizStyle)) p.setVizStyle(parsed.vizStyle);
+      // The legacy global vizStyle/gplStyle are gone (#69); a saved payload's
+      // vizStyle/gplStyle now feeds paletteDefaultStyle migration below.
       // Only restore the sprite key if it exists in the library after the merge above.
       if (parsed.spriteKey && ((DEFAULT_SPRITE_LIBRARY as Record<string, unknown>)[parsed.spriteKey] || (parsed.customSprites && parsed.customSprites[parsed.spriteKey]) || p.customSprites[parsed.spriteKey])) {
         p.setSpriteKey(parsed.spriteKey);
@@ -460,6 +463,56 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
           ? { punchy: sp.punchy, balanced: sp.balanced, muted: sp.muted }
           : DEFAULT_STYLE_PRESETS
       );
+      // Per-ramp style (#69). paletteDefaultStyle: validate against RAMP_STYLES.
+      // Legacy migration: a pre-#69 payload has no paletteDefaultStyle, so
+      // derive it from the old global vizStyle (else gplStyle, else 'punchy')
+      // and load empty per-ramp maps.
+      const isRampStyle = (x: unknown): x is RampStyle =>
+        typeof x === 'string' && (RAMP_STYLES as string[]).includes(x);
+      if (isRampStyle(parsed.paletteDefaultStyle)) {
+        setPaletteDefaultStyle(parsed.paletteDefaultStyle);
+      } else if (isRampStyle(parsed.vizStyle)) {
+        setPaletteDefaultStyle(parsed.vizStyle);
+      } else if (isRampStyle(parsed.gplStyle)) {
+        setPaletteDefaultStyle(parsed.gplStyle);
+      } else {
+        setPaletteDefaultStyle('punchy');
+      }
+      // rampStyleOverrides: { [baseIndex]: RampStyle }. Drop keys out of range
+      // and values not in RAMP_STYLES.
+      if (parsed.rampStyleOverrides && typeof parsed.rampStyleOverrides === 'object' && !Array.isArray(parsed.rampStyleOverrides)) {
+        const cleaned: Record<number, RampStyle> = {};
+        for (const k of Object.keys(parsed.rampStyleOverrides)) {
+          const idx = Number(k);
+          if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
+          const v = parsed.rampStyleOverrides[k];
+          if (isRampStyle(v)) cleaned[idx] = v;
+        }
+        setRampStyleOverrides(cleaned);
+      } else {
+        setRampStyleOverrides({});
+      }
+      // rampStyleScalars: { [baseIndex]: { reach, chromaFalloff } }. Drop keys
+      // out of range; require both scalars finite, clamped to [0, 1].
+      if (parsed.rampStyleScalars && typeof parsed.rampStyleScalars === 'object' && !Array.isArray(parsed.rampStyleScalars)) {
+        const cleaned: Record<number, StyleScalars> = {};
+        for (const k of Object.keys(parsed.rampStyleScalars)) {
+          const idx = Number(k);
+          if (!Number.isInteger(idx) || idx < 0 || idx >= parsed.baseColors.length) continue;
+          const v = parsed.rampStyleScalars[k];
+          if (!v || typeof v !== 'object') continue;
+          const reach = Number(v.reach);
+          const chromaFalloff = Number(v.chromaFalloff);
+          if (!Number.isFinite(reach) || !Number.isFinite(chromaFalloff)) continue;
+          cleaned[idx] = {
+            reach: Math.max(0, Math.min(1, reach)),
+            chromaFalloff: Math.max(0, Math.min(1, chromaFalloff)),
+          };
+        }
+        setRampStyleScalars(cleaned);
+      } else {
+        setRampStyleScalars({});
+      }
       p.setExportFeedback(`Loaded "${parsed.name || slug}"`);
       setTimeout(() => p.setExportFeedback(''), 2000);
     } catch (err) {

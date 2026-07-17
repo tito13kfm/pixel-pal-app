@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { CLASSIC_PALETTES } from '../lib/constants';
 import { buildRampsForSnapshot } from '../lib/snapshot-ramps';
 import type { RampSnapshot } from '../lib/snapshot-ramps';
+import type { RampStyle } from '../lib/style-presets';
 import { requestRemap } from '../lib/remap-worker-client';
 import type { RemapOptions } from '../lib/image-remap';
 
@@ -37,7 +38,6 @@ interface UseSideBySideComputeParams {
   rampSize: number;
   stylePresets: SnapshotBundle['stylePresets'];
   hueShiftStrength: number;
-  vizStyle: string;
   savedPalettes: { slug: string; name: string }[];
 
   // Shared remap upload (owned by useImageRemap, same image as the main
@@ -67,7 +67,7 @@ interface UseSideBySideComputeParams {
 export function useSideBySideCompute(p: UseSideBySideComputeParams) {
   const {
     workingRenderInputs, hiddenShades, rampSize, stylePresets, hueShiftStrength,
-    vizStyle, savedPalettes, remapImageDataUrl, remapDither,
+    savedPalettes, remapImageDataUrl, remapDither,
     sbsLeft, sbsRight, sbsLeftPayload, setSbsLeftPayload, sbsRightPayload, setSbsRightPayload,
     setSbsLeftError, setSbsRightError, setSbsLeftLoading, setSbsRightLoading,
     sbsRemapSource, setSbsRemapSource, setSbsLeftRemap, setSbsRightRemap,
@@ -215,6 +215,9 @@ export function useSideBySideCompute(p: UseSideBySideComputeParams) {
       hiddenShades: {},
       hardwareLock: null,
       hueShiftStrength,
+      paletteDefaultStyle: 'punchy' as RampStyle,
+      rampStyleOverrides: {},
+      rampStyleScalars: {},
     };
   };
   const getSnapshotForSlot = (slot: SlotValue, cachedPayload: SavedPayload | null) => {
@@ -259,13 +262,13 @@ export function useSideBySideCompute(p: UseSideBySideComputeParams) {
   // reduction per remap, 8x across both slots vs the main panel.
   const SBS_REMAP_MAX_DIMENSION = 256;
   // Derive a remap-ready palette (flat, deduped, lowercase) from a
-  // snapshot under the current vizStyle. Returns [] for an unusable
-  // snapshot. The flatten + dedupe is byte-identical to what the live
-  // pipeline's getActiveRemapPalette produces when fed the same input,
+  // snapshot, each ramp at its own active style (#69). Returns [] for an
+  // unusable snapshot. The flatten + dedupe is byte-identical to what the
+  // live pipeline's getActiveRemapPalette produces when fed the same input,
   // because buildRampsForSnapshot already applies hidden-shade filter,
   // hardware lock, pins, sizes, saturations, and shuffle internally.
   const paletteFromSnapshotForRemap = (snapshot: SnapshotBundle) => {
-    const ramps = buildRampsForSnapshot(snapshot, vizStyle);
+    const ramps = buildRampsForSnapshot(snapshot);
     if (!ramps || ramps.length === 0) return [];
     const seen = new Set();
     const out: string[] = [];
@@ -326,7 +329,7 @@ export function useSideBySideCompute(p: UseSideBySideComputeParams) {
   }, [remapImageDataUrl]);
 
   // Per-slot remap effects. Each fires when the source, the slot
-  // palette signature (vizStyle is baked into the signature via the
+  // palette signature (per-ramp styles are baked into the signature via the
   // snapshot ramps), or the dither mode changes. Empty palette or
   // missing source -> clear the slot's output and bail. The remap itself
   // runs in a worker via requestRemap (issue #110); the `cancelled` flag

@@ -31,11 +31,10 @@ interface UseSectionDragParams {
   setDraggingKey: (v: string | null) => void;
   setSectionOrder: (updater: (prev: string[]) => string[]) => void;
   DEFAULT_SECTION_ORDER: string[];
-  vizStyle: string;
 }
 
 export function useSectionDrag(p: UseSectionDragParams) {
-  const { dragOver, setDragOver, draggingKey, setDraggingKey, setSectionOrder, DEFAULT_SECTION_ORDER, vizStyle } = p;
+  const { dragOver, setDragOver, draggingKey, setDraggingKey, setSectionOrder, DEFAULT_SECTION_ORDER } = p;
 
   const makeSectionDragHandlers = (sectionKey: string) => ({
     onDragOver: (e: DragEvent) => {
@@ -60,12 +59,13 @@ export function useSectionDrag(p: UseSectionDragParams) {
     },
   });
 
-  // Accent color per section (viz mirrors the live vizStyle accent).
+  // Accent color per section. The viz accent is a fixed tint now that style
+  // is per-ramp (#69) rather than a single global vizStyle.
   const sectionAccent = (key: string) =>
     key === 'ramps' ? '#00ffff'
     : key === 'harmony' ? '#ff00ff'
     : key === 'playground' ? '#00ff88'
-    : key === 'viz' ? (vizStyle === 'balanced' ? '#00ffff' : vizStyle === 'muted' ? '#a855f7' : '#ff00ff')
+    : key === 'viz' ? '#ff00ff'
     : key === 'saved' ? '#ffff00'
     : key === 'history' ? '#a855f7'
     : '#00ffff';

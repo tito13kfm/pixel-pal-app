@@ -30,33 +30,59 @@ describe('buildPaletteText', () => {
 });
 
 describe('collectPaletteEntries', () => {
-  it('dedupes by hex across ramps and harmony', () => {
+  it('dedupes by hex across the active ramps and harmony', () => {
     const entries = collectPaletteEntries({
-      style: 'punchy',
+      rampsActive: [['#111111', '#ff00ff']],
       baseColors: ['#ff00ff'],
       aiColorNames: ['Magenta'],
-      rampsPunchy: [['#111111', '#ff00ff']],
-      rampsBalanced: [[]], rampsMuted: [[]],
       harmony: { ...harmony, complementary: '#111111' },
       resolveBaseForRamp, labelsForRamp, filterHidden,
     });
     const hexes = entries.map(e => e.hex.toLowerCase());
     expect(hexes.filter(h => h === '#111111')).toHaveLength(1);
   });
+
+  it('reads each ramp from rampsActive so mixed per-ramp styles export together', () => {
+    // rampsActive already reflects each ramp's active style: ramp 0 is a
+    // punchy strip, ramp 1 a muted strip. collectPaletteEntries indexes
+    // rampsActive[i] directly, so the emitted entries carry both.
+    const entries = collectPaletteEntries({
+      rampsActive: [['#ff0000', '#aa0000'], ['#446644', '#223322']],
+      baseColors: ['#ff0000', '#446644'],
+      aiColorNames: ['Red', 'Moss'],
+      harmony,
+      resolveBaseForRamp, labelsForRamp, filterHidden,
+    });
+    const hexes = entries.map(e => e.hex.toLowerCase());
+    expect(hexes).toContain('#ff0000');
+    expect(hexes).toContain('#aa0000');
+    expect(hexes).toContain('#446644');
+    expect(hexes).toContain('#223322');
+  });
 });
 
 describe('filteredRamp + buildSingleRampGpl', () => {
-  it('builds a GIMP palette block scoped to one ramp', () => {
+  it('builds a GIMP palette block scoped to one active ramp', () => {
     const filtered = filteredRamp({
-      i: 0, style: 'punchy',
+      i: 0,
+      rampsActive: [['#000000', '#ff00ff']],
       baseColors: ['#ff00ff'],
-      rampsPunchy: [['#000000', '#ff00ff']],
-      rampsBalanced: [[]], rampsMuted: [[]],
       resolveBaseForRamp, labelsForRamp, filterHidden,
     });
     const gpl = buildSingleRampGpl({ filtered, i: 0, style: 'punchy', aiColorNames: ['Magenta'] });
     expect(gpl).toContain('GIMP Palette');
     expect(gpl).toContain('Name: PIXEL.PAL Magenta Punchy');
     expect(gpl).toContain('Columns: 2');
+  });
+
+  it('labels a custom ramp as Custom in the single-ramp gpl name', () => {
+    const filtered = filteredRamp({
+      i: 0,
+      rampsActive: [['#000000', '#ff00ff']],
+      baseColors: ['#ff00ff'],
+      resolveBaseForRamp, labelsForRamp, filterHidden,
+    });
+    const gpl = buildSingleRampGpl({ filtered, i: 0, style: 'custom', aiColorNames: ['Magenta'] });
+    expect(gpl).toContain('Name: PIXEL.PAL Magenta Custom');
   });
 });

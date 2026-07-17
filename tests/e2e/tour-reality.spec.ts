@@ -77,10 +77,8 @@ test.describe('tour copy references real UI elements', () => {
     await expect(page.getByRole('combobox', { name: 'Export format' })).toBeAttached()
     await expect(page.getByRole('button', { name: 'WCAG Check', exact: true })).toBeAttached()
     await expect(page.getByRole('button', { name: 'Download', exact: true })).toBeAttached()
-    // Punchy/Balanced/Muted disambiguated by title (each appears twice: per-ramp + gpl export)
-    await expect(page.getByTitle('Export the .gpl using high-contrast Punchy ramps')).toBeAttached()
-    await expect(page.getByTitle('Export the .gpl using mid-contrast Balanced ramps')).toBeAttached()
-    await expect(page.getByTitle('Export the .gpl using low-contrast Muted ramps')).toBeAttached()
+    // The whole-palette style selector was retired in #69: each ramp exports
+    // at its own active style, so there is no Punchy/Balanced/Muted trio here.
   })
 
   test('Import .gpl control exists', async ({ page }) => {

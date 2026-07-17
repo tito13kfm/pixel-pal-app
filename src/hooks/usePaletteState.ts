@@ -42,6 +42,9 @@ export function usePaletteState() {
     lightnessCurvePerRamp: store.lightnessCurvePerRamp, setLightnessCurvePerRamp: store.setLightnessCurvePerRamp,
     satCurvePerRamp: store.satCurvePerRamp, setSatCurvePerRamp: store.setSatCurvePerRamp,
     stylePresets: store.stylePresets, setStylePresets: store.setStylePresets,
+    paletteDefaultStyle: store.paletteDefaultStyle, setPaletteDefaultStyle: store.setPaletteDefaultStyle,
+    rampStyleOverrides: store.rampStyleOverrides, setRampStyleOverrides: store.setRampStyleOverrides,
+    rampStyleScalars: store.rampStyleScalars, setRampStyleScalars: store.setRampStyleScalars,
     // editor / compare cluster + setters
     editingIndex: store.editingIndex, setEditingIndex: store.setEditingIndex,
     editorHsv: store.editorHsv, setEditorHsv: store.setEditorHsv,

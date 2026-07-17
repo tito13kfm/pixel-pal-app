@@ -1,6 +1,7 @@
 import type { CurvePoints } from './curve';
 import type { GamutStrategy } from './oklch';
-import { DEFAULT_STYLE_PRESETS } from './style-presets';
+import { DEFAULT_STYLE_PRESETS, resolveActiveStyle } from './style-presets';
+import type { RampStyle, StyleScalars } from './style-presets';
 import { buildRamp } from './ramp-pipeline';
 
 // seededHueDelta: deterministic hue offset in degrees for (effectiveSeed,
@@ -66,15 +67,25 @@ export interface RampSnapshot {
   shuffleSeed?: number;
   rampShuffleOffsets?: Record<number, number>;
   stylePresets?: typeof DEFAULT_STYLE_PRESETS;
+  rampStyleOverrides?: Record<number, RampStyle>;
+  rampStyleScalars?: Record<number, StyleScalars>;
+  paletteDefaultStyle?: RampStyle;
   [key: string]: unknown; // forward-compat
 }
 
-export const buildRampsForSnapshot = (snapshot: RampSnapshot | null, style: string): string[][] => {
+// styleOverride: optional, forces one style for every ramp (legacy callers
+// not yet migrated to per-ramp style; see #69 Task 5). Omit it to resolve
+// each ramp's own active style from rampStyleOverrides/paletteDefaultStyle.
+export const buildRampsForSnapshot = (snapshot: RampSnapshot | null, styleOverride?: string): string[][] => {
   if (!snapshot || !Array.isArray(snapshot.baseColors) || snapshot.baseColors.length === 0) {
     return [];
   }
   // Delegates to the shared per-ramp pipeline (src/lib/ramp-pipeline.ts) so the
   // live App.tsx memos and this snapshot path are ONE code path, structural
   // mirror, no duplicated generate→pin→snap→filter (the #30 duplication is gone).
-  return snapshot.baseColors.map((_, i) => buildRamp(snapshot, style, i));
+  const def = snapshot.paletteDefaultStyle ?? 'punchy';
+  return snapshot.baseColors.map((_, i) => {
+    const style = styleOverride ?? resolveActiveStyle(snapshot.rampStyleOverrides, i, def);
+    return buildRamp(snapshot, style, i);
+  });
 };

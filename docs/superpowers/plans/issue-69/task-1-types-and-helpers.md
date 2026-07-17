@@ -1,5 +1,8 @@
 # Task 1 — Types + pure resolution helpers
 
+**Status: ✅ Done.** `RampStyle`/`RAMP_STYLES`/`resolveActiveStyle`/`resolveRampScalars`
+added to `src/lib/style-presets.ts`; tests added to `tests/unit/style-presets.spec.ts`.
+
 > Read `../README.md` first. This is Wave A (no prerequisites) — safe to start immediately.
 
 **Depends on:** nothing.

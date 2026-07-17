@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { CurvePoints } from '../lib/curve';
 import type { Oklch } from '../lib/oklch';
 import { DEFAULT_STYLE_PRESETS } from '../lib/style-presets';
+import type { RampStyle, StyleScalars } from '../lib/style-presets';
 import { computePermutation, permuteRampState } from '../lib/permute-indexed-state';
 
 type Updater<T> = T | ((prev: T) => T);
@@ -27,6 +28,13 @@ export interface RampsStoreState {
   lightnessCurvePerRamp: Record<string, CurvePoints>;
   satCurvePerRamp: Record<string, CurvePoints>;
   stylePresets: typeof DEFAULT_STYLE_PRESETS;
+  // Per-ramp style (#69). paletteDefaultStyle is a scalar fallback active
+  // style; the two maps are sparse, keyed by baseIndex. Unlike the retired
+  // UI-pref globals these are palette identity → they join undo history, the
+  // reorder permutation (the two maps only), and the saved-palette payload.
+  paletteDefaultStyle: RampStyle;
+  rampStyleOverrides: Record<number, RampStyle>;
+  rampStyleScalars: Record<number, StyleScalars>;
   editingIndex: number | null;
   editorHsv: { h: number; s: number; v: number };
   // OKLCH counterpart to editorHsv, kept in sync at the same points (editor
@@ -63,6 +71,9 @@ export interface RampsStoreState {
   setLightnessCurvePerRamp: (v: Updater<Record<string, CurvePoints>>) => void;
   setSatCurvePerRamp: (v: Updater<Record<string, CurvePoints>>) => void;
   setStylePresets: (v: Updater<typeof DEFAULT_STYLE_PRESETS>) => void;
+  setPaletteDefaultStyle: (v: Updater<RampStyle>) => void;
+  setRampStyleOverrides: (v: Updater<Record<number, RampStyle>>) => void;
+  setRampStyleScalars: (v: Updater<Record<number, StyleScalars>>) => void;
   setEditingIndex: (v: Updater<number | null>) => void;
   setEditorHsv: (v: Updater<{ h: number; s: number; v: number }>) => void;
   setEditorOklch: (v: Updater<Oklch>) => void;
@@ -97,6 +108,9 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
   lightnessCurvePerRamp: {},
   satCurvePerRamp: {},
   stylePresets: DEFAULT_STYLE_PRESETS,
+  paletteDefaultStyle: 'punchy',
+  rampStyleOverrides: {},
+  rampStyleScalars: {},
   editingIndex: null,
   editorHsv: { h: 0, s: 0, v: 0 },
   editorOklch: { L: 0, C: 0, H: 0 },
@@ -124,6 +138,9 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
   setLightnessCurvePerRamp: (v) => set((s) => ({ lightnessCurvePerRamp: resolveUpdater(v, s.lightnessCurvePerRamp) })),
   setSatCurvePerRamp: (v) => set((s) => ({ satCurvePerRamp: resolveUpdater(v, s.satCurvePerRamp) })),
   setStylePresets: (v) => set((s) => ({ stylePresets: resolveUpdater(v, s.stylePresets) })),
+  setPaletteDefaultStyle: (v) => set((s) => ({ paletteDefaultStyle: resolveUpdater(v, s.paletteDefaultStyle) })),
+  setRampStyleOverrides: (v) => set((s) => ({ rampStyleOverrides: resolveUpdater(v, s.rampStyleOverrides) })),
+  setRampStyleScalars: (v) => set((s) => ({ rampStyleScalars: resolveUpdater(v, s.rampStyleScalars) })),
   setEditingIndex: (v) => set((s) => ({ editingIndex: resolveUpdater(v, s.editingIndex) })),
   setEditorHsv: (v) => set((s) => ({ editorHsv: resolveUpdater(v, s.editorHsv) })),
   setEditorOklch: (v) => set((s) => ({ editorOklch: resolveUpdater(v, s.editorOklch) })),
@@ -154,6 +171,9 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
       lightnessCurvePerRamp: s.lightnessCurvePerRamp,
       satCurvePerRamp: s.satCurvePerRamp,
       stylePresets: s.stylePresets,
+      paletteDefaultStyle: s.paletteDefaultStyle,
+      rampStyleOverrides: s.rampStyleOverrides,
+      rampStyleScalars: s.rampStyleScalars,
     };
   },
 
@@ -177,6 +197,9 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
       lightnessCurvePerRamp: snap.lightnessCurvePerRamp ?? {},
       satCurvePerRamp: snap.satCurvePerRamp ?? {},
       stylePresets: snap.stylePresets ?? DEFAULT_STYLE_PRESETS,
+      paletteDefaultStyle: snap.paletteDefaultStyle ?? 'punchy',
+      rampStyleOverrides: snap.rampStyleOverrides ?? {},
+      rampStyleScalars: snap.rampStyleScalars ?? {},
     });
   },
 
@@ -194,6 +217,7 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
       rampSatOverrides: state.rampSatOverrides, hueShiftStrengthPerRamp: state.hueShiftStrengthPerRamp,
       hiddenShades: state.hiddenShades, rampShuffleOffsets: state.rampShuffleOffsets,
       lightnessCurvePerRamp: state.lightnessCurvePerRamp, satCurvePerRamp: state.satCurvePerRamp,
+      rampStyleOverrides: state.rampStyleOverrides, rampStyleScalars: state.rampStyleScalars,
       lockedRamps: [...state.lockedRamps], collapsedRamps: [...state.collapsedRamps],
       harmonyAnchor: state.harmonyAnchor,
     }, perm);
@@ -208,6 +232,8 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
       rampShuffleOffsets: np.rampShuffleOffsets,
       lightnessCurvePerRamp: np.lightnessCurvePerRamp,
       satCurvePerRamp: np.satCurvePerRamp,
+      rampStyleOverrides: np.rampStyleOverrides,
+      rampStyleScalars: np.rampStyleScalars,
       lockedRamps: new Set(np.lockedRamps),
       collapsedRamps: new Set(np.collapsedRamps),
       harmonyAnchor: np.harmonyAnchor,

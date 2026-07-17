@@ -1,5 +1,12 @@
 # Task 3 — Store state + undo + reorder + saved-palette persistence plumbing
 
+**Status: ✅ Done.** The 3 per-ramp style fields are threaded through the store
+(`rampsStore.ts`), undo snapshot (`history-snapshot.ts`), reorder permutation
+(`permute-indexed-state.ts`, the two maps only), App dep arrays, and the
+saved-palette payload (`palette.ts` plus `useSavedPalettesActions.ts`, with
+legacy `vizStyle` to `paletteDefaultStyle` migration). Permute and history
+specs extended.
+
 > Read `../README.md` first — especially "the three keep-in-sync field lists."
 
 **Depends on:** Task 1 (`RampStyle`). Can run in parallel with Task 2 (disjoint files).

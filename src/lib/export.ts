@@ -7,6 +7,7 @@
 import { dedupeHexes } from './hex-utils';
 import { buildGpl } from './palette-export';
 import { hexToRgb } from './color';
+import type { RampStyle } from './style-presets';
 
 export interface HarmonySet {
   complementary: string;
@@ -16,8 +17,6 @@ export interface HarmonySet {
   tetradic1: string; tetradic2: string; tetradic3: string;
   square1: string; square2: string; square3: string;
 }
-
-type RampStyle = 'punchy' | 'balanced' | 'muted';
 
 export function buildPaletteText(params: {
   baseColors: string[];
@@ -87,24 +86,23 @@ export function buildPaletteText(params: {
   return lines.join('\n');
 }
 
+// collectPaletteEntries indexes rampsActive[i] directly: after #69 every ramp
+// carries its own active style, so callers pass the single per-ramp render
+// array (App.tsx's rampsActive) rather than a style + the three global sets.
 export function collectPaletteEntries(params: {
-  style: RampStyle;
+  rampsActive: string[][];
   baseColors: string[];
   aiColorNames: string[];
-  rampsPunchy: string[][];
-  rampsBalanced: string[][];
-  rampsMuted: string[][];
   harmony: HarmonySet;
   resolveBaseForRamp: (hex: string, baseIndex: number) => string;
   labelsForRamp: (ramp: string[], baseHex: string) => string[];
   filterHidden: (ramp: string[], labels: string[], baseIndex: number) => { hexes: string[]; labels: string[] };
 }): { hex: string; name: string }[] {
-  const { style, baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted, harmony, resolveBaseForRamp, labelsForRamp, filterHidden } = params;
+  const { rampsActive, baseColors, aiColorNames, harmony, resolveBaseForRamp, labelsForRamp, filterHidden } = params;
   const entries: { hex: string; name: string }[] = [];
-  const ramps = style === 'balanced' ? rampsBalanced : style === 'muted' ? rampsMuted : rampsPunchy;
   baseColors.forEach((_, i) => {
     const name = aiColorNames[i] || `Color ${i + 1}`;
-    const ramp = ramps[i];
+    const ramp = rampsActive[i] || [];
     const effectiveBase = resolveBaseForRamp(baseColors[i], i);
     const labels = labelsForRamp(ramp, effectiveBase);
     const filtered = filterHidden(ramp, labels, i);
@@ -135,29 +133,23 @@ export function collectPaletteEntries(params: {
   return unique;
 }
 
-export function buildPaletteGpl(params: Parameters<typeof collectPaletteEntries>[0] & { rampSize: number }): string {
-  const styleLabel = params.style === 'balanced' ? 'Balanced' : params.style === 'muted' ? 'Muted' : 'Punchy';
-  return buildGpl(collectPaletteEntries(params), { paletteName: `PIXEL.PAL ${styleLabel}`, columns: params.rampSize });
-}
-
-export function selectRampsForStyle(style: RampStyle, rampsPunchy: string[][], rampsBalanced: string[][], rampsMuted: string[][]): string[][] {
-  return style === 'balanced' ? rampsBalanced : style === 'muted' ? rampsMuted : rampsPunchy;
+// paletteName defaults to 'PIXEL.PAL'; callers pass a style-aware name (e.g.
+// 'PIXEL.PAL Mixed' when per-ramp styles diverge) since there is no longer a
+// single global style to derive it from.
+export function buildPaletteGpl(params: Parameters<typeof collectPaletteEntries>[0] & { rampSize: number; paletteName?: string }): string {
+  return buildGpl(collectPaletteEntries(params), { paletteName: params.paletteName || 'PIXEL.PAL', columns: params.rampSize });
 }
 
 export function filteredRamp(params: {
   i: number;
-  style: RampStyle;
+  rampsActive: string[][];
   baseColors: string[];
-  rampsPunchy: string[][];
-  rampsBalanced: string[][];
-  rampsMuted: string[][];
   resolveBaseForRamp: (hex: string, baseIndex: number) => string;
   labelsForRamp: (ramp: string[], baseHex: string) => string[];
   filterHidden: (ramp: string[], labels: string[], baseIndex: number) => { hexes: string[]; labels: string[] };
 }): { hexes: string[]; labels: string[] } {
-  const { i, style, baseColors, rampsPunchy, rampsBalanced, rampsMuted, resolveBaseForRamp, labelsForRamp, filterHidden } = params;
-  const ramps = selectRampsForStyle(style, rampsPunchy, rampsBalanced, rampsMuted);
-  const ramp = ramps[i];
+  const { i, rampsActive, baseColors, resolveBaseForRamp, labelsForRamp, filterHidden } = params;
+  const ramp = rampsActive[i] || [];
   const effectiveBase = resolveBaseForRamp(baseColors[i], i);
   const labels = labelsForRamp(ramp, effectiveBase);
   return filterHidden(ramp, labels, i);
@@ -184,7 +176,7 @@ export function buildSingleRampGpl(params: {
     entries.push({ hex: filtered.hexes[k], label: filtered.labels[k] });
   }
   const pad3 = (n: number) => String(n).padStart(3, ' ');
-  const styleLabel = style === 'balanced' ? 'Balanced' : style === 'muted' ? 'Muted' : 'Punchy';
+  const styleLabel = style === 'balanced' ? 'Balanced' : style === 'muted' ? 'Muted' : style === 'custom' ? 'Custom' : 'Punchy';
   const lines = [
     'GIMP Palette',
     `Name: PIXEL.PAL ${name} ${styleLabel}`,

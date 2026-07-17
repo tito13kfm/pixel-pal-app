@@ -1,4 +1,5 @@
 import type { CurvePoints } from './curve';
+import type { RampStyle, StyleScalars } from './style-presets';
 
 // ---------- Palette payload types ----------
 // Inferred from saveCurrentPalette / loadPalette in pixel-pal.tsx.
@@ -44,6 +45,13 @@ export interface SavedPalettePayload {
     balanced: { reach: number; chromaFalloff: number }
     muted:    { reach: number; chromaFalloff: number }
   }
+
+  // Per-ramp style (#69). All optional: pre-#69 payloads lack them and are
+  // migrated on load (paletteDefaultStyle derived from legacy vizStyle/gplStyle).
+  // Maps are keyed by baseIndex (string after JSON round-trip).
+  paletteDefaultStyle?: RampStyle
+  rampStyleOverrides?: Record<string, RampStyle>
+  rampStyleScalars?: Record<string, StyleScalars>
 }
 
 // The lightweight index record kept in memory for the saved-palettes list.

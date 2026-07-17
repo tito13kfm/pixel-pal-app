@@ -58,6 +58,8 @@ import { formatHistoryAge } from './lib/history-snapshot';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
 import { usePaletteState } from './hooks/usePaletteState';
+import { useRampStyleActions } from './hooks/useRampStyleActions';
+import { useSavedStylesActions } from './hooks/useSavedStylesActions';
 import { useSessionPrefs } from './hooks/useSessionPrefs';
 import { useHardwareLock } from './hooks/useHardwareLock';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
@@ -128,6 +130,11 @@ export default function PixelPalGenerator() {
     lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
     lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
+    // Per-ramp style fields (#69). Read here for workingRenderInputs +
+    // snapshotInputs; the per-ramp setRampStyleOverride wrapper (below) and
+    // RampsPanel's header controls (Task 6) are the setters' consumers.
+    paletteDefaultStyle, setPaletteDefaultStyle, rampStyleOverrides, setRampStyleOverrides,
+    rampStyleScalars, setRampStyleScalars,
     editingIndex, setEditingIndex, editorHsv, setEditorHsv,
     editorOklch, editorMode,
     pinEditor, setPinEditor, compareMode, setCompareMode,
@@ -145,12 +152,13 @@ export default function PixelPalGenerator() {
   // Display settings (theme, cvdMode, crtEnabled) + their load/persist effects
   // live in useDisplaySettings. See src/hooks/useDisplaySettings.ts.
   const { theme, setTheme, cvdMode, setCvdMode, crtEnabled, setCrtEnabled } = useDisplaySettings();
-  const { vizStyle, setVizStyle, matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern, ditherZoom, setDitherZoom, ditherCrossRamp, setDitherCrossRamp } = useVizSettings();
-  // Export settings (gpl/format/ramp styles + copy/export feedback state) +
-  // their load/persist effects live in useExportSettings. See
+  const { matrixColorSet, setMatrixColorSet, matrixView, setMatrixView, ditherPattern, setDitherPattern, ditherZoom, setDitherZoom, ditherCrossRamp, setDitherCrossRamp } = useVizSettings();
+  // Export settings (format + copy/export feedback state) + their load/persist
+  // effects live in useExportSettings. Per-ramp style is authoritative (#69),
+  // so there is no global viz/gpl/ramp-export style selector. See
   // src/hooks/useExportSettings.ts.
   const {
-    gplStyle, setGplStyle, exportFormat, setExportFormat, rampExportStyle, setRampExportStyle,
+    exportFormat, setExportFormat,
     copiedHex, setCopiedHex, exportFeedback, setExportFeedback,
     lastSavedPath, setLastSavedPath, sessionRampGplFolder, setSessionRampGplFolder,
   } = useExportSettings();
@@ -216,8 +224,8 @@ export default function PixelPalGenerator() {
   // ----- Image Remap Preview -----
   // Separate image slot from the From Image extraction feature. The user
   // uploads a reference image and remaps every pixel to the nearest color
-  // in the currently active palette (vizStyle, hidden shades, hardware
-  // lock applied); a debounced effect recomputes the preview as the
+  // in the currently active palette (per-ramp active style, hidden shades,
+  // hardware lock applied); a debounced effect recomputes the preview as the
   // palette changes. None of this state is persisted (matches the From
   // Image mode), saved with palettes, or in the history snapshot. See
   // IMAGE_REMAP_PLAN.md and ARCHITECTURE.md's remap section for the full
@@ -230,9 +238,11 @@ export default function PixelPalGenerator() {
   // whole-state snapshots (NOT diff patches), 50-entry cap, session-only. The
   // document core is owned by usePaletteState; useHistory is wired to it via
   // buildSnapshot / applySnapshotFields / resetTransientEditors. The watcher's
-  // dep array (snapshotInputs) is the 17 snapshot INPUT values, it deliberately
+  // dep array (snapshotInputs) is the snapshot INPUT values, it deliberately
   // OMITS lightnessCurvePerRamp / satCurvePerRamp (preserved verbatim from the
-  // pre-extraction behavior; do not "complete" it to 19). `tagNextLabel`
+  // pre-extraction behavior; do not "complete" it with those two). The per-ramp
+  // style fields (#69) ARE included deliberately: editing a ramp's style,
+  // scalars, or the palette default must push a history entry. `tagNextLabel`
   // replaces the old scattered `pendingLabelRef.current = ...` handler writes:
   // tagged actions (Generate, Harmonize, Load, …) call it before mutating state;
   // untagged changes fall back to inferLabel. See src/hooks/useHistory.ts.
@@ -249,6 +259,7 @@ export default function PixelPalGenerator() {
       overrides, harmonyAnchor, rampSizeOverrides, rampSatOverrides, hueShiftStrengthPerRamp,
       hiddenShades, rampShuffleOffsets, hardwareLock, hueShiftStrength,
       lockedRamps, collapsedRamps, stylePresets,
+      paletteDefaultStyle, rampStyleOverrides, rampStyleScalars,
     ],
   });
 
@@ -308,13 +319,35 @@ export default function PixelPalGenerator() {
     shuffleSeed,
     rampShuffleOffsets,
     stylePresets,
-  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets]);
+    paletteDefaultStyle,
+    rampStyleOverrides,
+    rampStyleScalars,
+  }), [baseColors, rampSize, overrides, rampSizeOverrides, rampSatOverrides, hardwareLock, hueShiftStrength, hueShiftStrengthPerRamp, lightnessCurvePerRamp, satCurvePerRamp, gamutPerRamp, shuffleSeed, rampShuffleOffsets, stylePresets, paletteDefaultStyle, rampStyleOverrides, rampStyleScalars]);
 
   const liveRampSnapshot = useMemo(() => workingRenderInputs(), [workingRenderInputs]);
 
   const rampsPunchy = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'punchy', i)), [liveRampSnapshot]);
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
   const rampsMuted = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'muted', i)), [liveRampSnapshot]);
+
+  // Per-ramp style controls (#69), kept out of App.tsx for the #113 ratchet:
+  // rampsActive + picker + custom sliders (useRampStyleActions) and named
+  // custom-style save/load (useSavedStylesActions); both spread into RampsPanel.
+  const rampStyleActions = useRampStyleActions({
+    liveRampSnapshot,
+    rampStyleOverrides,
+    rampStyleScalars,
+    paletteDefaultStyle,
+    stylePresets,
+    setRampStyleOverrides,
+    setRampStyleScalars,
+  });
+  const { activeStyleFor, rampsActive } = rampStyleActions;
+  const savedStyleActions = useSavedStylesActions({
+    setRampStyleScalars,
+    setRampStyleOverrides,
+    tagNextLabel,
+  });
 
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.
   // briefly after a remove before the clamp effect runs, or after a load
@@ -350,9 +383,9 @@ export default function PixelPalGenerator() {
     exportPaletteStripPng, exportActiveFormat, revealLastSaved, buildSingleRampText,
     buildSingleRampGpl, copyRampToClipboard, downloadSingleRampGpl,
   } = useExport({
-    baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted, harmony,
+    baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted, rampsActive, activeStyleFor, harmony,
     resolveBaseForRamp: boundResolveBaseForRamp, labelsForRamp, filterHidden: boundFilterHidden, buildRampsForSnapshot,
-    rampSize, vizStyle, gplStyle, rampExportStyle, exportFormat,
+    rampSize, exportFormat,
     matrixColorSet, matrixView, ditherPattern,
     copiedHex, setCopiedHex, exportFeedback, setExportFeedback,
     lastSavedPath, setLastSavedPath, sessionRampGplFolder, setSessionRampGplFolder,
@@ -377,14 +410,14 @@ export default function PixelPalGenerator() {
   // The compute pipeline (active-palette derivation, upload/clear/download
   // handlers, the debounced auto-refresh effect, and the two-click download
   // confirmation timer) lives in useImageRemapCompute. It reads the SAME
-  // ramp memos the Visualization section uses (vizStyle, hidden shades,
-  // hardware lock baked in), which guarantees preview/viz parity. The remap
-  // STATE stays in useImageRemap (destructured above).
+  // per-ramp render array the Visualization section uses (rampsActive, hidden
+  // shades, hardware lock baked in), which guarantees preview/viz parity. The
+  // remap STATE stays in useImageRemap (destructured above).
   const {
     getActiveRemapPalette, handleRemapImageUpload, clearRemapImage,
     downloadRemap, remapDownloadConfirmTimerRef,
   } = useImageRemapCompute({
-    baseColors, rampsPunchy, rampsBalanced, rampsMuted, vizStyle,
+    baseColors, rampsActive,
     resolveBaseForRamp: boundResolveBaseForRamp, labelsForRamp, filterHidden: boundFilterHidden,
     remapImageDataUrl, setRemapImageDataUrl, remapImageNaturalSize, setRemapImageNaturalSize,
     setRemapOutput, setRemapOutputSignature, remapDither, setRemapLoading, setRemapError,
@@ -515,7 +548,8 @@ export default function PixelPalGenerator() {
   // ---------- Saved palette storage helpers ----------
   // Storage layout:
   //   key `palettes:{slug}` -> JSON.stringify({ name, savedAt, baseColors,
-  //     aiColorNames, rampSize, gplStyle, vizStyle, spriteKey,
+  //     aiColorNames, rampSize, paletteDefaultStyle, rampStyleOverrides,
+  //     rampStyleScalars, spriteKey,
   //     shuffleSeed, customSprites }) where customSprites is the FULL custom
   //     sprite library at save time. We snapshot the whole custom library so
   //     that loading a palette later restores any imported sprite it depended
@@ -544,7 +578,6 @@ export default function PixelPalGenerator() {
     setSavedError, setSavedBusy,
     confirmDeleteSlug, setConfirmDeleteSlug,
     setRenamingSlug, renameDraft, setRenameDraft, setRenameError,
-    gplStyle, setGplStyle, vizStyle, setVizStyle,
     spriteKey, setSpriteKey, customSprites, setCustomSprites,
     gamutPerRamp, setGamutPerRamp, advancedOpen, setAdvancedOpen,
     setV2NoticePending, setExportFeedback, tagNextLabel, resetPaletteState,
@@ -559,7 +592,7 @@ export default function PixelPalGenerator() {
   // upload comes from useImageRemap.
   const { getSnapshotForSlot, getSlotLabel } = useSideBySideCompute({
     workingRenderInputs, hiddenShades, rampSize, stylePresets, hueShiftStrength,
-    vizStyle, savedPalettes, remapImageDataUrl, remapDither,
+    savedPalettes, remapImageDataUrl, remapDither,
     sbsLeft, sbsRight, sbsLeftPayload, setSbsLeftPayload, sbsRightPayload, setSbsRightPayload,
     setSbsLeftError, setSbsRightError, setSbsLeftLoading, setSbsRightLoading,
     sbsRemapSource, setSbsRemapSource, setSbsLeftRemap, setSbsRightRemap,
@@ -608,7 +641,7 @@ export default function PixelPalGenerator() {
   // setter because App.tsx owns it) live in useDragReorder.tsx.
   const { makeSectionDragHandlers, dropLine, sectionGrip } = useSectionDrag({
     dragOver, setDragOver, draggingKey, setDraggingKey,
-    setSectionOrder, DEFAULT_SECTION_ORDER, vizStyle,
+    setSectionOrder, DEFAULT_SECTION_ORDER,
   });
   const { makeRampDragHandlers, rampDropLine, rampGrip } = useRampDrag({
     setGamutPerRamp, tagNextLabel,
@@ -776,7 +809,7 @@ export default function PixelPalGenerator() {
           handleGenerate={handleGenerate}
           surpriseMe={surpriseMe} buildAroundColor={buildAroundColor}
           moodPreset={moodPreset} setMoodPreset={setMoodPreset}
-          spriteLibrary={spriteLibrary} rampsPunchy={rampsPunchy} spriteKey={spriteKey} setSpriteKey={setSpriteKey}
+          spriteLibrary={spriteLibrary} rampsActive={rampsActive} spriteKey={spriteKey} setSpriteKey={setSpriteKey}
           removeCustomSprite={removeCustomSprite} copySpriteSource={copySpriteSource} showSpriteImporter={showSpriteImporter} setShowSpriteImporter={setShowSpriteImporter}
           spriteDragging={spriteDragging} handleSpriteDragOver={handleSpriteDragOver} handleSpriteDragLeave={handleSpriteDragLeave} handleSpriteDrop={handleSpriteDrop}
           handleSpriteFile={handleSpriteFile} spriteImportName={spriteImportName} setSpriteImportName={setSpriteImportName}
@@ -809,13 +842,18 @@ export default function PixelPalGenerator() {
         >
           <RampsPanel
             theme={theme}
-            rampExportStyle={rampExportStyle}
-            setRampExportStyle={setRampExportStyle}
             baseColors={baseColors}
             aiColorNames={aiColorNames}
             rampsPunchy={rampsPunchy}
             rampsBalanced={rampsBalanced}
             rampsMuted={rampsMuted}
+            {...rampStyleActions}
+            {...savedStyleActions}
+            rampStyleOverrides={rampStyleOverrides}
+            setRampStyleOverrides={setRampStyleOverrides}
+            rampStyleScalars={rampStyleScalars}
+            paletteDefaultStyle={paletteDefaultStyle}
+            setPaletteDefaultStyle={setPaletteDefaultStyle}
             stylePresets={stylePresets}
             setStylePresets={setStylePresets}
             activeHardware={activeHardware}
@@ -925,11 +963,7 @@ export default function PixelPalGenerator() {
         >
           <PlaygroundPanel
             pgOpen={pgOpen}
-            vizStyle={vizStyle}
-            setVizStyle={setVizStyle}
-            rampsBalanced={rampsBalanced}
-            rampsMuted={rampsMuted}
-            rampsPunchy={rampsPunchy}
+            rampsActive={rampsActive}
             isDark={theme !== 'light'}
           />
         </SectionCard>
@@ -938,8 +972,6 @@ export default function PixelPalGenerator() {
         <VizComparePanel
           sbsOpen={sbsOpen}
           setSbsOpen={setSbsOpen}
-          vizStyle={vizStyle}
-          setVizStyle={setVizStyle}
           vizSubOpen={vizSubOpen}
           toggleVizSub={toggleVizSub}
           matrixColorSet={matrixColorSet}
@@ -1077,8 +1109,6 @@ export default function PixelPalGenerator() {
               revealLastSaved={revealLastSaved}
               bakeHardwareLock={bakeHardwareLock}
               toggleHardwareLock={toggleHardwareLock}
-              gplStyle={gplStyle}
-              setGplStyle={setGplStyle}
               exportFormat={exportFormat}
               setExportFormat={setExportFormat}
               exportActiveFormat={exportActiveFormat}

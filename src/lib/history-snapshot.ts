@@ -4,6 +4,7 @@ export const SNAPSHOT_FIELDS = [
   'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
   'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
   'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',
+  'paletteDefaultStyle', 'rampStyleOverrides', 'rampStyleScalars',
 ] as const;
 
 // Verbatim from App.tsx inferLabel, do not "improve". Characterized by spec.
@@ -29,6 +30,9 @@ export function inferLabel(prev: any, next: any): string {
   if (prev.harmonyAnchor !== next.harmonyAnchor) return 'Change harmony anchor';
   if (prev.shuffleSeed !== next.shuffleSeed) return 'Generate';
   if (JSON.stringify(prev.collapsedRamps) !== JSON.stringify(next.collapsedRamps)) return 'Collapse / expand ramps';
+  if (JSON.stringify(prev.rampStyleScalars) !== JSON.stringify(next.rampStyleScalars)) return 'Customize ramp style';
+  if (JSON.stringify(prev.rampStyleOverrides) !== JSON.stringify(next.rampStyleOverrides)) return 'Change ramp style';
+  if (prev.paletteDefaultStyle !== next.paletteDefaultStyle) return 'Change default style';
   return 'Edit';
 }
 

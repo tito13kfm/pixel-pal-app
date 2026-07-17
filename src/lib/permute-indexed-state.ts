@@ -47,6 +47,7 @@ export function permuteStringKeyMap<V>(
 const MAP_FIELDS = [
   'overrides', 'rampSizeOverrides', 'rampSatOverrides', 'hueShiftStrengthPerRamp',
   'hiddenShades', 'rampShuffleOffsets', 'lightnessCurvePerRamp', 'satCurvePerRamp',
+  'rampStyleOverrides', 'rampStyleScalars',
 ] as const;
 
 export interface RampStatePlain {
@@ -60,6 +61,8 @@ export interface RampStatePlain {
   rampShuffleOffsets: Record<string, any>;
   lightnessCurvePerRamp: Record<string, any>;
   satCurvePerRamp: Record<string, any>;
+  rampStyleOverrides: Record<string, any>;
+  rampStyleScalars: Record<string, any>;
   lockedRamps: number[];     // Sets serialized as arrays (matches buildSnapshot)
   collapsedRamps: number[];
   harmonyAnchor: number;
