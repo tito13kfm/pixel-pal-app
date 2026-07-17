@@ -1095,7 +1095,7 @@ export default function PixelPalGenerator() {
           {tipsOpen && <div className={`px-4 pb-4 text-xs ${t.tipPanelText}`}>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ TIP:</strong> Click any swatch to copy its hex code.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ DICE:</strong> Rolls a random hex into the Single Color input. Click again to re-roll.</p>
-          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SURPRISE ME:</strong> The AI invents a subject AND generates its palette in one shot. Uses one API call.</p>
+          <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SURPRISE ME:</strong> Replaces the palette with 5 base colors picked to work together. Around This does the same but keeps your current hex verbatim as base 1. Both are instant and local (no AI). Pick a Mood next to them to bias the result toward a genre feel.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ SPRITES:</strong> Drop a Piskel C file to add custom preview sprites. Click the cyan icon on a custom sprite to copy its source code.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ EDIT:</strong> Click the slider icon on any ramp to adjust its base color with HSV sliders or a color picker.</p>
           <p className="mb-1"><strong className={t.tipPanelStrong}>▸ STYLE TUNING:</strong> Punchy / Balanced / Muted are not fixed: the Style Tuning box at the top of Color Ramps has Reach and Chroma falloff sliders for each style, plus a Reset Styles button to restore the defaults.</p>
