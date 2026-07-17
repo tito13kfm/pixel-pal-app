@@ -69,3 +69,73 @@ describe('PaletteCycleEditor', () => {
     expect(doc.cycles[0]).toEqual({ low: 1, high: 4, rate: 8, reverse: false });
   });
 });
+
+describe('PaletteCycleEditor: Load Cycle JSON (#140)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const loadFile = (text: string) => {
+    const file = new File([text], 'pixel-pal-cycle.json', { type: 'application/json' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+  };
+
+  it('selects the matching row and applies fps/reverse from the file', async () => {
+    render(<PaletteCycleEditor rows={ROWS} />);
+    const json = JSON.stringify({
+      format: 'pixel-pal-cycle',
+      version: 1,
+      palette: ROWS[1],
+      cycles: [{ low: 2, high: 4, rate: 15, reverse: true }],
+    });
+    loadFile(json);
+
+    await screen.findByTitle('Download the cycle as a pixel-pal-cycle.json sidecar');
+    expect(screen.getByTitle('Cycle playback rate')).toHaveValue('15');
+    expect(screen.getByTitle('Toggle cycle direction')).toHaveTextContent('Reverse');
+  });
+
+  it('snaps an off-list rate to the nearest FPS option', async () => {
+    render(<PaletteCycleEditor rows={ROWS} />);
+    const json = JSON.stringify({
+      format: 'pixel-pal-cycle',
+      version: 1,
+      palette: ROWS[0],
+      cycles: [{ low: 0, high: 3, rate: 12, reverse: false }],
+    });
+    loadFile(json);
+
+    await screen.findByTitle('Download the cycle as a pixel-pal-cycle.json sidecar');
+    expect(screen.getByTitle('Cycle playback rate')).toHaveValue('10');
+  });
+
+  it('shows an error when the file cannot be read', async () => {
+    const readAsText = vi.spyOn(FileReader.prototype, 'readAsText').mockImplementation(function (this: FileReader) {
+      this.onerror?.(new ProgressEvent('error') as ProgressEvent<FileReader>);
+    });
+    render(<PaletteCycleEditor rows={ROWS} />);
+    loadFile('{}');
+    expect(await screen.findByText('Could not read the selected file.')).toBeInTheDocument();
+    readAsText.mockRestore();
+  });
+
+  it('shows an error when no visible ramp matches the file colors', async () => {
+    render(<PaletteCycleEditor rows={ROWS} />);
+    const json = JSON.stringify({
+      format: 'pixel-pal-cycle',
+      version: 1,
+      palette: ['#ffffff', '#eeeeee'],
+      cycles: [{ low: 0, high: 1, rate: 8, reverse: false }],
+    });
+    loadFile(json);
+
+    expect(await screen.findByText(/No visible ramp matches this file's colors/)).toBeInTheDocument();
+  });
+
+  it('shows an error for a malformed file', async () => {
+    render(<PaletteCycleEditor rows={ROWS} />);
+    loadFile('not json');
+    expect(await screen.findByText('Not a valid pixel-pal-cycle.json file.')).toBeInTheDocument();
+  });
+});

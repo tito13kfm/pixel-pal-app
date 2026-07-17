@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseGpl, subsetGplColors, parsePiskelC } from '../../src/lib/palette-import';
+import { parseGpl, subsetGplColors, parsePiskelC, parseCycleJson } from '../../src/lib/palette-import';
+import { buildCycleJson } from '../../src/lib/palette-export';
 
 describe('parseGpl', () => {
   it('parses a minimal GIMP palette into #rrggbb colors', () => {
@@ -55,5 +56,63 @@ describe('parsePiskelC', () => {
     expect(result).not.toBeNull();
     expect(result!.numShades).toBe(2);
     expect(result!.pattern).toEqual(['0011','0011','1100','1100']);
+  });
+});
+
+describe('parseCycleJson', () => {
+  const hexes = ['#000000', '#111111', '#222222', '#333333'];
+
+  it('round-trips a file built by buildCycleJson', () => {
+    const json = buildCycleJson(hexes, [{ low: 1, high: 2, rate: 8, reverse: false }]);
+    expect(parseCycleJson(json)).toEqual({
+      palette: hexes,
+      cycles: [{ low: 1, high: 2, rate: 8, reverse: false }],
+    });
+  });
+
+  it('lowercases palette hexes', () => {
+    const json = buildCycleJson(['#ABCDEF', '#000000'], [{ low: 0, high: 1, rate: 4, reverse: true }]);
+    expect(parseCycleJson(json)!.palette).toEqual(['#abcdef', '#000000']);
+  });
+
+  it('rejects non-JSON text', () => {
+    expect(parseCycleJson('not json')).toBeNull();
+  });
+
+  it('rejects a JSON document with the wrong format tag', () => {
+    expect(parseCycleJson(JSON.stringify({ format: 'something-else', palette: hexes, cycles: [] }))).toBeNull();
+  });
+
+  it('rejects an empty palette', () => {
+    expect(parseCycleJson(JSON.stringify({ format: 'pixel-pal-cycle', palette: [], cycles: [{ low: 0, high: 0, rate: 8, reverse: false }] }))).toBeNull();
+  });
+
+  it('rejects an empty cycles array', () => {
+    expect(parseCycleJson(JSON.stringify({ format: 'pixel-pal-cycle', palette: hexes, cycles: [] }))).toBeNull();
+  });
+
+  it('rejects an out-of-bounds range', () => {
+    const json = JSON.stringify({ format: 'pixel-pal-cycle', palette: hexes, cycles: [{ low: 0, high: hexes.length, rate: 8, reverse: false }] });
+    expect(parseCycleJson(json)).toBeNull();
+  });
+
+  it('rejects low > high', () => {
+    const json = JSON.stringify({ format: 'pixel-pal-cycle', palette: hexes, cycles: [{ low: 2, high: 1, rate: 8, reverse: false }] });
+    expect(parseCycleJson(json)).toBeNull();
+  });
+
+  it('rejects a non-positive rate', () => {
+    const json = JSON.stringify({ format: 'pixel-pal-cycle', palette: hexes, cycles: [{ low: 0, high: 1, rate: 0, reverse: false }] });
+    expect(parseCycleJson(json)).toBeNull();
+  });
+
+  it('rejects a non-boolean reverse flag', () => {
+    const json = JSON.stringify({ format: 'pixel-pal-cycle', palette: hexes, cycles: [{ low: 0, high: 1, rate: 8, reverse: 'yes' }] });
+    expect(parseCycleJson(json)).toBeNull();
+  });
+
+  it('rejects a palette entry that is not a valid hex color', () => {
+    const json = JSON.stringify({ format: 'pixel-pal-cycle', palette: ['#000000', 'not-a-hex'], cycles: [{ low: 0, high: 1, rate: 8, reverse: false }] });
+    expect(parseCycleJson(json)).toBeNull();
   });
 });
