@@ -25,7 +25,7 @@ import { HarmonyPanel } from './components/panels/HarmonyPanel';
 import { RampsPanel, PixelSprite } from './components/panels/RampsPanel';
 import { InputPanel } from './components/panels/InputPanel';
 import { HeaderControls } from './components/panels/HeaderControls';
-import { DEFAULT_STYLE_PRESETS, resolveActiveStyle, resolveRampScalars } from './lib/style-presets';
+import { DEFAULT_STYLE_PRESETS } from './lib/style-presets';
 import { buildRandomHex } from './lib/randomizer';
 import { generateHarmony } from './lib/harmony';
 import { quantizeToHardware } from './lib/hardware-quantize';
@@ -58,6 +58,7 @@ import { formatHistoryAge } from './lib/history-snapshot';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { useUpdater } from './hooks/useUpdater';
 import { usePaletteState } from './hooks/usePaletteState';
+import { useRampStyleActions } from './hooks/useRampStyleActions';
 import { useSessionPrefs } from './hooks/useSessionPrefs';
 import { useHardwareLock } from './hooks/useHardwareLock';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
@@ -328,34 +329,17 @@ export default function PixelPalGenerator() {
   const rampsBalanced = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'balanced', i)), [liveRampSnapshot]);
   const rampsMuted = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'muted', i)), [liveRampSnapshot]);
 
-  // rampsActive: the single per-ramp render array (#69) - each ramp at its own
-  // resolved style, rather than one of the three global sets above.
-  const activeStyleFor = useCallback(
-    (i) => resolveActiveStyle(rampStyleOverrides, i, paletteDefaultStyle),
-    [rampStyleOverrides, paletteDefaultStyle],
-  );
-  const rampsActive = useMemo(
-    () => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, activeStyleFor(i), i)),
-    [liveRampSnapshot, activeStyleFor],
-  );
-
-  // setRampStyleOverride: the Color Ramps card's per-ramp picker (Task 6).
-  // Switching a ramp to 'custom' with no scalars yet seeds rampStyleScalars[i]
-  // from the ramp's current resolved {reach, chromaFalloff} so the Task 7
-  // sliders start where the ramp visually was, instead of snapping to the
-  // balanced-preset fallback resolveRampScalars would otherwise use.
-  const setRampStyleOverride = useCallback((i, style) => {
-    if (style === 'custom' && rampStyleScalars[i] === undefined) {
-      const seeded = resolveRampScalars({
-        style: activeStyleFor(i),
-        baseIndex: i,
-        stylePresets,
-        rampStyleScalars,
-      });
-      setRampStyleScalars(prev => ({ ...prev, [i]: seeded }));
-    }
-    setRampStyleOverrides(prev => ({ ...prev, [i]: style }));
-  }, [rampStyleScalars, activeStyleFor, stylePresets, setRampStyleScalars, setRampStyleOverrides]);
+  // rampsActive + the per-ramp picker (#69) live in useRampStyleActions; kept
+  // out of App.tsx to stay under the #113 line ratchet.
+  const { activeStyleFor, rampsActive, setRampStyleOverride } = useRampStyleActions({
+    liveRampSnapshot,
+    rampStyleOverrides,
+    rampStyleScalars,
+    paletteDefaultStyle,
+    stylePresets,
+    setRampStyleOverrides,
+    setRampStyleScalars,
+  });
 
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.
   // briefly after a remove before the clamp effect runs, or after a load
