@@ -58,6 +58,20 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
+      # Non-blocking diagnostic (#109 step 1): tracks how much of App.tsx
+      # would fail tsc if @ts-nocheck were removed today. Never fails the
+      # build; restores the file unconditionally even if tsc errors.
+      - name: Diagnostic - App.tsx type-check without @ts-nocheck (non-blocking)
+        if: matrix.platform == 'ubuntu-latest'
+        shell: bash
+        run: |
+          cp src/App.tsx src/App.tsx.bak
+          sed -i '/^\/\/ @ts-nocheck$/d' src/App.tsx
+          ERROR_COUNT=$(npx tsc --noEmit 2>&1 | grep -c "^src/App.tsx" || true)
+          echo "::notice file=src/App.tsx::App.tsx would have $ERROR_COUNT tsc error(s) if @ts-nocheck were removed today (tracking metric for #109, non-blocking)"
+          mv src/App.tsx.bak src/App.tsx
+        continue-on-error: true
+
       - name: Clean dist before web build
         shell: bash
         run: rm -rf dist

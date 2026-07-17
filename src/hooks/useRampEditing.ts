@@ -302,8 +302,9 @@ export function useRampEditing(p: UseRampEditingParams) {
   const updateEditorMode = (mode: 'hsv' | 'oklch') => {
     if (editingIndex !== null) {
       const hex = baseColors[editingIndex];
-      // Same guard as toggleBaseEditor: hexToHsv lives behind @ts-nocheck, so
-      // an out-of-range index would propagate NaN silently instead of failing.
+      // Same guard as toggleBaseEditor: baseColors[editingIndex] is undefined
+      // for an out-of-range index, which would otherwise propagate into
+      // hexToHsv/hexToOklch as a bad hex string.
       if (hex) {
         if (mode === 'oklch') {
           const oklch = hexToOklch(hex);

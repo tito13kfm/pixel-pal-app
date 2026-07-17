@@ -142,10 +142,12 @@ artifact's async storage API to localStorage, **do not remove**. (Typed globally
 
 - **ESM project** (`"type": "module"`). Config files use `export default`, never
   `module.exports` (tailwind/postcss/vite/playwright configs).
-- **`// @ts-nocheck` in `color.ts` + `App.tsx` is intentional, do not remove.**
-  `color.ts` = 15 color-math fns extracted verbatim from the artifact (untyped). A
+- **`// @ts-nocheck` in `App.tsx` is intentional, do not remove.** (`color.ts` was
+  typed and dropped its `@ts-nocheck` in #128; only `App.tsx` still carries it.) A
   consequence for refactors: `tsc`/`npm run build` does NOT catch dangling refs to
-  removed locals inside these files, grep is the real gate.
+  removed locals inside `App.tsx`, grep is the real gate. CI runs a non-blocking
+  `tsc --noEmit` diagnostic against a de-nocheck'd copy of `App.tsx` to track
+  remaining type-debt (see `ci.yml`, #109).
 - **`tests/package.json` + `scripts/package.json` = `{"type":"commonjs"}`** to scope
   CJS without touching root ESM. Do not delete (but both are LOCAL-ONLY: gitignored,
   absent on fresh clones).
