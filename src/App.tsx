@@ -25,7 +25,7 @@ import { HarmonyPanel } from './components/panels/HarmonyPanel';
 import { RampsPanel, PixelSprite } from './components/panels/RampsPanel';
 import { InputPanel } from './components/panels/InputPanel';
 import { HeaderControls } from './components/panels/HeaderControls';
-import { DEFAULT_STYLE_PRESETS, resolveActiveStyle } from './lib/style-presets';
+import { DEFAULT_STYLE_PRESETS, resolveActiveStyle, resolveRampScalars } from './lib/style-presets';
 import { buildRandomHex } from './lib/randomizer';
 import { generateHarmony } from './lib/harmony';
 import { quantizeToHardware } from './lib/hardware-quantize';
@@ -129,8 +129,10 @@ export default function PixelPalGenerator() {
     lightnessCurvePerRamp, setLightnessCurvePerRamp, satCurvePerRamp, setSatCurvePerRamp,
     stylePresets, setStylePresets,
     // Per-ramp style fields (#69). Read here for workingRenderInputs +
-    // snapshotInputs; their setters are wired by the later UI tasks.
-    paletteDefaultStyle, rampStyleOverrides, rampStyleScalars,
+    // snapshotInputs; the per-ramp setRampStyleOverride wrapper (below) and
+    // RampsPanel's header controls (Task 6) are the setters' consumers.
+    paletteDefaultStyle, setPaletteDefaultStyle, rampStyleOverrides, setRampStyleOverrides,
+    rampStyleScalars, setRampStyleScalars,
     editingIndex, setEditingIndex, editorHsv, setEditorHsv,
     editorOklch, editorMode,
     pinEditor, setPinEditor, compareMode, setCompareMode,
@@ -327,8 +329,7 @@ export default function PixelPalGenerator() {
   const rampsMuted = useMemo(() => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, 'muted', i)), [liveRampSnapshot]);
 
   // rampsActive: the single per-ramp render array (#69) - each ramp at its own
-  // resolved style, rather than one of the three global sets above. Not yet
-  // consumed by any view (Task 5); kept here so it exists and stays in sync.
+  // resolved style, rather than one of the three global sets above.
   const activeStyleFor = useCallback(
     (i) => resolveActiveStyle(rampStyleOverrides, i, paletteDefaultStyle),
     [rampStyleOverrides, paletteDefaultStyle],
@@ -337,6 +338,24 @@ export default function PixelPalGenerator() {
     () => liveRampSnapshot.baseColors.map((_, i) => buildRamp(liveRampSnapshot, activeStyleFor(i), i)),
     [liveRampSnapshot, activeStyleFor],
   );
+
+  // setRampStyleOverride: the Color Ramps card's per-ramp picker (Task 6).
+  // Switching a ramp to 'custom' with no scalars yet seeds rampStyleScalars[i]
+  // from the ramp's current resolved {reach, chromaFalloff} so the Task 7
+  // sliders start where the ramp visually was, instead of snapping to the
+  // balanced-preset fallback resolveRampScalars would otherwise use.
+  const setRampStyleOverride = useCallback((i, style) => {
+    if (style === 'custom' && rampStyleScalars[i] === undefined) {
+      const seeded = resolveRampScalars({
+        style: activeStyleFor(i),
+        baseIndex: i,
+        stylePresets,
+        rampStyleScalars,
+      });
+      setRampStyleScalars(prev => ({ ...prev, [i]: seeded }));
+    }
+    setRampStyleOverrides(prev => ({ ...prev, [i]: style }));
+  }, [rampStyleScalars, activeStyleFor, stylePresets, setRampStyleScalars, setRampStyleOverrides]);
 
   // Resolve the safe anchor index: if harmonyAnchor is out of bounds (e.g.
   // briefly after a remove before the clamp effect runs, or after a load
@@ -836,6 +855,13 @@ export default function PixelPalGenerator() {
             rampsPunchy={rampsPunchy}
             rampsBalanced={rampsBalanced}
             rampsMuted={rampsMuted}
+            rampsActive={rampsActive}
+            activeStyleFor={activeStyleFor}
+            rampStyleOverrides={rampStyleOverrides}
+            setRampStyleOverride={setRampStyleOverride}
+            setRampStyleOverrides={setRampStyleOverrides}
+            paletteDefaultStyle={paletteDefaultStyle}
+            setPaletteDefaultStyle={setPaletteDefaultStyle}
             stylePresets={stylePresets}
             setStylePresets={setStylePresets}
             activeHardware={activeHardware}

@@ -47,6 +47,13 @@ const baseRampProps: RampsPanelProps = {
   rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300']],
   rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400']],
   rampsMuted: [['#ddbbbb', '#cc6644', '#994422']],
+  rampsActive: [['#ff9999', '#ff6b35', '#aa3300']],
+  activeStyleFor: (_i) => 'punchy',
+  rampStyleOverrides: {},
+  setRampStyleOverride: noop as any,
+  setRampStyleOverrides: noopDispatch,
+  paletteDefaultStyle: 'punchy',
+  setPaletteDefaultStyle: noopDispatch,
   stylePresets: DEFAULT_STYLE_PRESETS,
   setStylePresets: noopDispatch,
   activeHardware: null,
@@ -146,11 +153,47 @@ test('renders color name in ramp card', () => {
   expect(screen.getAllByText('Ember').length).toBeGreaterThanOrEqual(1);
 });
 
-test('renders Punchy / Balanced / Muted section labels when expanded', () => {
+test('default view shows only the active style section label (#69)', () => {
   wrap();
+  expect(screen.getByText('▸ Punchy')).toBeInTheDocument();
+  expect(screen.queryByText('▸ Balanced')).not.toBeInTheDocument();
+  expect(screen.queryByText('▸ Muted')).not.toBeInTheDocument();
+});
+
+test('default view shows the ramp\'s active (non-punchy) style, not always Punchy (#69)', () => {
+  wrap({ activeStyleFor: (_i) => 'balanced', rampsActive: [['#ffaaaa', '#ff6b35', '#bb4400']] });
+  expect(screen.queryByText('▸ Punchy')).not.toBeInTheDocument();
+  expect(screen.getByText('▸ Balanced')).toBeInTheDocument();
+});
+
+test('toggling "Compare All 3 Styles" shows all three stacked sections (#69)', () => {
+  wrap();
+  expect(screen.queryByText('▸ Balanced')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('Compare All 3 Styles'));
   expect(screen.getByText('▸ Punchy')).toBeInTheDocument();
   expect(screen.getByText('▸ Balanced')).toBeInTheDocument();
   expect(screen.getByText('▸ Muted')).toBeInTheDocument();
+});
+
+test('per-ramp style picker calls setRampStyleOverride with the clicked style (#69)', () => {
+  const setRampStyleOverride = vi.fn();
+  wrap({ editingIndex: 0, setRampStyleOverride });
+  fireEvent.click(screen.getByTitle(/Set this ramp's active style to Balanced/));
+  expect(setRampStyleOverride).toHaveBeenCalledWith(0, 'balanced');
+});
+
+test('"Set All Ramps → Default" clears rampStyleOverrides (#69)', () => {
+  const setRampStyleOverrides = vi.fn();
+  wrap({ setRampStyleOverrides });
+  fireEvent.click(screen.getByText('Set All Ramps → Default'));
+  expect(setRampStyleOverrides).toHaveBeenCalledWith({});
+});
+
+test('palette default-style selector calls setPaletteDefaultStyle (#69)', () => {
+  const setPaletteDefaultStyle = vi.fn();
+  wrap({ setPaletteDefaultStyle });
+  fireEvent.click(screen.getByTitle(/Set the palette default style to Muted/));
+  expect(setPaletteDefaultStyle).toHaveBeenCalledWith('muted');
 });
 
 test('does not render swatch rows when ramp collapsed', () => {
@@ -174,6 +217,7 @@ test('shows Collapse All when anyRampExpanded is true', () => {
     rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
     rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400'], ['#aaddff', '#00aaff', '#006699']],
     rampsMuted: [['#ddbbbb', '#cc6644', '#994422'], ['#bbccdd', '#4488bb', '#224455']],
+    rampsActive: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
   });
   expect(screen.getByText('Collapse All')).toBeInTheDocument();
 });
@@ -185,6 +229,7 @@ test('shows Expand All when anyRampExpanded is false', () => {
     rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
     rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400'], ['#aaddff', '#00aaff', '#006699']],
     rampsMuted: [['#ddbbbb', '#cc6644', '#994422'], ['#bbccdd', '#4488bb', '#224455']],
+    rampsActive: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
   });
   expect(screen.getByText('Expand All')).toBeInTheDocument();
 });
@@ -196,6 +241,7 @@ test('calls toggleAllRampsCollapse when Collapse All clicked', () => {
     rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
     rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400'], ['#aaddff', '#00aaff', '#006699']],
     rampsMuted: [['#ddbbbb', '#cc6644', '#994422'], ['#bbccdd', '#4488bb', '#224455']],
+    rampsActive: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
   });
   fireEvent.click(screen.getByText('Collapse All'));
   expect(toggleAllRampsCollapse).toHaveBeenCalledOnce();
@@ -255,6 +301,7 @@ test('shows remove button when multiple ramps', () => {
     rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
     rampsBalanced: [['#ffaaaa', '#ff6b35', '#bb4400'], ['#aaddff', '#00aaff', '#006699']],
     rampsMuted: [['#ddbbbb', '#cc6644', '#994422'], ['#bbccdd', '#4488bb', '#224455']],
+    rampsActive: [['#ff9999', '#ff6b35', '#aa3300'], ['#99ccff', '#00aaff', '#005599']],
   });
   expect(screen.getAllByTitle('Remove this ramp').length).toBe(2);
 });

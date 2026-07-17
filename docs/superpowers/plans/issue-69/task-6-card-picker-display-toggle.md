@@ -1,5 +1,23 @@
 # Task 6 — Color Ramps card: per-ramp picker + active-only display + comparison toggle + "set all"
 
+**Status: ✅ Done.** `RampsPanel` now shows one strip per ramp at its active style by
+default; a card-local `showAllStyles` toggle ("Compare All 3 Styles") restores the old
+stacked Punchy/Balanced/Muted view (`rampsPunchy`/`rampsBalanced`/`rampsMuted` stay,
+feeding only that view + the pin editor). A per-ramp Punchy/Balanced/Muted/Custom
+segmented picker lives in the Adjust Base editor header, wired to a new
+`setRampStyleOverride(i, style)` App.tsx helper that seeds `rampStyleScalars[i]` from
+the ramp's current resolved scalars the first time it flips to Custom. A new "Default
+Style" control row (segmented P/B/M → `setPaletteDefaultStyle`, a "Set All Ramps →
+Default" button clearing `rampStyleOverrides`, and the compare toggle) replaces the
+retired header trio's slot. The pin editor's source-ramp/label/color lookups gained a
+`'custom'` branch (`rampsActive[i]`, `STYLE_LABEL`/`STYLE_ACCENT` maps). `npm test` (596
+tests), the type gate, `npm run build`, and `npm run deadcode:ci` (0 new) all green.
+`npm run test:e2e` could not be run in this environment: the pre-installed Playwright
+Chromium build (rev 1194) doesn't match the pinned `@playwright/test` 1.60.0's expected
+browser revision (1223), a pre-existing environment mismatch unrelated to this change.
+Static review of the e2e specs found no assertions depending on the retired default
+triple-stacked view (`tour-reality.spec.ts` already anticipated the #69 change).
+
 > Read `../README.md` first.
 
 **Depends on:** Task 4 (`rampsActive`, `activeStyleFor`) + Task 3 (setters). Can run in

@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sun, ChevronUp, ChevronDown, RotateCcw, Lock, Unlock, Shuffle,
   CopyPlus, Copy, Download, Sparkles, Sliders, Plus, Pin, Trash2, Cpu,
-  AlertTriangle,
+  AlertTriangle, Columns,
 } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import { RampAdvancedPanel } from '../RampAdvancedPanel';
@@ -13,12 +13,40 @@ import { wcagContrast, wcagAaTier } from '../../lib/wcag';
 import { LIGHTNESS_PRESETS, SAT_PRESETS } from '../../lib/curve';
 import type { CurvePoints } from '../../lib/curve';
 import { DEFAULT_STYLE_PRESETS } from '../../lib/style-presets';
-import type { StylePresets } from '../../lib/style-presets';
+import type { StylePresets, RampStyle } from '../../lib/style-presets';
 import type { GamutStrategySerialized } from '../../lib/palette';
 import { DEFAULT_SPRITE_LIBRARY } from '../../lib/constants';
 import type { HardwarePalette } from '../../lib/hardware-quantize';
 
 type SpriteLibrary = Record<string, { pattern: string[]; numShades?: number }>;
+
+// Per-style accent color + short label, used by the per-ramp picker, the
+// active-only preview box, and the pin editor's 'custom' branch.
+const STYLE_ACCENT: Record<RampStyle, string> = {
+  punchy: '#ff00ff',
+  balanced: '#00ffff',
+  muted: '#a855f7',
+  custom: '#facc15',
+};
+const STYLE_BORDER: Record<RampStyle, string> = {
+  punchy: 'border-pink-500/50',
+  balanced: 'border-cyan-500/50',
+  muted: 'border-purple-400/60',
+  custom: 'border-yellow-400/60',
+};
+const STYLE_LABEL: Record<RampStyle, string> = {
+  punchy: 'Punchy',
+  balanced: 'Balanced',
+  muted: 'Muted',
+  custom: 'Custom',
+};
+// Swatch border color per style (Tailwind class, matches the show-all-3 view).
+const STYLE_SWATCH_BORDER: Record<RampStyle, string> = {
+  punchy: 'border-pink-400',
+  balanced: 'border-cyan-400',
+  muted: 'border-purple-400',
+  custom: 'border-yellow-400',
+};
 
 interface FilteredRamp {
   hexes: string[];
@@ -48,6 +76,14 @@ export interface RampsPanelProps {
   rampsPunchy: string[][];
   rampsBalanced: string[][];
   rampsMuted: string[][];
+  // per-ramp active-style render array + resolver (#69)
+  rampsActive: string[][];
+  activeStyleFor: (i: number) => RampStyle;
+  rampStyleOverrides: Record<number, RampStyle>;
+  setRampStyleOverride: (i: number, style: RampStyle) => void;
+  setRampStyleOverrides: React.Dispatch<React.SetStateAction<Record<number, RampStyle>>>;
+  paletteDefaultStyle: RampStyle;
+  setPaletteDefaultStyle: React.Dispatch<React.SetStateAction<RampStyle>>;
   // style presets
   stylePresets: StylePresets;
   setStylePresets: React.Dispatch<React.SetStateAction<StylePresets>>;
@@ -180,6 +216,8 @@ export function RampsPanel(props: RampsPanelProps) {
   const {
     theme,
     baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted,
+    rampsActive, activeStyleFor, rampStyleOverrides, setRampStyleOverride, setRampStyleOverrides,
+    paletteDefaultStyle, setPaletteDefaultStyle,
     stylePresets, setStylePresets, activeHardware,
     collapsedRamps, anyRampExpanded, lockedRamps,
     hiddenShades, rampSizeOverrides, setRampSizeOverrides, rampSize,
@@ -204,6 +242,11 @@ export function RampsPanel(props: RampsPanelProps) {
 
   const { t, themedAccent, accentTextGlow: _accentTextGlow } = useTheme();
   const accentTextGlow = _accentTextGlow as (hex: string, px?: number) => string;
+
+  // Card-only comparison toggle (#69): default off shows one strip per ramp
+  // at its active style; on restores the old stacked Punchy/Balanced/Muted
+  // view. Not persisted - a plain useState, sticky across re-renders only.
+  const [showAllStyles, setShowAllStyles] = useState(false);
 
   // #146: the OKLCH Chroma slider shows the raw dragged value, which can sit
   // outside sRGB gamut while the committed base color is silently clamped
@@ -355,6 +398,36 @@ export function RampsPanel(props: RampsPanelProps) {
           ))}
         </div>
       </div>
+      <div className="mb-4 p-3 rounded border-2 border-cyan-700/40 bg-black/60 flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Default Style</span>
+        <div className="flex items-center rounded border-2 border-cyan-700/50 overflow-hidden text-[11px] font-bold uppercase tracking-wider">
+          {(['punchy', 'balanced', 'muted'] as const).map((sk) => (
+            <button
+              key={sk}
+              onClick={() => setPaletteDefaultStyle(sk)}
+              title={`Set the palette default style to ${STYLE_LABEL[sk]}. Ramps without their own override use this.`}
+              className={`px-3 py-1.5 transition-all ${paletteDefaultStyle === sk ? 'bg-cyan-400 text-purple-900' : 'bg-black/60 text-cyan-200 hover:bg-black/40'}`}
+            >
+              {STYLE_LABEL[sk]}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => { tagNextLabel('Set all ramp styles'); setRampStyleOverrides({}); }}
+          title="Clear every ramp's individual style override so all ramps fall back to the palette default style"
+          className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}
+        >
+          Set All Ramps → Default
+        </button>
+        <button
+          onClick={() => setShowAllStyles(v => !v)}
+          title={showAllStyles ? 'Show only each ramp\'s active style' : 'Show Punchy/Balanced/Muted stacked for every ramp, for comparison'}
+          className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${showAllStyles ? 'bg-yellow-300 text-purple-900 border-yellow-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`}
+        >
+          <Columns size={14} />
+          {showAllStyles ? 'Comparing All 3' : 'Compare All 3 Styles'}
+        </button>
+      </div>
       {activeHardware && (
         <div className={`mb-4 p-2 rounded border-2 flex items-center gap-2 text-xs ${t.alertWarnBg} ${t.alertWarnBorder}`} style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.4)' }}>
           <Cpu size={14} className={`${t.alertWarnText} flex-shrink-0`} />
@@ -383,6 +456,11 @@ export function RampsPanel(props: RampsPanelProps) {
         const punchyBg = bgFromHex(fPunchyTop.hexes[fPunchyTop.hexes.length - 1] || punchy[punchy.length - 1], 0.7);
         const balancedBg = bgFromHex(fBalancedTop.hexes[fBalancedTop.hexes.length - 1] || balanced[balanced.length - 1], 0.7);
         const mutedBg = bgFromHex(fMutedTop.hexes[fMutedTop.hexes.length - 1] || muted[muted.length - 1], 0.7);
+        const activeStyle = activeStyleFor(i);
+        const active = rampsActive[i];
+        const labelsActive = labelsForRamp(active, effectiveBase);
+        const fActiveTop = filterHidden(active, labelsActive, i);
+        const activeBg = bgFromHex(fActiveTop.hexes[fActiveTop.hexes.length - 1] || active[active.length - 1], 0.7);
         const baseHex = baseColors[i];
         const lumChannel = (c: number) => {
           const v = c / 255;
@@ -468,6 +546,21 @@ export function RampsPanel(props: RampsPanelProps) {
                   <div className="flex items-center rounded border-2 border-yellow-700/50 overflow-hidden text-[10px] font-bold uppercase tracking-wider">
                     <button onClick={() => updateEditorMode('hsv')} title="Edit with HSV sliders" className={`px-2 py-1 transition-all ${editorMode === 'hsv' ? 'bg-yellow-400 text-purple-900' : 'bg-black/60 text-yellow-200 hover:bg-black/40'}`}>HSV</button>
                     <button onClick={() => updateEditorMode('oklch')} title="Edit with perceptual OKLCH sliders (matches the ramp engine's color space)" className={`px-2 py-1 transition-all ${editorMode === 'oklch' ? 'bg-yellow-400 text-purple-900' : 'bg-black/60 text-yellow-200 hover:bg-black/40'}`}>OKLCH</button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-yellow-200 uppercase tracking-wider">Style</span>
+                    <div className="flex items-center rounded border-2 border-yellow-700/50 overflow-hidden text-[10px] font-bold uppercase tracking-wider">
+                      {(['punchy', 'balanced', 'muted', 'custom'] as const).map((sk) => (
+                        <button
+                          key={sk}
+                          onClick={() => { tagNextLabel('Change ramp style'); setRampStyleOverride(i, sk); }}
+                          title={`Set this ramp's active style to ${STYLE_LABEL[sk]}${sk === 'custom' ? ' (opens the reach/chroma falloff sliders for this ramp)' : ''}`}
+                          className={`px-2 py-1 transition-all ${activeStyleFor(i) === sk ? 'bg-yellow-400 text-purple-900' : 'bg-black/60 text-yellow-200 hover:bg-black/40'}`}
+                        >
+                          {sk === 'punchy' ? 'P' : sk === 'balanced' ? 'B' : sk === 'muted' ? 'M' : 'C'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="ml-auto">
                     <button onClick={() => setEditingIndex(null)} title="Close the base color editor" className="text-xs px-2 py-1 rounded font-bold bg-purple-700 text-cyan-100 border-2 border-cyan-500 hover:bg-purple-600 transition-all uppercase tracking-wider">Done</button>
@@ -576,21 +669,31 @@ export function RampsPanel(props: RampsPanelProps) {
 
             <div className="flex flex-col lg:flex-row gap-4 items-start">
               <div onClick={() => toggleRampCollapse(i)} title={collapsedRamps.has(i) ? 'Expand this ramp card' : 'Collapse this ramp card to icons only'} className="flex flex-row gap-3 items-start flex-shrink-0 flex-wrap cursor-pointer select-none hover:opacity-90 transition-opacity">
-                <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-pink-500/50" style={{ background: punchyBg, boxShadow: '0 0 12px rgba(255, 0, 255, 0.3)' }}>
-                  <PixelSprite palette={fPunchyTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#ff00ff'), textShadow: accentTextGlow('#ff00ff', 6) }}>Punchy</span>
-                  <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                </div>
-                <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-cyan-500/50" style={{ background: balancedBg, boxShadow: '0 0 12px rgba(0, 255, 255, 0.3)' }}>
-                  <PixelSprite palette={fBalancedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#00ffff'), textShadow: accentTextGlow('#00ffff', 6) }}>Balanced</span>
-                  <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                </div>
-                <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-purple-400/60" style={{ background: mutedBg, boxShadow: '0 0 12px rgba(168, 85, 247, 0.3)' }}>
-                  <PixelSprite palette={fMutedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>Muted</span>
-                  <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
-                </div>
+                {showAllStyles ? (
+                  <>
+                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-pink-500/50" style={{ background: punchyBg, boxShadow: '0 0 12px rgba(255, 0, 255, 0.3)' }}>
+                      <PixelSprite palette={fPunchyTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#ff00ff'), textShadow: accentTextGlow('#ff00ff', 6) }}>Punchy</span>
+                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
+                    </div>
+                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-cyan-500/50" style={{ background: balancedBg, boxShadow: '0 0 12px rgba(0, 255, 255, 0.3)' }}>
+                      <PixelSprite palette={fBalancedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#00ffff'), textShadow: accentTextGlow('#00ffff', 6) }}>Balanced</span>
+                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
+                    </div>
+                    <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-purple-400/60" style={{ background: mutedBg, boxShadow: '0 0 12px rgba(168, 85, 247, 0.3)' }}>
+                      <PixelSprite palette={fMutedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>Muted</span>
+                      <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`w-36 flex flex-col items-center gap-1 p-3 rounded border-2 ${STYLE_BORDER[activeStyle]}`} style={{ background: activeBg, boxShadow: `0 0 12px ${STYLE_ACCENT[activeStyle]}4d` }}>
+                    <PixelSprite palette={fActiveTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent(STYLE_ACCENT[activeStyle]), textShadow: accentTextGlow(STYLE_ACCENT[activeStyle], 6) }}>{STYLE_LABEL[activeStyle]}</span>
+                    <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
+                  </div>
+                )}
                 <span className="self-center pl-1" style={{ color: themedAccent('#00ffff') }} aria-hidden="true">
                   {collapsedRamps.has(i) ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
                 </span>
@@ -599,7 +702,7 @@ export function RampsPanel(props: RampsPanelProps) {
                 const fPunchy = fPunchyTop;
                 const fBalanced = fBalancedTop;
                 const fMuted = fMutedTop;
-                const rampLen = punchy.length;
+                const rampLen = showAllStyles ? punchy.length : active.length;
                 const adjTip = (rampHexes: string[], rampLabels: string[], k: number) => {
                   if (rampHexes.length <= 1) return null;
                   const here = rampHexes[k];
@@ -620,6 +723,21 @@ export function RampsPanel(props: RampsPanelProps) {
                   }
                   return `Contrast: ${parts.join(', ')}`;
                 };
+                if (!showAllStyles) {
+                  return (
+                    <div className="flex flex-col gap-3 flex-1 min-w-0">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: themedAccent(STYLE_ACCENT[activeStyle]), textShadow: accentTextGlow(STYLE_ACCENT[activeStyle], 6) }}>▸ {STYLE_LABEL[activeStyle]}</div>
+                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${fActiveTop.hexes.length}, minmax(0, 100px))` }}>
+                          {fActiveTop.hexes.map((hex, k) => {
+                            const origJ = fActiveTop.originalIndices[k];
+                            return <Swatch key={`a-${i}-${origJ}`} hex={hex} label={fActiveTop.labels[k] || ''} borderClass={STYLE_SWATCH_BORDER[activeStyle]} shadowRgba={`${STYLE_ACCENT[activeStyle]}4d`} baseIndex={i} shadeIndex={origJ} style={activeStyle} onContextMenu={() => hideShade(i, origJ, rampLen)} extraTooltip={adjTip(fActiveTop.hexes, fActiveTop.labels, k)} />;
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     <div>
@@ -656,12 +774,12 @@ export function RampsPanel(props: RampsPanelProps) {
             {pinEditor && pinEditor.baseIndex === i && (() => {
               const j = pinEditor.shadeIndex;
               const ps = pinEditor.style;
-              const sourceRamp = ps === 'balanced' ? rampsBalanced[i] : ps === 'muted' ? rampsMuted[i] : rampsPunchy[i];
+              const sourceRamp = ps === 'balanced' ? rampsBalanced[i] : ps === 'muted' ? rampsMuted[i] : ps === 'custom' ? rampsActive[i] : rampsPunchy[i];
               const currentHex = (sourceRamp && sourceRamp[j]) || baseColors[i];
               const pinned = isShadePinned(i, j, ps);
               const shadeLabel = labels[j] || `shade ${j + 1}`;
-              const styleLabel = ps === 'balanced' ? 'Balanced' : ps === 'muted' ? 'Muted' : 'Punchy';
-              const styleColor = ps === 'balanced' ? '#00ffff' : ps === 'muted' ? '#a855f7' : '#ff00ff';
+              const styleLabel = STYLE_LABEL[ps as RampStyle] || 'Punchy';
+              const styleColor = STYLE_ACCENT[ps as RampStyle] || '#ff00ff';
               return (
                 <div className="mt-4 p-3 rounded border-2 border-yellow-500/60 bg-black/60" style={{ boxShadow: '0 0 12px rgba(255, 255, 0, 0.25)' }}>
                   <div className="flex flex-wrap items-center gap-3">
