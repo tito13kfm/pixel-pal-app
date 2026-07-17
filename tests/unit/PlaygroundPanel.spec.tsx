@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { PlaygroundPanel } from '../../src/components/panels/PlaygroundPanel';
 import { ThemeProvider } from '../../src/contexts';
 
@@ -19,11 +19,7 @@ const ramps2 = [['#111', '#222'], ['#333', '#444']];
 
 const base = {
   pgOpen: true,
-  vizStyle: 'balanced' as const,
-  setVizStyle: () => {},
-  rampsBalanced: ramps2,
-  rampsMuted: ramps2,
-  rampsPunchy: ramps2,
+  rampsActive: ramps2,
   isDark: true,
 };
 
@@ -34,13 +30,6 @@ function wrap(props: Partial<typeof base> = {}) {
     </ThemeProvider>,
   );
 }
-
-test('renders palette style buttons', () => {
-  wrap();
-  expect(screen.getByText('punchy')).toBeInTheDocument();
-  expect(screen.getByText('balanced')).toBeInTheDocument();
-  expect(screen.getByText('muted')).toBeInTheDocument();
-});
 
 test('hides content when pgOpen is false', () => {
   const { container } = wrap({ pgOpen: false });
@@ -54,14 +43,8 @@ test('shows content when pgOpen is true', () => {
   expect(root.style.display).toBe('');
 });
 
-test('calls setVizStyle when a style button is clicked', () => {
-  const setVizStyle = vi.fn();
-  wrap({ setVizStyle });
-  fireEvent.click(screen.getByText('punchy'));
-  expect(setVizStyle).toHaveBeenCalledWith('punchy');
-});
-
-test('renders "Palette style" label', () => {
-  wrap();
-  expect(screen.getByText('Palette style')).toBeInTheDocument();
+test('renders the playground canvas from rampsActive', () => {
+  const { container } = wrap();
+  // PixelPlayground renders a canvas driven by the active per-ramp array.
+  expect(container.querySelector('canvas')).toBeInTheDocument();
 });

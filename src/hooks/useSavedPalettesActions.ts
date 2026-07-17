@@ -71,10 +71,6 @@ interface UseSavedPalettesActionsParams {
   setRenameError: (v: string) => void;
 
   // Cross-domain wiring (non-store state owned by other hooks / App.tsx).
-  gplStyle: string;
-  setGplStyle: (v: string) => void;
-  vizStyle: string;
-  setVizStyle: (v: string) => void;
   spriteKey: string;
   setSpriteKey: (v: string) => void;
   customSprites: Record<string, unknown>;
@@ -183,8 +179,6 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
       baseColors,
       aiColorNames,
       rampSize,
-      gplStyle: p.gplStyle,
-      vizStyle: p.vizStyle,
       spriteKey: p.spriteKey,
       shuffleSeed, // critical: ramps are deterministic only if we restore this exactly
       customSprites: p.customSprites, // snapshot the full custom sprite library
@@ -281,8 +275,8 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
       // one-time notice. Migration persists lazily on the user's next save
       // (the save payload always writes engineVersion: 2). (#70)
       if (isPreV2Palette(parsed)) p.setV2NoticePending(true);
-      if (['punchy', 'balanced', 'muted'].includes(parsed.gplStyle)) p.setGplStyle(parsed.gplStyle);
-      if (['punchy', 'balanced', 'muted'].includes(parsed.vizStyle)) p.setVizStyle(parsed.vizStyle);
+      // The legacy global vizStyle/gplStyle are gone (#69); a saved payload's
+      // vizStyle/gplStyle now feeds paletteDefaultStyle migration below.
       // Only restore the sprite key if it exists in the library after the merge above.
       if (parsed.spriteKey && ((DEFAULT_SPRITE_LIBRARY as Record<string, unknown>)[parsed.spriteKey] || (parsed.customSprites && parsed.customSprites[parsed.spriteKey]) || p.customSprites[parsed.spriteKey])) {
         p.setSpriteKey(parsed.spriteKey);

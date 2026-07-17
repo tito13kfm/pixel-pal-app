@@ -42,9 +42,6 @@ interface CompareAnchor {
 export interface RampsPanelProps {
   // theme string for class conditions
   theme: string;
-  // ramp export style
-  rampExportStyle: string;
-  setRampExportStyle: (s: string) => void;
   // palette data
   baseColors: string[];
   aiColorNames: string[];
@@ -181,7 +178,7 @@ export function PixelSprite({ palette, scale = 6, spriteKey = 'vase', spriteLibr
 
 export function RampsPanel(props: RampsPanelProps) {
   const {
-    theme, rampExportStyle, setRampExportStyle,
+    theme,
     baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted,
     stylePresets, setStylePresets, activeHardware,
     collapsedRamps, anyRampExpanded, lockedRamps,
@@ -314,12 +311,6 @@ export function RampsPanel(props: RampsPanelProps) {
   return (
     <div className="px-6 pb-6">
       <div className="flex items-center gap-2 flex-wrap justify-end mb-4">
-        <div className={`flex items-center gap-1 px-2 py-1 rounded border-2 ${t.controlPanelBg} ${t.controlPanelBorder}`} title="Style used by the Copy and Download buttons on each ramp card. Independent of the Visualization panel's style. Hidden shades are always excluded.">
-          <span className={`text-[10px] font-bold uppercase tracking-wider mr-1 ${theme === 'dark' ? 'text-cyan-200/80' : t.panelTextInactive}`}>Ramp export:</span>
-          <button onClick={() => setRampExportStyle('punchy')} title="Per-ramp Copy and Download use Punchy shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'punchy' ? { boxShadow: '0 0 8px #ff00ff' } : {}}>Punchy</button>
-          <button onClick={() => setRampExportStyle('balanced')} title="Per-ramp Copy and Download use Balanced shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'balanced' ? { boxShadow: '0 0 8px #00ffff' } : {}}>Balanced</button>
-          <button onClick={() => setRampExportStyle('muted')} title="Per-ramp Copy and Download use Muted shades" className={`px-2 py-0.5 rounded font-bold border transition-all text-[10px] uppercase tracking-wider ${rampExportStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={rampExportStyle === 'muted' ? { boxShadow: '0 0 8px #a855f7' } : {}}>Muted</button>
-        </div>
         {baseColors.length > 1 && (
           <button onClick={toggleAllRampsCollapse} title={anyRampExpanded ? 'Collapse every ramp card to its icon previews' : 'Expand every ramp card to show all swatches'} className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider flex items-center gap-1 ${t.controlBtnDefault} ${t.controlBtnHover}`}>
             {anyRampExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -442,7 +433,7 @@ export function RampsPanel(props: RampsPanelProps) {
               </button>
               <button
                 onClick={() => copyRampToClipboard(i)}
-                title={`Copy this ramp's hex values to clipboard at the active per-ramp export style (${rampExportStyle}). Change the style via the Punchy/Balanced/Muted toggle in the section header. Hidden shades excluded.`}
+                title={`Copy this ramp's hex values to clipboard at this ramp's active style. Hidden shades excluded.`}
                 className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-cyan-500 text-white border-cyan-200 hover:bg-cyan-400"
                 style={{ boxShadow: '0 0 8px rgba(0, 200, 255, 0.6)' }}
               >
@@ -450,7 +441,7 @@ export function RampsPanel(props: RampsPanelProps) {
               </button>
               <button
                 onClick={() => downloadSingleRampGpl(i)}
-                title={`Download this ramp as a single-ramp .gpl file at the active per-ramp export style (${rampExportStyle}). Change the style via the Punchy/Balanced/Muted toggle in the section header. Hidden shades excluded.`}
+                title={`Download this ramp as a single-ramp .gpl file at this ramp's active style. Hidden shades excluded.`}
                 className="w-7 h-7 rounded-full border-2 hover:scale-110 transition-all flex items-center justify-center bg-yellow-400 text-purple-900 border-yellow-200 hover:bg-yellow-300"
                 style={{ boxShadow: '0 0 8px rgba(255, 255, 0, 0.6)' }}
               >

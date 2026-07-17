@@ -42,8 +42,6 @@ const DEFAULT_STYLE_PRESETS = {
 
 const baseRampProps: RampsPanelProps = {
   theme: 'dark',
-  rampExportStyle: 'balanced',
-  setRampExportStyle: noop,
   baseColors: ['#ff6b35'],
   aiColorNames: ['Ember'],
   rampsPunchy: [['#ff9999', '#ff6b35', '#aa3300']],
@@ -135,29 +133,12 @@ test('renders Style Tuning section', () => {
   expect(screen.getByText('Style Tuning')).toBeInTheDocument();
 });
 
-test('renders Ramp export label and style toggle buttons', () => {
+test('no global ramp-export style toggle (style is per-ramp, #69)', () => {
   wrap();
-  expect(screen.getByText('Ramp export:')).toBeInTheDocument();
-  // Punchy/Balanced/Muted appear in export toggle + sprite headers; use getAllByText
-  expect(screen.getAllByText('Punchy').length).toBeGreaterThanOrEqual(1);
-  expect(screen.getAllByText('Balanced').length).toBeGreaterThanOrEqual(1);
-  expect(screen.getAllByText('Muted').length).toBeGreaterThanOrEqual(1);
-});
-
-test('calls setRampExportStyle when Punchy clicked', () => {
-  const setRampExportStyle = vi.fn();
-  wrap({ setRampExportStyle });
-  const btn = screen.getAllByText('Punchy').find(el => el.tagName === 'BUTTON')!;
-  fireEvent.click(btn);
-  expect(setRampExportStyle).toHaveBeenCalledWith('punchy');
-});
-
-test('calls setRampExportStyle when Muted clicked', () => {
-  const setRampExportStyle = vi.fn();
-  wrap({ setRampExportStyle });
-  const btn = screen.getAllByText('Muted').find(el => el.tagName === 'BUTTON')!;
-  fireEvent.click(btn);
-  expect(setRampExportStyle).toHaveBeenCalledWith('muted');
+  // The retired "Ramp export:" Punchy/Balanced/Muted toggle is gone; per-ramp
+  // Copy/Download now use each ramp's own active style. The "▸ Punchy" etc.
+  // section labels (show-all-three view) still render when expanded.
+  expect(screen.queryByText('Ramp export:')).toBeNull();
 });
 
 test('renders color name in ramp card', () => {

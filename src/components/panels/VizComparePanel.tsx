@@ -16,7 +16,6 @@ import type { RemapImage } from '../../lib/image-remap';
 import { hexToHsl } from '../../lib/color';
 import { useTheme } from '../../contexts';
 
-type VizStyle = 'punchy' | 'balanced' | 'muted';
 type RemapDither = 'none' | 'floyd-steinberg' | 'atkinson' | 'stucki';
 
 export interface VizComparePanelProps {
@@ -24,9 +23,7 @@ export interface VizComparePanelProps {
   sbsOpen: boolean;
   setSbsOpen: (fn: (prev: boolean) => boolean) => void;
 
-  // Style
-  vizStyle: VizStyle;
-  setVizStyle: (s: VizStyle) => void;
+  // Sub-section collapse state
   vizSubOpen: Record<string, boolean>;
   toggleVizSub: (key: string) => void;
 
@@ -99,7 +96,7 @@ export interface VizComparePanelProps {
 
 export function VizComparePanel({
   sbsOpen, setSbsOpen,
-  vizStyle, setVizStyle, vizSubOpen, toggleVizSub,
+  vizSubOpen, toggleVizSub,
   matrixColorSet, setMatrixColorSet, matrixView, setMatrixView,
   ditherPattern, setDitherPattern, ditherCrossRamp, setDitherCrossRamp, ditherZoom, setDitherZoom,
   sbsLeft, setSbsLeft, sbsRight, setSbsRight,
@@ -159,7 +156,8 @@ export function VizComparePanel({
     ctx.putImageData(imgData, 0, 0);
   }, [sbsRightRemap]);
 
-  const styleAccent = vizStyle === 'balanced' ? '#00ffff' : vizStyle === 'muted' ? '#a855f7' : '#ff00ff';
+  // Fixed accent now that style is per-ramp (no global vizStyle to tint by).
+  const styleAccent = '#ff00ff';
   const leftSnap = getSnapshotForSlot(sbsLeft, sbsLeftPayload);
   const rightSnap = getSnapshotForSlot(sbsRight, sbsRightPayload);
   const isTwoColumn = sbsRight !== null;
@@ -213,7 +211,7 @@ export function VizComparePanel({
         </div>
       );
     }
-    const ramps = buildRampsForSnapshot(snap, vizStyle);
+    const ramps = buildRampsForSnapshot(snap);
     const { allColors, sortedByL, mosaicRamps } = computeVizData(ramps);
     const namesSource = Array.isArray(snap.aiColorNames) ? snap.aiColorNames : aiColorNames;
     const plotSize = compact ? 200 : 280;
@@ -442,13 +440,6 @@ export function VizComparePanel({
       icon={<BarChart3 size={22} />} title="Visualize & Compare"
     >
       <div className="p-6 pt-2 flex flex-col gap-6">
-        <div className="flex gap-2 items-center flex-wrap justify-center bg-black/60 rounded border-2 border-cyan-500/40 px-3 py-2">
-          <span className="text-xs font-bold text-cyan-200 uppercase tracking-wider">Style:</span>
-          <button onClick={() => setVizStyle('punchy')} title="Show high-contrast Punchy ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'punchy' ? 'bg-pink-300 text-purple-900 border-pink-100' : 'bg-purple-900/60 text-pink-200 border-pink-700/50 hover:bg-purple-800/60'}`} style={vizStyle === 'punchy' ? { boxShadow: '0 0 10px #ff00ff' } : {}}>Punchy</button>
-          <button onClick={() => setVizStyle('balanced')} title="Show mid-contrast Balanced ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'balanced' ? 'bg-cyan-300 text-purple-900 border-cyan-100' : `${t.controlBtnDefault} ${t.controlBtnHover}`}`} style={vizStyle === 'balanced' ? { boxShadow: '0 0 10px #00ffff' } : {}}>Balanced</button>
-          <button onClick={() => setVizStyle('muted')} title="Show low-contrast Muted ramps in the visualization" className={`px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider ${vizStyle === 'muted' ? 'bg-purple-300 text-purple-900 border-purple-100' : 'bg-purple-900/60 text-purple-200 border-purple-700/50 hover:bg-purple-800/60'}`} style={vizStyle === 'muted' ? { boxShadow: '0 0 10px #a855f7' } : {}}>Muted</button>
-          <span className="text-[10px] text-cyan-100/50 italic ml-1">Sets the style for all views below. Per-view options live in each section.</span>
-        </div>
         <div>
           <h3 className="text-sm font-bold uppercase tracking-widest mb-2" style={{ color: themedAccent('#00ffff') }}>▸ Image Preview</h3>
           <p className="text-[11px] text-cyan-100/70 italic mb-2 bg-black/60 rounded px-2 py-1">Upload an image. Every pixel snaps to the nearest color in the active palette (current style, hidden shades excluded, hardware lock honored). Auto-updates as you edit; 300ms debounce.</p>
@@ -643,8 +634,8 @@ export function VizComparePanel({
           const okA = leftSnap && Array.isArray(leftSnap.baseColors) && leftSnap.baseColors.length > 0;
           const okB = rightSnap && Array.isArray(rightSnap.baseColors) && rightSnap.baseColors.length > 0;
           if (!okA || !okB) return null;
-          const colorsA = computeVizData(buildRampsForSnapshot(leftSnap, vizStyle)).allColors;
-          const colorsB = computeVizData(buildRampsForSnapshot(rightSnap, vizStyle)).allColors;
+          const colorsA = computeVizData(buildRampsForSnapshot(leftSnap)).allColors;
+          const colorsB = computeVizData(buildRampsForSnapshot(rightSnap)).allColors;
           if (colorsA.length === 0 || colorsB.length === 0) return null;
           return vizSub('crossAdjacency', 'Cross-Palette Adjacency (A × B)', null, false, (
             <>
@@ -658,7 +649,7 @@ export function VizComparePanel({
             </>
           ));
         })()}
-        <p className="text-[10px] text-cyan-100/40 italic text-center bg-black/60 rounded px-2 py-1">Style applies to all views. Hidden shades are filtered out.</p>
+        <p className="text-[10px] text-cyan-100/40 italic text-center bg-black/60 rounded px-2 py-1">Each ramp renders at its own active style. Hidden shades are filtered out.</p>
       </div>
     </SectionCard>
   );

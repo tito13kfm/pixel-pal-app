@@ -3,8 +3,8 @@
 // Extracted from App.tsx. Owns no palette state itself: reads/writes through
 // the params passed in, which App.tsx sources from useImageRemap() (the remap
 // panel state) plus the ramp-core values the active-palette derivation needs
-// (baseColors, the three ramp memos, vizStyle, and the bound ramp helpers,
-// same binding pattern as useExport). The only state owned here is the
+// (baseColors, rampsActive, and the bound ramp helpers, same binding pattern
+// as useExport). The only state owned here is the
 // two-click download confirmation's auto-disarm timer handle, which is only
 // touched by the download handler.
 //
@@ -28,10 +28,7 @@ interface UseImageRemapComputeParams {
   // filterHidden are the bound wrappers App.tsx builds over lib/ramp-helpers
   // (rampSatOverrides / hiddenShades pre-applied), same as useExport receives.
   baseColors: string[];
-  rampsPunchy: string[][];
-  rampsBalanced: string[][];
-  rampsMuted: string[][];
-  vizStyle: string;
+  rampsActive: string[][];
   resolveBaseForRamp: (hex: string, baseIndex: number) => string;
   labelsForRamp: (ramp: string[], baseHex: string) => string[];
   filterHidden: (ramp: string[], labels: string[], baseIndex: number) => { hexes: string[]; labels: string[] };
@@ -67,15 +64,12 @@ export function useImageRemapCompute(p: UseImageRemapComputeParams) {
   // dropdown in VizComparePanel, which receives it as a prop).
   const remapDownloadConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Compute the active palette for remap. Reads vizStyle and the active
-  // ramp memo for that style, filters hidden shades, dedupes. The result
-  // is the SAME flat hex set the chromatic plot dots come from, which
-  // guarantees parity with what the Visualization section shows.
+  // Compute the active palette for remap. Reads rampsActive (each ramp at its
+  // own active style, #69), filters hidden shades, dedupes. The result is the
+  // SAME flat hex set the chromatic plot dots come from, which guarantees
+  // parity with what the Visualization section shows.
   const getActiveRemapPalette = (): string[] => {
-    const rampsForStyle = p.vizStyle === 'balanced' ? p.rampsBalanced
-                       : p.vizStyle === 'muted'    ? p.rampsMuted
-                       :                             p.rampsPunchy;
-    const visible = rampsForStyle.map((ramp, i) => {
+    const visible = p.rampsActive.map((ramp, i) => {
       const effectiveBase = p.resolveBaseForRamp(p.baseColors[i], i);
       const labels = p.labelsForRamp(ramp, effectiveBase);
       return p.filterHidden(ramp, labels, i).hexes;

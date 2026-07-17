@@ -47,7 +47,7 @@ interface InputPanelProps {
   setMoodPreset: (id: string | null) => void;
 
   spriteLibrary: SpriteLibrary;
-  rampsPunchy: string[][];
+  rampsActive: string[][];
   spriteKey: string;
   setSpriteKey: (key: string) => void;
   removeCustomSprite: (key: string) => void;
@@ -82,7 +82,7 @@ export function InputPanel(props: InputPanelProps) {
     hoveredColor, imageZoom, setImageZoom, imageNaturalSize, setImageNaturalSize,
     imageRef, handleImageHover, handleImageLeave, handleImageClick, imageError,
     handleGenerate, surpriseMe, buildAroundColor, moodPreset, setMoodPreset,
-    spriteLibrary, rampsPunchy, spriteKey, setSpriteKey,
+    spriteLibrary, rampsActive, spriteKey, setSpriteKey,
     removeCustomSprite, copySpriteSource, showSpriteImporter, setShowSpriteImporter,
     spriteDragging, handleSpriteDragOver, handleSpriteDragLeave, handleSpriteDrop,
     handleSpriteFile, spriteImportName, setSpriteImportName, spriteImportText,
@@ -252,7 +252,7 @@ export function InputPanel(props: InputPanelProps) {
             <div className="flex flex-wrap gap-2 items-center justify-center mb-3" style={{ color: themedAccent('#00ffff') }}>
               <span className="text-sm font-bold uppercase tracking-wider w-full sm:w-auto text-center">Preview Sprite:</span>
               {Object.entries(spriteLibrary).map(([key, sprite]) => {
-                const previewRamp = rampsPunchy?.[0] || ['#000', '#444', '#888', '#fff'];
+                const previewRamp = rampsActive?.[0] || ['#000', '#444', '#888', '#fff'];
                 const isCustom = !(key in DEFAULT_SPRITE_LIBRARY);
                 return (
                   <div key={key} className="relative">

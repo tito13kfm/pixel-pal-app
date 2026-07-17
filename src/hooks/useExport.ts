@@ -3,8 +3,9 @@
 // Extracted from App.tsx (SP2 phase c). Owns no state itself: reads/writes
 // through the params passed in, which App.tsx sources from useExportSettings()
 // plus a handful of ramp-core values (baseColors, rampsPunchy/Balanced/Muted,
-// harmony, resolveBaseForRamp, labelsForRamp, filterHidden, buildRampsForSnapshot)
-// and viz-settings values (vizStyle, matrixColorSet, matrixView, ditherPattern).
+// rampsActive, activeStyleFor, harmony, resolveBaseForRamp, labelsForRamp,
+// filterHidden, buildRampsForSnapshot) and viz-settings values (matrixColorSet,
+// matrixView, ditherPattern).
 import type { MatrixView, DitherPattern } from '../lib/viz-interaction';
 import {
   buildPaletteText as buildPaletteTextLib,
@@ -27,23 +28,25 @@ import {
   drawPaletteStripPng,
 } from '../lib/strip-export';
 
-type RampStyle = 'punchy' | 'balanced' | 'muted';
+import type { RampStyle } from '../lib/style-presets';
 
 interface UseExportParams {
   baseColors: string[];
   aiColorNames: string[];
+  // rampsPunchy/Balanced/Muted are kept ONLY for buildPaletteText, the full
+  // human-readable .txt dump that lists all three styles. Every style-selected
+  // export reads rampsActive (each ramp at its own active style, #69).
   rampsPunchy: string[][];
   rampsBalanced: string[][];
   rampsMuted: string[][];
+  rampsActive: string[][];
+  activeStyleFor: (baseIndex: number) => RampStyle;
   harmony: HarmonySet;
   resolveBaseForRamp: (hex: string, baseIndex: number) => string;
   labelsForRamp: (ramp: string[], baseHex: string) => string[];
   filterHidden: (ramp: string[], labels: string[], baseIndex: number) => { hexes: string[]; labels: string[] };
-  buildRampsForSnapshot: (snap: any, style: string) => string[][];
+  buildRampsForSnapshot: (snap: any) => string[][];
   rampSize: number;
-  vizStyle: string;
-  gplStyle: string;
-  rampExportStyle: RampStyle;
   exportFormat: string;
   matrixColorSet: string;
   matrixView: string;
@@ -79,7 +82,7 @@ export function useExport(p: UseExportParams) {
 
   const exportLightnessPng = async (snap: any) => {
     try {
-      const ramps = p.buildRampsForSnapshot(snap, p.vizStyle);
+      const ramps = p.buildRampsForSnapshot(snap);
       const { sortedByL } = computeVizData(ramps);
       if (sortedByL.length === 0) {
         p.setExportFeedback('Nothing to export');
@@ -105,7 +108,7 @@ export function useExport(p: UseExportParams) {
 
   const exportMosaicPng = async (snap: any) => {
     try {
-      const ramps = p.buildRampsForSnapshot(snap, p.vizStyle);
+      const ramps = p.buildRampsForSnapshot(snap);
       const { mosaicRamps } = computeVizData(ramps);
       const rows = mosaicRamps.map((r: any) => r.hexes);
       if (rows.length === 0) {
@@ -132,7 +135,7 @@ export function useExport(p: UseExportParams) {
 
   const exportMatrixPng = async (snap: any) => {
     try {
-      const ramps = p.buildRampsForSnapshot(snap, p.vizStyle);
+      const ramps = p.buildRampsForSnapshot(snap);
       const { allColors } = computeVizData(ramps);
       const colors = p.matrixColorSet === 'bases'
         ? (Array.isArray(snap?.baseColors) ? snap.baseColors : [])
@@ -161,7 +164,7 @@ export function useExport(p: UseExportParams) {
 
   const exportDitherPng = async (snap: any) => {
     try {
-      const ramps = p.buildRampsForSnapshot(snap, p.vizStyle);
+      const ramps = p.buildRampsForSnapshot(snap);
       const { mosaicRamps } = computeVizData(ramps);
       const rows = mosaicRamps.map((r: any) => r.hexes);
       if (rows.length === 0) {
@@ -193,14 +196,27 @@ export function useExport(p: UseExportParams) {
     setTimeout(() => p.setExportFeedback(''), 2000);
   };
 
-  const collectPaletteEntries = (style: RampStyle) => collectPaletteEntriesLib({ style, ...p });
+  // Whole-palette exports now render each ramp at its own active style
+  // (rampsActive). The style suffix on filenames / the .gpl palette name is a
+  // single word only when every ramp shares one style; otherwise it's 'mixed'.
+  const exportStyleTag = (): string => {
+    if (p.baseColors.length === 0) return 'punchy';
+    const first = p.activeStyleFor(0);
+    return p.baseColors.every((_, i) => p.activeStyleFor(i) === first) ? first : 'mixed';
+  };
+  const gplPaletteName = (): string => {
+    const tag = exportStyleTag();
+    return `PIXEL.PAL ${tag.charAt(0).toUpperCase() + tag.slice(1)}`;
+  };
 
-  const buildPaletteGpl = (style: RampStyle) => buildPaletteGplLib({ style, ...p });
+  const collectPaletteEntries = () => collectPaletteEntriesLib({ ...p });
+
+  const buildPaletteGpl = () => buildPaletteGplLib({ ...p, paletteName: gplPaletteName() });
 
   const exportPaletteGpl = async () => {
-    const text = buildPaletteGpl(p.gplStyle as RampStyle);
+    const text = buildPaletteGpl();
     return await saveFile({
-      defaultName: `pixel-pal-${p.gplStyle}.gpl`,
+      defaultName: `pixel-pal-${exportStyleTag()}.gpl`,
       filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
       data: { text },
       folderKey: 'gpl',
@@ -208,9 +224,9 @@ export function useExport(p: UseExportParams) {
   };
 
   const exportPalettePal = async () => {
-    const text = buildJascPal(collectPaletteEntries(p.gplStyle as RampStyle));
+    const text = buildJascPal(collectPaletteEntries());
     return await saveFile({
-      defaultName: `pixel-pal-${p.gplStyle}.pal`,
+      defaultName: `pixel-pal-${exportStyleTag()}.pal`,
       filters: [{ name: 'JASC palette', extensions: ['pal'] }],
       data: { text },
       folderKey: 'pal',
@@ -218,9 +234,9 @@ export function useExport(p: UseExportParams) {
   };
 
   const exportPaletteAse = async () => {
-    const bytes = buildAse(collectPaletteEntries(p.gplStyle as RampStyle));
+    const bytes = buildAse(collectPaletteEntries());
     return await saveFile({
-      defaultName: `pixel-pal-${p.gplStyle}.ase`,
+      defaultName: `pixel-pal-${exportStyleTag()}.ase`,
       filters: [{ name: 'Adobe Swatch Exchange', extensions: ['ase'] }],
       data: { bytes },
       folderKey: 'ase',
@@ -228,10 +244,10 @@ export function useExport(p: UseExportParams) {
   };
 
   const exportPaletteStripPng = async () => {
-    const rows = p.baseColors.map((_, i) => filteredRamp({ i, style: p.gplStyle as RampStyle, ...p }).hexes);
+    const rows = p.baseColors.map((_, i) => filteredRamp({ i, ...p }).hexes);
     const blob = await drawPaletteStripPng(rows, 32);
     return await saveFile({
-      defaultName: `pixel-pal-${p.gplStyle}-strip.png`,
+      defaultName: `pixel-pal-${exportStyleTag()}-strip.png`,
       filters: [{ name: 'PNG image', extensions: ['png'] }],
       data: { bytes: blob },
       folderKey: 'png',
@@ -270,14 +286,15 @@ export function useExport(p: UseExportParams) {
     }
   };
 
-  const buildSingleRampText = (i: number, style: RampStyle) =>
-    buildSingleRampTextLib(filteredRamp({ i, style, ...p }));
+  // Per-ramp Copy/Download honor that ramp's own active style (#69).
+  const buildSingleRampText = (i: number) =>
+    buildSingleRampTextLib(filteredRamp({ i, ...p }));
 
-  const buildSingleRampGpl = (i: number, style: RampStyle) =>
-    buildSingleRampGplLib({ filtered: filteredRamp({ i, style, ...p }), i, style, aiColorNames: p.aiColorNames });
+  const buildSingleRampGpl = (i: number) =>
+    buildSingleRampGplLib({ filtered: filteredRamp({ i, ...p }), i, style: p.activeStyleFor(i), aiColorNames: p.aiColorNames });
 
   const copyRampToClipboard = async (i: number) => {
-    const text = buildSingleRampText(i, p.rampExportStyle);
+    const text = buildSingleRampText(i);
     const count = text.trim().split('\n').length;
     const success = await copyTextToClipboard(text);
     p.setExportFeedback(success ? `Copied ${count} shade${count === 1 ? '' : 's'}` : 'Copy failed');
@@ -286,8 +303,8 @@ export function useExport(p: UseExportParams) {
 
   const downloadSingleRampGpl = async (i: number) => {
     try {
-      const text = buildSingleRampGpl(i, p.rampExportStyle);
-      const defaultName = `pixel-pal-ramp-${i + 1}-${p.rampExportStyle}.gpl`;
+      const text = buildSingleRampGpl(i);
+      const defaultName = `pixel-pal-ramp-${i + 1}-${p.activeStyleFor(i)}.gpl`;
       const result = await saveFile({
         defaultName,
         filters: [{ name: 'GIMP palette', extensions: ['gpl'] }],
