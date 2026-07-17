@@ -11,3 +11,8 @@ src/lib/palette.ts:92 - deletePaletteFromStorage
 src/lib/palette.ts:107 - loadAllPaletteIndexEntries
 src/lib/randomizer.ts:6 - buildRandomDescription
 src/lib/viz-interaction.ts:172 - CycleRange
+# issue #69 (per-ramp style) forward-refs: exported by task 1 ahead of their
+# consumers (tasks 2-3). Remove these once those tasks import them.
+src/lib/style-presets.ts:22 - RAMP_STYLES
+src/lib/style-presets.ts:25 - resolveActiveStyle
+src/lib/style-presets.ts:35 - resolveRampScalars
