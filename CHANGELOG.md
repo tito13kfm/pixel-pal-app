@@ -18,6 +18,22 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-07-18
+
+### Fixed
+- Removing a ramp now drop-and-shifts the per-ramp style maps
+  (`rampStyleOverrides` / `rampStyleScalars`, #69): deleting a ramp used to
+  attach a later ramp's active style (or its custom reach/falloff scalars)
+  to the wrong index.
+- Duplicating a ramp now carries its style override and custom scalars to
+  the copy, restoring the byte-identical-duplicate contract; the duplicate
+  used to silently revert to the palette default style.
+- Full-palette-replace paths (New palette, Surprise Me, image extract, GPL
+  import) now clear the per-ramp style maps instead of leaking the previous
+  palette's per-ramp styles onto the new palette's indices.
+  `paletteDefaultStyle` is deliberately preserved as a session-level
+  preference (same rationale as ramp size / hardware lock / mood preset).
+
 ## [0.26.0] - 2026-07-17
 
 ### Added
@@ -711,7 +727,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.26.1...HEAD
+[0.26.1]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.23.0...v0.24.0

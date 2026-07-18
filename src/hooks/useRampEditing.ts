@@ -48,6 +48,7 @@ export function useRampEditing(p: UseRampEditingParams) {
     setRampSizeOverrides, setRampSatOverrides,
     setHueShiftStrengthPerRamp,
     setLightnessCurvePerRamp, setSatCurvePerRamp,
+    setRampStyleOverrides, setRampStyleScalars,
     hiddenShades, setHiddenShades, setRampShuffleOffsets,
     lockedRamps, setLockedRamps, collapsedRamps, setCollapsedRamps,
     editingIndex, setEditingIndex, setEditorHsv,
@@ -134,6 +135,11 @@ export function useRampEditing(p: UseRampEditingParams) {
     setLightnessCurvePerRamp(shiftBaseKeyedMap);
     setSatCurvePerRamp(shiftBaseKeyedMap);
     p.setGamutPerRamp(shiftBaseKeyedMap);
+    // The #69 per-ramp style maps join the same rule: without these,
+    // removing a ramp attached a later ramp's active style (or its custom
+    // reach/falloff scalars) to the wrong index.
+    setRampStyleOverrides(shiftBaseKeyedMap);
+    setRampStyleScalars(shiftBaseKeyedMap);
     // collapsedRamps is a Set, not an object map. Same shift semantics:
     // drop the removed index, shift later indices down by 1.
     setCollapsedRamps(prev => {
@@ -223,6 +229,11 @@ export function useRampEditing(p: UseRampEditingParams) {
     setLightnessCurvePerRamp(appendDup);
     setSatCurvePerRamp(appendDup);
     p.setGamutPerRamp(appendDup as (prev: Record<string, unknown>) => Record<string, unknown>);
+    // #69 per-ramp style: the active style + custom scalars feed buildRamp,
+    // so skipping them broke the byte-identical-duplicate contract above
+    // whenever the source ramp had a style override.
+    setRampStyleOverrides(appendDup);
+    setRampStyleScalars(appendDup);
     p.setExportFeedback('Duplicated ramp');
     setTimeout(() => p.setExportFeedback(''), 2000);
   };

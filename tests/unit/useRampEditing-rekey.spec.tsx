@@ -8,6 +8,12 @@
 // removing a ramp silently attached a later ramp's hue shift, Advanced
 // curve, or gamut strategy to the wrong index, and a duplicate rendered
 // differently from its source.
+//
+// The #69 per-ramp style maps (rampStyleOverrides / rampStyleScalars)
+// repeated the same miss post-0.26.0: removing a ramp attached a later
+// ramp's active style to the wrong index, and a duplicate lost its
+// source's style override / custom scalars. Covered here alongside the
+// #113 four.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useRampEditing } from '../../src/hooks/useRampEditing';
@@ -35,6 +41,8 @@ function resetStore() {
     collapsedRamps: new Set(),
     lightnessCurvePerRamp: { 1: CURVE_A, 2: CURVE_B },
     satCurvePerRamp: { 2: CURVE_B },
+    rampStyleOverrides: { 1: 'muted', 2: 'custom' },
+    rampStyleScalars: { 2: { reach: 0.3, chromaFalloff: 0.7 } },
     editingIndex: null,
     editorHsv: { h: 0, s: 0, v: 0 },
     pinEditor: null,
@@ -75,6 +83,9 @@ describe('removeRamp re-keys the per-ramp advanced settings', () => {
     expect(s.lightnessCurvePerRamp).toEqual({ 1: CURVE_B });
     expect(s.satCurvePerRamp).toEqual({ 1: CURVE_B });
     expect(gamut.current).toEqual({ 1: 'chroma-preserve' });
+    // #69 style maps follow the same drop-and-shift rule.
+    expect(s.rampStyleOverrides).toEqual({ 1: 'custom' });
+    expect(s.rampStyleScalars).toEqual({ 1: { reach: 0.3, chromaFalloff: 0.7 } });
   });
 
   it('removing the last ramp leaves earlier entries un-shifted', () => {
@@ -86,6 +97,8 @@ describe('removeRamp re-keys the per-ramp advanced settings', () => {
     expect(s.lightnessCurvePerRamp).toEqual({ 1: CURVE_A });
     expect(s.satCurvePerRamp).toEqual({});
     expect(gamut.current).toEqual({ 1: 'clip' });
+    expect(s.rampStyleOverrides).toEqual({ 1: 'muted' });
+    expect(s.rampStyleScalars).toEqual({});
   });
 });
 
@@ -104,6 +117,23 @@ describe('duplicateRamp carries the per-ramp advanced settings to the copy', () 
     // must not mutate the source ramp's curve.
     expect(s.lightnessCurvePerRamp[3]).not.toBe(s.lightnessCurvePerRamp[1]);
     expect(gamut.current).toEqual({ 1: 'clip', 2: 'chroma-preserve', 3: 'clip' });
+    // #69: the source's style override rides along too.
+    expect(s.rampStyleOverrides).toEqual({ 1: 'muted', 2: 'custom', 3: 'muted' });
+    expect(s.rampStyleScalars).toEqual({ 2: { reach: 0.3, chromaFalloff: 0.7 } });
+  });
+
+  it('clones a custom style override and its scalars onto the copy', () => {
+    const { hook } = setupHook();
+    act(() => { hook.result.current.duplicateRamp(2); });
+
+    const s = useRampsStore.getState();
+    expect(s.rampStyleOverrides).toEqual({ 1: 'muted', 2: 'custom', 3: 'custom' });
+    expect(s.rampStyleScalars).toEqual({
+      2: { reach: 0.3, chromaFalloff: 0.7 },
+      3: { reach: 0.3, chromaFalloff: 0.7 },
+    });
+    // Deep clone: nudging the copy's scalars must not mutate the source's.
+    expect(s.rampStyleScalars[3]).not.toBe(s.rampStyleScalars[2]);
   });
 
   it('does not invent entries the source ramp never had', () => {
@@ -115,5 +145,7 @@ describe('duplicateRamp carries the per-ramp advanced settings to the copy', () 
     expect(s.lightnessCurvePerRamp).toEqual({ 1: CURVE_A, 2: CURVE_B });
     expect(s.satCurvePerRamp).toEqual({ 2: CURVE_B });
     expect(gamut.current).toEqual({ 1: 'clip', 2: 'chroma-preserve' });
+    expect(s.rampStyleOverrides).toEqual({ 1: 'muted', 2: 'custom' });
+    expect(s.rampStyleScalars).toEqual({ 2: { reach: 0.3, chromaFalloff: 0.7 } });
   });
 });
