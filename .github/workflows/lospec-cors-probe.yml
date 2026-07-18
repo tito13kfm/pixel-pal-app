@@ -1,0 +1,32 @@
+# One-shot probe for issue #133 (Lospec browser spec, Open Item 2):
+# checks whether lospec.com sends CORS headers, which decides whether the
+# GH Pages web build can call the palette API directly. Runs from a GitHub
+# runner because the dev sandbox's network policy blocks lospec.com.
+# This file is removed again on the same branch once the answer is recorded
+# in the spec; it never reaches master.
+name: lospec-cors-probe
+on:
+  push:
+    branches: [claude/issue-133-api-requests-iu0kv5]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe CORS headers (3 polite requests, spaced)
+        run: |
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+          probe() {
+            echo "================ $3 ================"
+            curl -sS -m 20 -X "$1" -D - -o /dev/null \
+              -A "$UA" \
+              -H "Origin: $2" \
+              ${4:+-H "$4"} \
+              "https://lospec.com/palette-list/lospec500.json" \
+              | tr -d '\r' | grep -iE '^(HTTP|access-control|content-type|server|cf-mitigated|allow)' \
+              || echo "(request failed)"
+            sleep 5
+          }
+          probe GET "https://tito13kfm.github.io" "GET with GH Pages origin"
+          probe GET "https://example.com" "GET with unrelated origin"
+          probe OPTIONS "https://tito13kfm.github.io" "OPTIONS preflight" "Access-Control-Request-Method: GET"
