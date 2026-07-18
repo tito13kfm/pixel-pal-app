@@ -21,9 +21,10 @@ build B separately"), this spec does not invent a second import pipeline: the
 
 ## Research findings: the Lospec API landscape
 
-Verified 2026-07-18 (via public docs and third-party integrations; lospec.com
-itself is Cloudflare-fronted and was not directly reachable from the research
-environment, see Open Items).
+Verified 2026-07-18. Initial pass via public docs and third-party integrations;
+follow-up verification ran live probes against lospec.com from a GitHub Actions
+runner (8 spaced requests total, temporary `lospec-cors-probe` workflow, removed
+after use), because the dev sandbox's network policy blocks lospec.com.
 
 ### 1. Documented palette API (fetch-by-slug only)
 
@@ -39,29 +40,62 @@ Sibling formats exist at the same path: `.hex` (newline-separated hex),
 `.gpl`, `.csv`, `.png`. **There is no documented search or browse endpoint in
 this API.** It only resolves a known slug.
 
-### 2. Newer API-key program (`lospec.com/api`)
+**CORS: verified enabled (probe, 2026-07-18).** `GET {slug}.json` with a
+browser `Origin` header returns `access-control-allow-origin: *` plus
+`access-control-allow-methods: GET, POST`, for GH Pages and arbitrary origins
+alike. A plain GET is a CORS "simple request" (no preflight needed), so
+browser `fetch()` works from the web build AND from the Tauri webview.
+(Note `content-type` is `application/octet-stream`; `res.json()` still parses
+it, just don't gate on the MIME type.)
 
-Lospec now runs a proper API program: free API keys, higher rate limits for
-Patreon supporters, covering palettes and daily tags. Recent additions include
-palette-**name suggestions** (used by the Lospec-endorsed Aseprite importer for
-typo recovery). Exact endpoint inventory and rate-limit numbers require an
-account to view.
+### 2. Official API-key program (`lospec.com/api`)
+
+Lospec runs a proper API program whose landing page (captured by the probe)
+states it covers: **"Browse and search the palette library"**, "Fetch daily
+art prompt tags", and "Get your account info and subscription tier". So an
+official browse/search endpoint EXISTS behind an API key; the full endpoint
+docs are linked from that page ("View API Documentation"; key creation
+requires logging in, accounts are OAuth-linked). Official rate limits by tier:
+
+| Tier    | Price  | Requests/hour | Max API keys |
+| ------- | ------ | ------------- | ------------ |
+| Free    | free   | 500           | 1            |
+| Imp     | $1/mo  | 2,500         | 3            |
+| Goblin  | $5/mo  | 5,000         | 5            |
+| Orc     | $10/mo | 10,000        | 10           |
+| Cyclops | $20/mo | 25,000        | 20           |
+| Dragon  | $50/mo | 50,000        | 50           |
+
+500 req/hr free is far above this feature's user-paced, cached call pattern.
 
 **Caveat:** PIXEL.PAL ships as a distributed desktop binary plus a static
 GitHub Pages build. Any API key we embed is effectively public. A key is still
 worth registering (it identifies the app and gives Lospec a throttling handle),
-but the design must never treat key-based quota as secret or per-user.
+but the design must never treat key-based quota as secret or per-user, and a
+runaway third party replaying our key could exhaust the shared 500/hr pool
+(degrade to the keyless slug endpoint when the quota is hit).
 
-### 3. Browse/search: only via the site's undocumented frontend endpoint
+### 3. The site's undocumented frontend browse endpoint (fallback only)
 
 The palette-list browsing on lospec.com is driven by an undocumented frontend
-endpoint (`/palette-list/load?...` with page/tag/color-count/sorting params).
-Third-party wrappers (e.g. the Aesthetikx Ruby gem) scrape this because no
-official equivalent exists. Operational data point: a community scraper
-(gagath/lospec-palette-scrapper) found the server slow (~1 s per page) and
-throttled itself to **1 request per 10 seconds** after parallel fetching
-visibly strained the site. Live-querying this endpoint per keystroke is the
-exact anti-pattern to avoid.
+endpoint (`/palette-list/load?colorNumberFilterType=&colorNumber=&page=&tag=&sortingType=`).
+Third-party wrappers (e.g. the Aesthetikx Ruby gem) scrape this. Probe results
+(2026-07-18):
+
+- Returns proper `application/json`; each entry carries `title`, `slug`,
+  `colors[]`, `tags[]`, `user: {name, slug}`, `description`, `numberOfColors`,
+  `likes`/`downloads`, and an `examples[]` array, i.e. everything needed for
+  an attributed result card (and example imagery we must NOT surface).
+- **NO `access-control-allow-origin` header.** Browser `fetch()` cannot call
+  it from the web build or from the Tauri webview (webviews enforce CORS like
+  any browser; the app's existing GitHub fetch only works because
+  api.github.com sends `ACAO: *`). Reaching it would require the Tauri HTTP
+  plugin (Rust-side, desktop only), one more reason it is strictly a fallback.
+
+Operational data point: a community scraper (gagath/lospec-palette-scrapper)
+found the server slow (~1 s per page) and throttled itself to **1 request per
+10 seconds** after parallel fetching visibly strained the site. Live-querying
+this endpoint per keystroke is the exact anti-pattern to avoid.
 
 ### 4. Community precedent: what Lospec welcomes
 
@@ -100,10 +134,11 @@ Two call classes, different endpoints, different politeness budgets:
      panel, changing page, or applying a tag/color-count filter. **Never per
      keystroke.**
    - Text search filters **already-cached** results client-side.
-   - Prefer official API-key endpoints if a browse equivalent exists there
-     (Open Item); the undocumented `/palette-list/load` endpoint is the
-     fallback, isolated inside one client module (`src/lib/lospec.ts`) so
-     endpoint churn is a one-file fix.
+   - Use the **official keyed API's browse/search endpoints** (confirmed to
+     exist, see findings §2). The undocumented `/palette-list/load` endpoint
+     is a desktop-only last resort (no CORS, would need the Tauri HTTP
+     plugin); keep all endpoint knowledge isolated inside one client module
+     (`src/lib/lospec.ts`) so churn is a one-file fix.
    - Before shipping, open a courtesy contact with Lospec (feedback board)
      describing the integration and asking for the sanctioned browse endpoint
      and limits. They have a track record of supporting exactly this.
@@ -137,17 +172,20 @@ GitHub's 60 req/hr limit):
   the user clicks "Browse Lospec". No background refresh, no fetch-on-startup.
   This matches the app's "offline-feeling" posture: today only the updater
   talks to the network, and only on desktop.
-- **Desktop (Tauri):** `tauri.conf.json` has `csp: null`, so browser `fetch`
-  to lospec.com works with no new capability (same as the GitHub fetch in
-  `tauri-bridge.ts`). If we later want header control (`User-Agent`), switch to
-  `@tauri-apps/plugin-http` + an `http:default` capability entry.
-- **Web build (GH Pages): CORS is unverified** (Open Item; could not be
-  tested from the research environment). If lospec.com does not send
-  `Access-Control-Allow-Origin`, the web build must degrade gracefully:
-  feature-detect via a single test fetch, then show a "browse on lospec.com"
-  link-out + the paste-URL/slug import path instead. **Never route through a
-  third-party CORS proxy**: that both hammers an intermediary and ships user
-  queries to an unrelated service.
+- **CORS reality check (both runtimes):** the Tauri webview enforces CORS
+  exactly like a browser; `csp: null` does not exempt `fetch()`. So the CORS
+  probe results govern desktop AND web equally:
+  - `{slug}.json` sends `ACAO: *` (verified): plain `fetch()` works
+    everywhere, no new Tauri capability needed.
+  - The keyed API's CORS behavior is not yet verified (Open Item). If it
+    turns out browser-hostile, desktop can fall back to
+    `@tauri-apps/plugin-http` (Rust-side request, bypasses webview CORS,
+    needs an `http:default` capability entry + gives `User-Agent` control),
+    and the web build degrades gracefully: feature-detect via a single test
+    fetch, then show a "browse on lospec.com" link-out + the paste-URL/slug
+    import path (which IS CORS-safe) instead. **Never route through a
+    third-party CORS proxy**: that both hammers an intermediary and ships
+    user queries to an unrelated service.
 
 ### Import path (reuse, don't reinvent)
 
@@ -182,12 +220,43 @@ GitHub's 60 req/hr limit):
 
 ## Open items (blockers to resolve before implementation)
 
-1. **Official API endpoint inventory + rate-limit numbers**: register an API
-   key (free) and read `lospec.com/api` docs from an unblocked network. If an
-   official browse/search endpoint exists, the undocumented-endpoint fallback
-   may be deletable before it's ever written.
-2. **CORS verification** for `{slug}.json` and the browse endpoint from a
-   browser origin (decides the web build's degradation path).
-3. **Lospec courtesy contact**: outcome may change endpoint choice and
+1. **Create the free API key + read the full endpoint docs** (user action:
+   log in / OAuth-link an account at `lospec.com/api`, create the key, open
+   "View API Documentation"). Needed: exact browse/search endpoint paths,
+   query params, auth header format, and whether keyed endpoints send CORS
+   headers (decides the web build's path, see Runtime constraints).
+2. **Lospec courtesy contact**: outcome may change endpoint choice and
    allowed request rate; may also open the door to a sanctioned catalog
-   snapshot later.
+   snapshot later. Channels: the feedback board ("Suggest a Feature") or the
+   site's Contact Us page.
+
+### Resolved 2026-07-18 (GitHub-runner probe)
+
+- ~~CORS verification for `{slug}.json`~~: **enabled** (`ACAO: *`), browser
+  `fetch()` works from GH Pages and the Tauri webview. The undocumented
+  browse endpoint has **no CORS headers** (desktop-plugin-only fallback).
+- ~~Official rate-limit numbers~~: published per-tier table captured (free
+  tier: 500 requests/hour, 1 key), see findings §2.
+- ~~Does an official browse/search endpoint exist?~~: **yes**, per the API
+  program's own landing page; details live in the full docs (item 1).
+
+## Appendix: courtesy-contact draft (for Open Item 2)
+
+To post on Lospec's feedback board or Contact Us page, adjust freely:
+
+> Hi! I build PIXEL.PAL, a free/open-source pixel-art palette generator
+> (desktop + web: https://github.com/tito13kfm/pixel-pal-app). I'd like to
+> add an in-app "Browse Lospec" gallery so users can search your palette
+> catalog and load a palette (with author credit and a link back to its
+> lospec.com page) instead of hand-copying hex codes.
+>
+> Plan: use your API with a registered key, fetch only on explicit user
+> actions (never per keystroke), cache results locally (~24 h), keep at
+> least 2 s between requests, and always show palette name + author +
+> link-back. No bulk mirroring of the catalog and no example artwork.
+>
+> Two questions: (1) is the API's palette browse/search endpoint the right
+> way to do this, and is our usage pattern okay at the free key tier?
+> (2) Would you be open to a sanctioned catalog snapshot for offline use in
+> the future? Happy to adjust to whatever you prefer. Thanks for running
+> Lospec!
