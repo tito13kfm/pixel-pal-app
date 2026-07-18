@@ -226,8 +226,11 @@ Invariants that must hold across edits:
    (New palette, Surprise Me, image extract / re-extract, load saved, load classic,
    GPL import). It clears every per-ramp customization layer
    (overrides/pins, harmony anchor, size + sat overrides, per-ramp hue, hidden,
-   shuffle offsets, locks, collapsed, curves, side-by-side slots, remap output) and
-   resets `hueShiftStrength = 1.0`. Callers separately set `baseColors`, tag history
+   shuffle offsets, locks, collapsed, curves, the #69 style maps
+   `rampStyleOverrides` / `rampStyleScalars`, side-by-side slots, remap output) and
+   resets `hueShiftStrength = 1.0`. `paletteDefaultStyle` is deliberately
+   preserved (session-level preference, same rationale as `rampSize` /
+   `hardwareLock` / `moodPreset`); load-saved re-sets it from the payload. Callers separately set `baseColors`, tag history
    via `tagNextLabel`, and bump the seed. Three of the paths (load saved, load
    classic, GPL import) live in `hooks/useSavedPalettesActions.ts` and receive
    `resetPaletteState` as a param; the function itself stays in App.tsx because it
@@ -242,16 +245,19 @@ Invariants that must hold across edits:
    structure.** Drop / shift / permute across `overrides`, `rampSizeOverrides`,
    `rampSatOverrides`, `hiddenShades`, `rampShuffleOffsets`,
    `hueShiftStrengthPerRamp`, `lightnessCurvePerRamp`, `satCurvePerRamp`,
-   `gamutPerRamp`, the Sets `lockedRamps` / `collapsedRamps`, plus `editingIndex` /
+   `gamutPerRamp`, the #69 style maps `rampStyleOverrides` / `rampStyleScalars`,
+   the Sets `lockedRamps` / `collapsedRamps`, plus `editingIndex` /
    `pinEditor` / `compareAnchor` / `harmonyAnchor`. `reorderRamps` does this via
    `permuteRampState` + `permuteStringKeyMap` (`gamutPerRamp` is permuted separately
    in App.tsx since the hook does not own it). `removeRamp` / `duplicateRamp` live in
    `hooks/useRampEditing.ts` as of #113 slice 3, and as of the #113 finish
    they shift/carry `hueShiftStrengthPerRamp` / `lightnessCurvePerRamp` /
    `satCurvePerRamp` / `gamutPerRamp` too (`gamutPerRamp` via the
-   `setGamutPerRamp` param, since the store does not own it); regression
-   coverage in `tests/unit/useRampEditing-rekey.spec.tsx`. Miss one and
-   pins / locks attach to the wrong ramp.
+   `setGamutPerRamp` param, since the store does not own it); the two #69
+   style maps joined the shift/carry list post-0.26.0 (they were in
+   `permuteRampState` from the start but missed on remove/duplicate);
+   regression coverage in `tests/unit/useRampEditing-rekey.spec.tsx`.
+   Miss one and pins / locks attach to the wrong ramp.
 4. **Live ↔ snapshot ramp mirror (the #30 invariant).** Live ramps: App.tsx
    synthesizes `liveRampSnapshot` from state and calls `buildRamp(snapshot, style, i)`
    per base/style: the SAME function `buildRampsForSnapshot` (compare / export / PNG)

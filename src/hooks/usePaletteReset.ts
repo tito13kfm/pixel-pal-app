@@ -48,6 +48,7 @@ export function usePaletteReset(p: UsePaletteResetParams) {
     setCollapsedRamps, setLockedRamps,
     setHueShiftStrength, setEditingIndex,
     setLightnessCurvePerRamp, setSatCurvePerRamp,
+    setRampStyleOverrides, setRampStyleScalars,
   } = usePaletteState();
 
   const resetConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -58,6 +59,9 @@ export function usePaletteReset(p: UsePaletteResetParams) {
   // tagging the next history label via tagNextLabel, and bumping the shuffle seed if their path
   // requires it. Preserves rampSize, hardwareLock, moodPreset, theme, CRT,
   // CVD on purpose: those are session-level settings, not per-palette state.
+  // paletteDefaultStyle is preserved for the same reason (the user's working
+  // style survives New/Surprise Me); the two per-ramp #69 style maps are
+  // per-palette and cleared below.
   //
   // See ARCHITECTURE.md "Cross-cutting state-maintenance rules" rule 1.
   // If you add new base-keyed or per-palette state, add its setter here
@@ -81,6 +85,11 @@ export function usePaletteReset(p: UsePaletteResetParams) {
     setRemapError('');
     setLightnessCurvePerRamp({});
     setSatCurvePerRamp({});
+    // #69 per-ramp style overrides + custom scalars are keyed to the old
+    // palette's ramp indices; loadPalette re-sets them from the payload
+    // after this wipe, every other replace path starts clean.
+    setRampStyleOverrides({});
+    setRampStyleScalars({});
   };
 
   // resetToDefaults: user-visible "wipe my session and start fresh"
