@@ -1,9 +1,9 @@
-# One-shot probe for issue #133 (Lospec browser spec, Open Item 2):
-# checks whether lospec.com sends CORS headers, which decides whether the
-# GH Pages web build can call the palette API directly. Runs from a GitHub
-# runner because the dev sandbox's network policy blocks lospec.com.
-# This file is removed again on the same branch once the answer is recorded
-# in the spec; it never reaches master.
+# One-shot probe for issue #133 (Lospec browser spec, Open Items 1+2):
+# run 1 confirmed CORS wildcard on the documented {slug}.json endpoint.
+# Run 2 checks the undocumented browse endpoint's CORS + shape, and dumps
+# the two public API docs pages (the dev sandbox's network policy blocks
+# lospec.com entirely). Requests are spaced; ~5 total this run.
+# This file is removed on this branch once results land in the spec.
 name: lospec-cors-probe
 on:
   push:
@@ -13,20 +13,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe CORS headers (3 polite requests, spaced)
+      - name: Probe browse endpoint CORS + shape
         run: |
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-          probe() {
-            echo "================ $3 ================"
-            curl -sS -m 20 -X "$1" -D - -o /dev/null \
-              -A "$UA" \
-              -H "Origin: $2" \
-              ${4:+-H "$4"} \
-              "https://lospec.com/palette-list/lospec500.json" \
-              | tr -d '\r' | grep -iE '^(HTTP|access-control|content-type|server|cf-mitigated|allow)' \
-              || echo "(request failed)"
+          echo "================ browse endpoint: headers ================"
+          curl -sS -m 20 -D - -o /tmp/browse.json \
+            -A "$UA" -H "Origin: https://tito13kfm.github.io" \
+            "https://lospec.com/palette-list/load?colorNumberFilterType=any&colorNumber=8&page=0&tag=&sortingType=default" \
+            | tr -d '\r' | grep -iE '^(HTTP|access-control|content-type|server|x-ratelimit|ratelimit|retry-after)' || true
+          echo "================ browse endpoint: body (first 800 chars) ================"
+          head -c 800 /tmp/browse.json; echo
+          sleep 5
+      - name: Dump API docs pages as text
+        run: |
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+          dump() {
+            echo "================ $1 ================"
+            curl -sS -m 20 -A "$UA" "$1" \
+              | sed -e 's/<script[^>]*>.*<\/script>//g' -e 's/<[^>]*>/ /g' \
+              | tr -s ' \t' ' ' | grep -vE '^\s*$' | head -220 || echo "(request failed)"
             sleep 5
           }
-          probe GET "https://tito13kfm.github.io" "GET with GH Pages origin"
-          probe GET "https://example.com" "GET with unrelated origin"
-          probe OPTIONS "https://tito13kfm.github.io" "OPTIONS preflight" "Access-Control-Request-Method: GET"
+          dump "https://lospec.com/api/"
+          dump "https://lospec.com/palettes/api"
