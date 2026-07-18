@@ -50,6 +50,13 @@ with a Lospec-format input. **Do NOT build B separately.** When E is specced,
 make sure E's import layer covers Lospec's format(s) and the re-ramp→export
 round-trip. B is important; it lives here so it isn't forgotten.
 
+**Related (2026-07-18): issue #133, in-app Lospec *browser*.** A browse/search
+gallery in front of E's import layer (discovery, not just import: a superset of
+the Lospec input E plans). Researched + specced in
+`2026-07-18-lospec-browser-design.md` (API strategy, rate-limit/cache design,
+attribution requirements). Sequenced after or alongside E; its "Load" action
+must terminate in E's import layer, not a second pipeline.
+
 **Open UI questions (for E's own brainstorm):** where does repair mode live
 (new tab vs. modal vs. inline on import)? How to preview before/after without
 clobbering the working palette? Visual companion likely warranted.
