@@ -399,6 +399,37 @@ describe('suggestLospecPalettes', () => {
     expect(result[0].author).toBe('Someone');
   });
 
+  it('uses the keyed endpoint with Authorization header when an API key is configured', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'test-key-suggest-789');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      json: async () => ([
+        {
+          slug: 'test-palette',
+          title: 'Test Palette',
+          colors: ['ff0000', '00ff00'],
+          numberOfColors: 2,
+          user: { name: 'Alice' },
+          url: 'https://lospec.com/palette-list/test-palette',
+        },
+      ]),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const result = await suggestLospecPalettes('test');
+    expect(fetchMock.mock.calls[0][0]).toContain('api.lospec.com/api/v1/palettes/suggest/test');
+    expect(fetchMock.mock.calls[0][0]).toContain('format=expanded');
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer test-key-suggest-789');
+    expect(result[0]).toEqual({
+      slug: 'test-palette',
+      title: 'Test Palette',
+      colors: ['#ff0000', '#00ff00'],
+      numberOfColors: 2,
+      author: 'Alice',
+      url: 'https://lospec.com/palette-list/test-palette',
+    });
+  });
+
   it('returns [] for an empty/whitespace query without fetching', async () => {
     const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
