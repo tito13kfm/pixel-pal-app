@@ -9,6 +9,13 @@ type Updater<T> = T | ((prev: T) => T);
 const resolveUpdater = <T,>(value: Updater<T>, prev: T): T =>
   typeof value === 'function' ? (value as (prev: T) => T)(prev) : value;
 
+export interface LospecSource {
+  slug: string;
+  title: string;
+  author: string;
+  url: string;
+}
+
 export interface RampsStoreState {
   baseColors: string[];
   aiColorNames: string[];
@@ -16,6 +23,7 @@ export interface RampsStoreState {
   shuffleSeed: number;
   overrides: Record<string, unknown>;
   harmonyAnchor: number;
+  lospecSource: LospecSource | null;
   rampSizeOverrides: Record<number, number>;
   rampSatOverrides: Record<number, number>;
   hueShiftStrengthPerRamp: Record<number, number>;
@@ -59,6 +67,7 @@ export interface RampsStoreState {
   setShuffleSeed: (v: Updater<number>) => void;
   setOverrides: (v: Updater<Record<string, unknown>>) => void;
   setHarmonyAnchor: (v: Updater<number>) => void;
+  setLospecSource: (v: Updater<LospecSource | null>) => void;
   setRampSizeOverrides: (v: Updater<Record<number, number>>) => void;
   setRampSatOverrides: (v: Updater<Record<number, number>>) => void;
   setHueShiftStrengthPerRamp: (v: Updater<Record<number, number>>) => void;
@@ -96,6 +105,7 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
   shuffleSeed: 0,
   overrides: {},
   harmonyAnchor: 0,
+  lospecSource: null,
   rampSizeOverrides: {},
   rampSatOverrides: {},
   hueShiftStrengthPerRamp: {},
@@ -126,6 +136,7 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
   setShuffleSeed: (v) => set((s) => ({ shuffleSeed: resolveUpdater(v, s.shuffleSeed) })),
   setOverrides: (v) => set((s) => ({ overrides: resolveUpdater(v, s.overrides) })),
   setHarmonyAnchor: (v) => set((s) => ({ harmonyAnchor: resolveUpdater(v, s.harmonyAnchor) })),
+  setLospecSource: (v) => set((s) => ({ lospecSource: resolveUpdater(v, s.lospecSource) })),
   setRampSizeOverrides: (v) => set((s) => ({ rampSizeOverrides: resolveUpdater(v, s.rampSizeOverrides) })),
   setRampSatOverrides: (v) => set((s) => ({ rampSatOverrides: resolveUpdater(v, s.rampSatOverrides) })),
   setHueShiftStrengthPerRamp: (v) => set((s) => ({ hueShiftStrengthPerRamp: resolveUpdater(v, s.hueShiftStrengthPerRamp) })),
@@ -159,6 +170,7 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
       shuffleSeed: s.shuffleSeed,
       overrides: s.overrides,
       harmonyAnchor: s.harmonyAnchor,
+      lospecSource: s.lospecSource,
       rampSizeOverrides: s.rampSizeOverrides,
       rampSatOverrides: s.rampSatOverrides,
       hueShiftStrengthPerRamp: s.hueShiftStrengthPerRamp,
@@ -185,6 +197,7 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
       shuffleSeed: snap.shuffleSeed,
       overrides: snap.overrides,
       harmonyAnchor: snap.harmonyAnchor,
+      lospecSource: snap.lospecSource ?? null,
       rampSizeOverrides: snap.rampSizeOverrides,
       rampSatOverrides: snap.rampSatOverrides,
       hueShiftStrengthPerRamp: snap.hueShiftStrengthPerRamp ?? {},

@@ -1,4 +1,5 @@
 import { useRampsStore } from '../store/rampsStore';
+export type { LospecSource } from '../store/rampsStore';
 
 /**
  * usePaletteState: thin document state-bag (App.tsx Tier B, Wave 2).
@@ -30,6 +31,7 @@ export function usePaletteState() {
     shuffleSeed: store.shuffleSeed, setShuffleSeed: store.setShuffleSeed,
     overrides: store.overrides, setOverrides: store.setOverrides,
     harmonyAnchor: store.harmonyAnchor, setHarmonyAnchor: store.setHarmonyAnchor,
+    lospecSource: store.lospecSource, setLospecSource: store.setLospecSource,
     rampSizeOverrides: store.rampSizeOverrides, setRampSizeOverrides: store.setRampSizeOverrides,
     rampSatOverrides: store.rampSatOverrides, setRampSatOverrides: store.setRampSatOverrides,
     hueShiftStrengthPerRamp: store.hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp: store.setHueShiftStrengthPerRamp,
