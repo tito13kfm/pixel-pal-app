@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // src/lib/lospec.ts
 //
 // Client for browsing/loading palettes from Lospec (issue #133). The ONLY
@@ -152,6 +153,7 @@ export async function cacheSet<T>(key: string, data: T): Promise<void> {
 }
 
 async function evictOldPages(): Promise<void> {
+  if (typeof window === 'undefined' || !window.storage) return;
   const listed = await window.storage.list(CACHE_PREFIX + 'page:');
   if (!listed || listed.keys.length <= MAX_CACHED_PAGES) return;
   const withTimes: { key: string; cachedAt: number }[] = [];
