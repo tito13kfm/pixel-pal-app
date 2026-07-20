@@ -183,7 +183,7 @@ export function LospecBrowserPanel({
         <>
           {total > 0 && (
             <div className="text-[11px] text-cyan-100/50 uppercase tracking-wider">
-              Showing {page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+              Showing {page * PAGE_SIZE + 1} to {Math.min((page + 1) * PAGE_SIZE, total)} of {total}
             </div>
           )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
