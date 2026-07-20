@@ -25,6 +25,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-07-20
+
 ### Added
 - In-app Lospec palette browser: search or browse the Lospec catalog by tag,
   color count, and name, then load a result straight into a new set of ramps
@@ -748,7 +750,8 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 - Initial public release: a color palette generator for pixel art, packaged as
   an Electron desktop app.
 
-[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.26.1...v0.27.0
 [0.26.1]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/tito13kfm/pixel-pal-app/compare/v0.24.0...v0.25.0
