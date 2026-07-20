@@ -372,12 +372,13 @@ Key inventory:
 - **One-shot flags:** `pixel-pal-tour-seen`, `v2EngineNoticeDismissed`.
 - **Lospec cache (issue #133, `src/lib/lospec.ts`):** `lospec:page:{params}`
   caches a browse/search result page for `CATALOG_PAGE_TTL_MS` (24h), under the
-  shared `CACHE_PREFIX = 'lospec:'`. The generic `cacheGet`/`cacheSet` helpers
-  also honor a longer `PALETTE_TTL_MS` (7d) for any non-`page:` key, but no
-  current caller uses that path: loading a single palette by slug or URL
-  (`fetchLospecPalette`) always hits the network (through the same
-  `throttledFetch` politeness gate), it is not cached. Catalog pages are
-  LRU-capped at `MAX_CACHED_PAGES = 20`: every `cacheSet` on a page key runs
+  shared `CACHE_PREFIX = 'lospec:'`. Loading a single palette by slug or URL
+  (`fetchLospecPalette`) caches under `lospec:palette:{slug}` for the longer
+  `PALETTE_TTL_MS` (7d), since the generic `cacheGet`/`cacheSet` helpers apply
+  that TTL to any non-`page:` key: a fresh hit returns with no network call,
+  and a fetch failure with a stale (or fresh) hit still available serves that
+  cached data instead of throwing, same stale-on-failure pattern as browse.
+  Catalog pages are LRU-capped at `MAX_CACHED_PAGES = 20`: every `cacheSet` on a page key runs
   `evictOldPages`, which lists the `lospec:page:` prefix and deletes the oldest
   entries past the cap. This cache is deliberately outside `SAVED_PALETTE_LIMIT`
   and never appears in the Saved Palettes list; it is a network response cache,
