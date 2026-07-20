@@ -30,6 +30,7 @@ export function usePaletteState() {
     shuffleSeed: store.shuffleSeed, setShuffleSeed: store.setShuffleSeed,
     overrides: store.overrides, setOverrides: store.setOverrides,
     harmonyAnchor: store.harmonyAnchor, setHarmonyAnchor: store.setHarmonyAnchor,
+    lospecSource: store.lospecSource, setLospecSource: store.setLospecSource,
     rampSizeOverrides: store.rampSizeOverrides, setRampSizeOverrides: store.setRampSizeOverrides,
     rampSatOverrides: store.rampSatOverrides, setRampSatOverrides: store.setRampSatOverrides,
     hueShiftStrengthPerRamp: store.hueShiftStrengthPerRamp, setHueShiftStrengthPerRamp: store.setHueShiftStrengthPerRamp,

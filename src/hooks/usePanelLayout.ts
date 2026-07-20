@@ -14,7 +14,7 @@ import { PANEL_STORAGE_KEY, loadPanelState } from '../lib/panel-state';
  * `setHistoryOpen` as a callback rather than owning the state.
  */
 const _panels = loadPanelState();
-const DEFAULT_SECTION_ORDER = ['ramps', 'harmony', 'playground', 'viz', 'saved', 'history', 'export'];
+const DEFAULT_SECTION_ORDER = ['ramps', 'harmony', 'playground', 'viz', 'saved', 'lospec', 'history', 'export'];
 
 // Collapsible subsections inside the Visualize & Compare card (main view only;
 // compare slots always render expanded). Persisted separately from the panel set
@@ -33,6 +33,7 @@ export function usePanelLayout() {
   const [savedOpen, setSavedOpen] = useState(_panels.savedOpen);
   const [sbsOpen, setSbsOpen] = useState(_panels.sbsOpen);
   const [pgOpen, setPgOpen] = useState(_panels.pgOpen);
+  const [lospecOpen, setLospecOpen] = useState(_panels.lospecOpen);
 
   const [vizSubOpen, setVizSubOpen] = useState<Record<string, boolean>>(() => {
     const base = Object.fromEntries(VIZ_SUBSECTIONS.map(k => [k, true]));
@@ -67,8 +68,8 @@ export function usePanelLayout() {
   // Persist the panel-open set on every change (no mount-skip: the original
   // wrote on first render too, harmless re-write of the loaded values).
   useEffect(() => {
-    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, rampsOpen }))
-  }, [harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, rampsOpen]);
+    localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, rampsOpen, lospecOpen }))
+  }, [harmonyOpen, tipsOpen, hwPickerOpen, exportOpen, historyOpen, savedOpen, sbsOpen, pgOpen, rampsOpen, lospecOpen]);
 
   useEffect(() => {
     localStorage.setItem('ui:sectionOrder', JSON.stringify(sectionOrder));
@@ -83,6 +84,7 @@ export function usePanelLayout() {
     hwPickerOpen, setHwPickerOpen, exportOpen, setExportOpen,
     historyOpen, setHistoryOpen, advancedOpen, setAdvancedOpen,
     savedOpen, setSavedOpen, sbsOpen, setSbsOpen, pgOpen, setPgOpen,
+    lospecOpen, setLospecOpen,
     vizSubOpen, toggleVizSub,
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,

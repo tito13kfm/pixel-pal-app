@@ -8,6 +8,7 @@ export interface PanelState {
   sbsOpen: boolean;
   pgOpen: boolean;
   rampsOpen: boolean;
+  lospecOpen: boolean;
 }
 
 export const PANEL_STORAGE_KEY = 'ui:panels';
@@ -15,6 +16,7 @@ export const PANEL_STORAGE_KEY = 'ui:panels';
 export const PANEL_DEFAULTS: PanelState = {
   harmonyOpen: true, tipsOpen: false, hwPickerOpen: false, exportOpen: false,
   historyOpen: false, savedOpen: false, sbsOpen: false, pgOpen: false, rampsOpen: true,
+  lospecOpen: false,
 };
 
 export function loadPanelState(): PanelState {

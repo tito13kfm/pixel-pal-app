@@ -40,6 +40,7 @@ function resetStore() {
     compareMode: false,
     compareAnchor: null,
     compareResult: null,
+    lospecSource: null,
   });
 }
 
@@ -89,5 +90,12 @@ describe('resetPaletteState clears per-palette state, preserves session prefs', 
     const s = useRampsStore.getState();
     expect(s.paletteDefaultStyle).toBe('muted');
     expect(s.rampSize).toBe(6);
+  });
+
+  it('clears lospecSource', () => {
+    useRampsStore.getState().setLospecSource({ slug: 'x', title: 'X', author: 'A', url: 'https://lospec.com/palette-list/x' });
+    const hook = setupHook();
+    act(() => { hook.result.current.resetPaletteState(); });
+    expect(useRampsStore.getState().lospecSource).toBeNull();
   });
 });

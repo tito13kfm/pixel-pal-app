@@ -222,20 +222,29 @@ panels), so verify current structure before relying on it.
 
 Invariants that must hold across edits:
 
-1. **`resetPaletteState` is the shared wipe for all 7 full-palette-replace paths**
+1. **`resetPaletteState` is the shared wipe for all 8 full-palette-replace paths**
    (New palette, Surprise Me, image extract / re-extract, load saved, load classic,
-   GPL import). It clears every per-ramp customization layer
+   GPL import, load from Lospec). It clears every per-ramp customization layer
    (overrides/pins, harmony anchor, size + sat overrides, per-ramp hue, hidden,
    shuffle offsets, locks, collapsed, curves, the #69 style maps
-   `rampStyleOverrides` / `rampStyleScalars`, side-by-side slots, remap output) and
+   `rampStyleOverrides` / `rampStyleScalars`, the Lospec provenance field
+   `lospecSource` (issue #133), side-by-side slots, remap output) and
    resets `hueShiftStrength = 1.0`. `paletteDefaultStyle` is deliberately
    preserved (session-level preference, same rationale as `rampSize` /
-   `hardwareLock` / `moodPreset`); load-saved re-sets it from the payload. Callers separately set `baseColors`, tag history
-   via `tagNextLabel`, and bump the seed. Three of the paths (load saved, load
-   classic, GPL import) live in `hooks/useSavedPalettesActions.ts` and receive
-   `resetPaletteState` as a param; the function itself stays in App.tsx because it
-   also clears side-by-side + remap state owned there. **Add any new base-keyed or
-   per-palette state's setter here**, or the 8 paths leak stale state.
+   `hardwareLock` / `moodPreset`); load-saved re-sets it from the payload. `lospecSource`
+   is per-palette state but, unlike `harmonyAnchor`, is NOT base-indexed: it holds
+   provenance (slug/title/author/url) for the palette as a whole, not per-ramp data,
+   so it does not participate in rule 3's re-keying on remove/duplicate/reorder.
+   Callers separately set `baseColors`, tag history
+   via `tagNextLabel`, and bump the seed. Four of the paths (load saved, load
+   classic, GPL import, load from Lospec) live in `hooks/useSavedPalettesActions.ts`
+   and receive `resetPaletteState` as a param; the function itself lives in
+   `hooks/usePaletteReset.ts` (extracted from App.tsx as part of #113). The
+   side-by-side + remap state it also clears is owned by other hooks
+   (`useSideBySide`, `useImageRemap`); `usePaletteReset` reaches it via setters
+   passed in as params, the same pattern `useSavedPalettesActions` uses to call
+   `resetPaletteState` itself. **Add any new base-keyed or per-palette state's
+   setter here**, or the 8 paths leak stale state.
 2. **Hard-reset paths call `setShuffleSeed(s => s + 1)` directly, NOT
    `bumpShuffleSeed()`.** `bumpShuffleSeed` reads the *old* `lockedRamps` closure; on a
    render where reset just cleared locks in the same batch it would take the wrong
@@ -361,6 +370,22 @@ Key inventory:
   Loading one stamps a copy into that ramp's `rampStyleScalars` and flips its
   override to `'custom'`, it is not a live reference.
 - **One-shot flags:** `pixel-pal-tour-seen`, `v2EngineNoticeDismissed`.
+- **Lospec cache (issue #133, `src/lib/lospec.ts`):** `lospec:page:{params}`
+  caches a browse/search result page for `CATALOG_PAGE_TTL_MS` (24h), under the
+  shared `CACHE_PREFIX = 'lospec:'`. Loading a single palette by slug or URL
+  (`fetchLospecPalette`) caches under `lospec:palette:{slug}` for the longer
+  `PALETTE_TTL_MS` (7d), since the generic `cacheGet`/`cacheSet` helpers apply
+  that TTL to any non-`page:` key: a fresh hit returns with no network call,
+  and a fetch failure with a stale (or fresh) hit still available serves that
+  cached data instead of throwing, same stale-on-failure pattern as browse.
+  Catalog pages are LRU-capped at `MAX_CACHED_PAGES = 20`: every `cacheSet` on a page key runs
+  `evictOldPages`, which lists the `lospec:page:` prefix and deletes the oldest
+  entries past the cap. This cache is deliberately outside `SAVED_PALETTE_LIMIT`
+  and never appears in the Saved Palettes list; it is a network response cache,
+  not a saved palette. Separately, `lospec:userApiKey` is a single flat key (no
+  TTL, never evicted) holding the optional user-supplied Lospec API key
+  override; `getLospecApiKey()` checks the in-memory cache of this key first
+  and only falls back to the build-time `VITE_LOSPEC_API_KEY` when it is unset.
 
 `loadPalette` validates, clamps, and defaults **every** field (tolerates older
 payloads); invalid entries are dropped, never fatal. Gates: `engineVersion !== 2` ⇒

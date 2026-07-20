@@ -27,6 +27,7 @@ describe('useRampsStore', () => {
       compareMode: false,
       compareAnchor: null,
       compareResult: null,
+      lospecSource: null,
     });
   });
 
@@ -88,5 +89,16 @@ describe('useRampsStore', () => {
     useRampsStore.getState().setBaseColors(['#changed']);
     const after = useRampsStore.getState().setRampSize;
     expect(before).toBe(after);
+  });
+
+  it('lospecSource defaults to null and round-trips through set/build/apply snapshot', () => {
+    expect(useRampsStore.getState().lospecSource).toBeNull();
+    const provenance = { slug: 'greyt-bit', title: 'Greyt-bit', author: 'Sam Keddy', url: 'https://lospec.com/palette-list/greyt-bit' };
+    useRampsStore.getState().setLospecSource(provenance);
+    expect(useRampsStore.getState().lospecSource).toEqual(provenance);
+    const snap = useRampsStore.getState().buildSnapshot();
+    expect(snap.lospecSource).toEqual(provenance);
+    useRampsStore.getState().applySnapshotFields({ ...snap, lospecSource: null });
+    expect(useRampsStore.getState().lospecSource).toBeNull();
   });
 });

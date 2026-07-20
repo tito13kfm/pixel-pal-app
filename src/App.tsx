@@ -19,6 +19,7 @@ import { BaseColorDock } from './components/BaseColorDock';
 import { HistoryPanel } from './components/panels/HistoryPanel';
 import { ExportPanel } from './components/panels/ExportPanel';
 import { SavedPalettesPanel } from './components/panels/SavedPalettesPanel';
+import { LospecBrowserPanel } from './components/panels/LospecBrowserPanel';
 import { PlaygroundPanel } from './components/panels/PlaygroundPanel';
 import { VizComparePanel } from './components/panels/VizComparePanel';
 import { HarmonyPanel } from './components/panels/HarmonyPanel';
@@ -53,6 +54,7 @@ import { useSideBySide } from './hooks/useSideBySide';
 import { useSideBySideCompute } from './hooks/useSideBySideCompute';
 import { useSavedPalettes } from './hooks/useSavedPalettes';
 import { useSavedPalettesActions } from './hooks/useSavedPalettesActions';
+import { useLospecBrowser } from './hooks/useLospecBrowser';
 import { useRampEditing } from './hooks/useRampEditing';
 import { formatHistoryAge } from './lib/history-snapshot';
 import { usePanelLayout } from './hooks/usePanelLayout';
@@ -216,6 +218,7 @@ export default function PixelPalGenerator() {
     hwPickerOpen, setHwPickerOpen, exportOpen, setExportOpen,
     historyOpen, setHistoryOpen, advancedOpen, setAdvancedOpen,
     savedOpen, setSavedOpen, sbsOpen, setSbsOpen, pgOpen, setPgOpen,
+    lospecOpen, setLospecOpen,
     vizSubOpen, toggleVizSub,
     sectionOrder, setSectionOrder, resetSectionOrder, DEFAULT_SECTION_ORDER,
     dragOver, setDragOver, draggingKey, setDraggingKey,
@@ -573,6 +576,7 @@ export default function PixelPalGenerator() {
     saveCurrentPalette, loadPalette, loadClassicPalette,
     gplImport, setGplImport, handleGplFile, applyGplImport,
     requestDeletePalette, startRename, cancelRename, commitRename,
+    loadLospecPalette,
   } = useSavedPalettesActions({
     savedPalettes, setSavedPalettes, saveName, setSaveName,
     setSavedError, setSavedBusy,
@@ -582,6 +586,11 @@ export default function PixelPalGenerator() {
     gamutPerRamp, setGamutPerRamp, advancedOpen, setAdvancedOpen,
     setV2NoticePending, setExportFeedback, tagNextLabel, resetPaletteState,
   });
+
+  // Lospec Browser (issue #133): catalog search/browse + palette-detail fetch
+  // live in useLospecBrowser (which owns its own unmount cleanup);
+  // loadLospecPalette (above) applies the fetched colors as bases.
+  const lospecBrowser = useLospecBrowser();
 
   // History watcher, ref-sync, and undo/redo keybinds now live in useHistory.
   // Side-by-side compare pipeline (#113): the per-slot saved-payload fetch
@@ -1060,6 +1069,20 @@ export default function PixelPalGenerator() {
               commitRename={commitRename}
               loadClassicPalette={loadClassicPalette}
               saveNameInputRef={saveNameInputRef}
+            />
+        </SectionCard>
+
+        {/* ---------- Lospec Browser (collapsible, issue #133) ---------- */}
+        <SectionCard
+          sectionKey="lospec" accent="#ff6b35" bg={t.cardBgYellow} glow={0.25}
+          open={lospecOpen} onToggle={() => setLospecOpen(o => !o)}
+          headerTitle={lospecOpen ? "Collapse the Lospec Browser section" : "Expand the Lospec Browser section"}
+          chevronColor="#a5f3fc"
+          icon={<Sliders size={22} />} title="Lospec Browser"
+        >
+            <LospecBrowserPanel
+              {...lospecBrowser}
+              onLoad={(palette, mode) => loadLospecPalette(palette, mode)}
             />
         </SectionCard>
 
