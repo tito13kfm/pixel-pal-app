@@ -33,6 +33,7 @@ The desktop build adds native Save As dialogs and in-app auto-update.
 - Example ramps inspired from classic palettes: DawnBringer 16, PICO-8, Sweetie 16, Game Boy, NES Super Mario Bros, EDG32, CGA, and more.
   - (These are to emulate a feel of the palette, not full palettes.  Intentional design choice, trust me you dont't want 12000+ color swatches showing at once)
 - Import GIMP .gpl files
+- Lospec palette browser: search or browse the Lospec catalog by tag, color count, and name, then load a result straight into a new set of ramps. Browsing/filtering uses the app's built-in API key; loading by slug/URL and searching by name work with no key at all. You can also paste your own free Lospec API key into the panel's settings to use your own rate-limit budget instead of the shared one. Every result shows title, author, and a link back to its Lospec page, and that provenance is kept when you save the palette.
 
 **Output**
 - 4-8 shade ramps with pixel-art slot labels (outline, shadow, base, highlight, bright)
@@ -117,6 +118,21 @@ npm run build         # type-check + Tauri-targeted web assets (base './')
 npm run build:web     # static build for GH Pages hosting (base '/pixel-pal-app/')
 npm run dist          # packaged desktop installer, output to src-tauri/target/release/bundle/
 ```
+
+## Environment Variables
+
+- `VITE_LOSPEC_API_KEY`: enables browsing/filtering the Lospec catalog by tag and
+  color count in the Lospec palette browser. Optional: without it, the browse/filter
+  view is unavailable, but loading a palette by slug/URL and searching by name still
+  work through Lospec's public endpoints. This key isn't a secret in the traditional
+  sense once it ships in a built app; it just identifies PIXEL.PAL to Lospec's
+  rate limiter. It's still supplied via a local `.env` file (never committed) for
+  source builds and a GitHub Actions secret for CI/release builds.
+
+  Separately, any user can paste their own free Lospec API key into the panel's
+  settings field, no build or env change needed. That key is stored locally
+  (`window.storage`, key `lospec:userApiKey`) and takes precedence over the
+  built-in one, so it never needs to be set as an environment variable.
 
 ## Web vs Desktop
 

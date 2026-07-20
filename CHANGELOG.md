@@ -25,6 +25,18 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 
 ## [Unreleased]
 
+### Added
+- In-app Lospec palette browser: search or browse the Lospec catalog by tag,
+  color count, and name, then load a result straight into a new set of ramps
+  (issue #133). Requires a build-time `VITE_LOSPEC_API_KEY` to browse/filter
+  by tag and color count; without one, loading by slug/URL and searching by
+  name still work via Lospec's public endpoints. Users can also paste their
+  own free Lospec API key into the panel's settings field to get their own
+  rate-limit budget instead of sharing the app's built-in one; the pasted key
+  is stored locally and takes precedence over the built-in one. Every result
+  shows its title, author, and a link back to its Lospec page, and a loaded
+  palette keeps that provenance when saved.
+
 ## [0.26.1] - 2026-07-18
 
 ### Fixed
