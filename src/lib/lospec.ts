@@ -92,14 +92,14 @@ export async function throttledFetch(url: string, init: RequestInit = {}): Promi
   }
 }
 
-const CACHE_PREFIX = 'lospec:';
-const CATALOG_PAGE_TTL_MS = 24 * 60 * 60 * 1000;
-const PALETTE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_CACHED_PAGES = 20;
+export const CACHE_PREFIX = 'lospec:';
+export const CATALOG_PAGE_TTL_MS = 24 * 60 * 60 * 1000;
+export const PALETTE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const MAX_CACHED_PAGES = 20;
 
 interface CacheEnvelope<T> { cachedAt: number; data: T }
 
-async function cacheGet<T>(key: string): Promise<{ data: T; stale: boolean } | null> {
+export async function cacheGet<T>(key: string): Promise<{ data: T; stale: boolean } | null> {
   if (typeof window === 'undefined' || !window.storage) return null;
   const got = await window.storage.get(CACHE_PREFIX + key);
   if (!got || !got.value) return null;
@@ -112,7 +112,7 @@ async function cacheGet<T>(key: string): Promise<{ data: T; stale: boolean } | n
   }
 }
 
-async function cacheSet<T>(key: string, data: T): Promise<void> {
+export async function cacheSet<T>(key: string, data: T): Promise<void> {
   if (typeof window === 'undefined' || !window.storage) return;
   await window.storage.set(CACHE_PREFIX + key, JSON.stringify({ cachedAt: Date.now(), data }));
   if (key.startsWith('page:')) await evictOldPages();

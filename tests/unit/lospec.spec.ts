@@ -1,5 +1,37 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parseLospecSlug, fetchLospecPalette, throttledFetch, getLospecRateLimitRemaining, __resetLospecThrottleForTests } from '../../src/lib/lospec';
+import {
+  parseLospecSlug,
+  fetchLospecPalette,
+  throttledFetch,
+  getLospecRateLimitRemaining,
+  __resetLospecThrottleForTests,
+  cacheGet,
+  cacheSet,
+  CACHE_PREFIX,
+  CATALOG_PAGE_TTL_MS,
+  PALETTE_TTL_MS,
+  MAX_CACHED_PAGES,
+} from '../../src/lib/lospec';
+
+function makeMockStorage() {
+  const store = new Map<string, string>();
+  return {
+    get: async (key: string) => {
+      const value = store.get(key);
+      return value !== undefined ? { value } : null;
+    },
+    set: async (key: string, value: string) => {
+      store.set(key, value);
+    },
+    delete: async (key: string) => {
+      store.delete(key);
+    },
+    list: async (prefix: string) => {
+      const keys = Array.from(store.keys()).filter((k) => k.startsWith(prefix));
+      return { keys };
+    },
+  };
+}
 
 describe('parseLospecSlug', () => {
   it('extracts a slug from a full lospec.com URL', () => {
@@ -131,5 +163,176 @@ describe('throttledFetch', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true, headers, json: async () => ({}) }) as unknown as typeof fetch;
     await throttledFetch('https://api.lospec.com/api/v1/c');
     expect(getLospecRateLimitRemaining()).toBe(42);
+  });
+});
+
+describe('cacheGet / cacheSet', () => {
+  beforeEach(() => {
+    const mock = makeMockStorage();
+    (window as any).storage = mock;
+  });
+
+  afterEach(() => {
+    delete (window as any).storage;
+  });
+
+  describe('TTL staleness', () => {
+    it('reports a fresh page: key as stale: false', async () => {
+      const data = { title: 'Test Palette' };
+      await cacheSet('page:test-1', data);
+      const result = await cacheGet<typeof data>('page:test-1');
+      expect(result).not.toBeNull();
+      expect(result!.stale).toBe(false);
+      expect(result!.data).toEqual(data);
+    });
+
+    it('reports a stale page: key (older than CATALOG_PAGE_TTL_MS) as stale: true', async () => {
+      const data = { title: 'Old Page' };
+      const storage = (window as any).storage;
+      const envelope = { cachedAt: Date.now() - CATALOG_PAGE_TTL_MS - 1000, data };
+      await storage.set(CACHE_PREFIX + 'page:stale-page', JSON.stringify(envelope));
+
+      const result = await cacheGet<typeof data>('page:stale-page');
+      expect(result).not.toBeNull();
+      expect(result!.stale).toBe(true);
+    });
+
+    it('reports a key just under the CATALOG_PAGE_TTL_MS threshold as stale: false', async () => {
+      const data = { title: 'Almost Stale Page' };
+      const storage = (window as any).storage;
+      const envelope = { cachedAt: Date.now() - CATALOG_PAGE_TTL_MS + 1000, data };
+      await storage.set(CACHE_PREFIX + 'page:almost-stale', JSON.stringify(envelope));
+
+      const result = await cacheGet<typeof data>('page:almost-stale');
+      expect(result).not.toBeNull();
+      expect(result!.stale).toBe(false);
+    });
+
+    it('reports a fresh non-page key as stale: false', async () => {
+      const data = { slug: 'test-palette' };
+      await cacheSet('palette:test-palette', data);
+      const result = await cacheGet<typeof data>('palette:test-palette');
+      expect(result).not.toBeNull();
+      expect(result!.stale).toBe(false);
+    });
+
+    it('reports a stale non-page key (older than PALETTE_TTL_MS) as stale: true', async () => {
+      const data = { slug: 'old-palette' };
+      const storage = (window as any).storage;
+      const envelope = { cachedAt: Date.now() - PALETTE_TTL_MS - 1000, data };
+      await storage.set(CACHE_PREFIX + 'palette:old-palette', JSON.stringify(envelope));
+
+      const result = await cacheGet<typeof data>('palette:old-palette');
+      expect(result).not.toBeNull();
+      expect(result!.stale).toBe(true);
+    });
+
+    it('uses the longer PALETTE_TTL_MS (7 days) for non-page keys', async () => {
+      // Verify the constants themselves for clarity
+      expect(PALETTE_TTL_MS).toBe(7 * 24 * 60 * 60 * 1000);
+      expect(CATALOG_PAGE_TTL_MS).toBe(24 * 60 * 60 * 1000);
+      expect(PALETTE_TTL_MS).toBeGreaterThan(CATALOG_PAGE_TTL_MS);
+    });
+  });
+
+  describe('LRU eviction cap', () => {
+    it('does not evict when page entries are under the MAX_CACHED_PAGES limit', async () => {
+      for (let i = 0; i < MAX_CACHED_PAGES - 1; i++) {
+        await cacheSet(`page:p${i}`, { index: i });
+      }
+
+      const storage = (window as any).storage;
+      const listed = await storage.list(CACHE_PREFIX + 'page:');
+      expect(listed.keys.length).toBe(MAX_CACHED_PAGES - 1);
+    });
+
+    it('evicts the oldest entry when a new page: key exceeds MAX_CACHED_PAGES', async () => {
+      const storage = (window as any).storage;
+
+      // Add MAX_CACHED_PAGES entries with staggered timestamps
+      for (let i = 0; i < MAX_CACHED_PAGES; i++) {
+        const envelope = { cachedAt: Date.now() - (MAX_CACHED_PAGES - i) * 1000, data: { index: i } };
+        await storage.set(CACHE_PREFIX + `page:p${i}`, JSON.stringify(envelope));
+      }
+
+      // Verify we have exactly MAX_CACHED_PAGES
+      let listed = await storage.list(CACHE_PREFIX + 'page:');
+      expect(listed.keys.length).toBe(MAX_CACHED_PAGES);
+
+      // Add one more via cacheSet, which should trigger eviction
+      await cacheSet(`page:pnew`, { index: 'new' });
+
+      // Should still be at MAX_CACHED_PAGES, with the oldest (p0) evicted
+      listed = await storage.list(CACHE_PREFIX + 'page:');
+      expect(listed.keys.length).toBe(MAX_CACHED_PAGES);
+
+      // Oldest entry (p0) should be gone
+      const p0 = await storage.get(CACHE_PREFIX + 'page:p0');
+      expect(p0).toBeNull();
+
+      // Newest entry should exist
+      const pnew = await storage.get(CACHE_PREFIX + 'page:pnew');
+      expect(pnew).not.toBeNull();
+    });
+
+    it('evicts multiple oldest entries when significantly over the limit', async () => {
+      const storage = (window as any).storage;
+
+      // Add 2x the limit with staggered timestamps
+      const overage = MAX_CACHED_PAGES * 2;
+      for (let i = 0; i < overage; i++) {
+        const envelope = { cachedAt: Date.now() - (overage - i) * 1000, data: { index: i } };
+        await storage.set(CACHE_PREFIX + `page:p${i}`, JSON.stringify(envelope));
+      }
+
+      // Trigger eviction via cacheSet
+      await cacheSet('page:trigger', { data: 'trigger' });
+
+      // Should be capped at MAX_CACHED_PAGES
+      const listed = await storage.list(CACHE_PREFIX + 'page:');
+      expect(listed.keys.length).toBeLessThanOrEqual(MAX_CACHED_PAGES);
+    });
+  });
+
+  describe('eviction scope', () => {
+    it('only evicts lospec:page:* keys, never other lospec:* entries', async () => {
+      const storage = (window as any).storage;
+
+      // Add non-page lospec entries
+      await storage.set(CACHE_PREFIX + 'palette:old', JSON.stringify({ cachedAt: Date.now() - 1000, data: 'old' }));
+      await storage.set(CACHE_PREFIX + 'metadata:index', JSON.stringify({ cachedAt: Date.now() - 1000, data: 'meta' }));
+
+      // Add MAX_CACHED_PAGES page entries
+      for (let i = 0; i < MAX_CACHED_PAGES; i++) {
+        const envelope = { cachedAt: Date.now() - (MAX_CACHED_PAGES - i) * 1000, data: { index: i } };
+        await storage.set(CACHE_PREFIX + `page:p${i}`, JSON.stringify(envelope));
+      }
+
+      // Trigger eviction by adding one more page
+      await cacheSet('page:new', { data: 'new' });
+
+      // Non-page entries should still exist
+      const paletteEntry = await storage.get(CACHE_PREFIX + 'palette:old');
+      const metadataEntry = await storage.get(CACHE_PREFIX + 'metadata:index');
+      expect(paletteEntry).not.toBeNull();
+      expect(metadataEntry).not.toBeNull();
+
+      // Page entries should be capped
+      const listed = await storage.list(CACHE_PREFIX + 'page:');
+      expect(listed.keys.length).toBeLessThanOrEqual(MAX_CACHED_PAGES);
+    });
+  });
+
+  it('returns null when storage is unavailable', async () => {
+    delete (window as any).storage;
+    const result = await cacheGet('page:test');
+    expect(result).toBeNull();
+  });
+
+  it('handles malformed cache entries gracefully', async () => {
+    const storage = (window as any).storage;
+    await storage.set(CACHE_PREFIX + 'page:corrupt', 'not-valid-json');
+    const result = await cacheGet('page:corrupt');
+    expect(result).toBeNull();
   });
 });
