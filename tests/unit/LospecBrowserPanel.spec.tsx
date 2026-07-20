@@ -136,3 +136,47 @@ test('renders suggestion cards with an author and a Load action', () => {
   fireEvent.click(screen.getByTitle(/use all.*as bases|load all/i));
   expect(onLoad).toHaveBeenCalledWith(expect.objectContaining({ slug: 'sugg' }), 'all');
 });
+
+test('suggestion card with populated colors loads directly, no backfill', () => {
+  const onLoad = vi.fn();
+  const loadBySlugOrUrl = vi.fn();
+  wrap({
+    suggestions: [{ slug: 'full-sugg', title: 'Full Suggestion', colors: ['#111111', '#222222'], numberOfColors: 2, author: 'Someone', url: 'https://lospec.com/palette-list/full-sugg' }],
+    onLoad,
+    loadBySlugOrUrl,
+  });
+  fireEvent.click(screen.getByTitle(/use all.*as bases|load all/i));
+  expect(loadBySlugOrUrl).not.toHaveBeenCalled();
+  expect(onLoad).toHaveBeenCalledWith(expect.objectContaining({ slug: 'full-sugg', colors: ['#111111', '#222222'] }), 'all');
+});
+
+test('suggestion card with empty colors backfills via loadBySlugOrUrl, then loads the backfilled palette', async () => {
+  const onLoad = vi.fn();
+  const backfilled = { slug: 'empty-sugg', title: 'Empty Suggestion', colors: ['#333333', '#444444'], numberOfColors: 2, author: 'Someone', url: 'https://lospec.com/palette-list/empty-sugg' };
+  const loadBySlugOrUrl = vi.fn().mockResolvedValue(backfilled);
+  wrap({
+    suggestions: [{ slug: 'empty-sugg', title: 'Empty Suggestion', colors: [], numberOfColors: 2, author: 'Someone', url: 'https://lospec.com/palette-list/empty-sugg' }],
+    onLoad,
+    loadBySlugOrUrl,
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByTitle(/use all.*as bases|load all/i));
+  });
+  expect(loadBySlugOrUrl).toHaveBeenCalledWith('empty-sugg');
+  expect(onLoad).toHaveBeenCalledWith(backfilled, 'all');
+});
+
+test('suggestion card with empty colors: a failed backfill does not call onLoad', async () => {
+  const onLoad = vi.fn();
+  const loadBySlugOrUrl = vi.fn().mockResolvedValue(null);
+  wrap({
+    suggestions: [{ slug: 'dead-sugg', title: 'Dead Suggestion', colors: [], numberOfColors: 0, author: 'Someone', url: 'https://lospec.com/palette-list/dead-sugg' }],
+    onLoad,
+    loadBySlugOrUrl,
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByTitle(/use all.*as bases|load all/i));
+  });
+  expect(loadBySlugOrUrl).toHaveBeenCalledWith('dead-sugg');
+  expect(onLoad).not.toHaveBeenCalled();
+});

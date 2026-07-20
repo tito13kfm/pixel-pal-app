@@ -114,6 +114,15 @@ describe('useSavedPalettesActions', () => {
     expect(useRampsStore.getState().lospecSource).toEqual(palette && { slug: 'a', title: 'A', author: 'Auth', url: 'https://lospec.com/palette-list/a' });
   });
 
+  it('loadLospecPalette with empty colors surfaces feedback instead of silently no-oping', () => {
+    const { hook, params } = setup();
+    const palette = { slug: 'empty', title: 'Empty Palette', colors: [], numberOfColors: 0, author: 'A', url: 'https://lospec.com/palette-list/empty' };
+    act(() => { hook.result.current.loadLospecPalette(palette, 'all'); });
+    expect(params.setExportFeedback).toHaveBeenCalledWith(expect.stringMatching(/.+/));
+    // Early return still guards the actual state write: baseColors unchanged.
+    expect(useRampsStore.getState().baseColors).toEqual(['#ff00ff']);
+  });
+
   it('loading a legacy payload (no lospecSource field) clears it to null', async () => {
     const { hook } = setup();
     await (window as any).storage.set('palettes:legacy', JSON.stringify({ name: 'Legacy', baseColors: ['#123456'], savedAt: 1 }));

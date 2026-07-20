@@ -64,6 +64,22 @@ export function LospecBrowserPanel({
     setLoadedPalette(result);
   };
 
+  // Suggestion cards come from the keyless no-auth suggest endpoint, whose
+  // exact response shape (whether it includes `colors`) was never
+  // live-verified (issue #133). If a suggestion arrives with no colors,
+  // backfill via loadBySlugOrUrl (which always goes through
+  // fetchLospecPalette, so it's guaranteed to return real colors) before
+  // loading. Browse-result and slug/URL-loaded cards already guarantee full
+  // color data, so they call onLoad directly and never hit this path.
+  const handleSuggestionLoad = async (s: LospecPalette, mode: 'all' | 'subset') => {
+    if (s.colors.length === 0) {
+      const backfilled = await loadBySlugOrUrl(s.slug);
+      if (backfilled) onLoad(backfilled, mode);
+      return;
+    }
+    onLoad(s, mode);
+  };
+
   return (
     <div className="p-6 pt-2 flex flex-col gap-4">
       {/* API key settings */}
@@ -147,7 +163,7 @@ export function LospecBrowserPanel({
                 </div>
                 <div className="flex flex-col gap-1 mt-auto">
                   <button
-                    onClick={() => onLoad(s, 'all')}
+                    onClick={() => handleSuggestionLoad(s, 'all')}
                     title="Use all as bases: load every color as a base ramp"
                     className="w-full px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all text-xs uppercase tracking-wider"
                     style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}
@@ -155,7 +171,7 @@ export function LospecBrowserPanel({
                     Use All as Bases
                   </button>
                   <button
-                    onClick={() => onLoad(s, 'subset')}
+                    onClick={() => handleSuggestionLoad(s, 'subset')}
                     title="Auto-pick representative colors as bases"
                     className="w-full px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50 hover:bg-purple-800/60"
                   >

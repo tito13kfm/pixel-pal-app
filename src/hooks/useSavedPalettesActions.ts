@@ -629,7 +629,16 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
   // 'subset' branch) since both are "flat imported color list -> bases".
   // Unlike gpl/classic, this path DOES carry provenance forward.
   const loadLospecPalette = (palette: LospecPalette, mode: LospecImportMode) => {
-    if (!palette || !Array.isArray(palette.colors) || palette.colors.length === 0) return;
+    if (!palette || !Array.isArray(palette.colors) || palette.colors.length === 0) {
+      // Should now fire rarely (the panel backfills empty-colors suggestions
+      // before calling here), but guard regardless: silence here previously
+      // left the user with no signal at all when this fired.
+      if (palette) {
+        p.setExportFeedback(`"${palette.title}" has no colors to load`);
+        setTimeout(() => p.setExportFeedback(''), 3500);
+      }
+      return;
+    }
     let chosen: string[];
     if (mode === 'subset') {
       chosen = subsetGplColors(palette.colors);
