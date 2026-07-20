@@ -104,7 +104,7 @@ export function useLospecBrowser(): UseLospecBrowserResult {
       setTotal(res.total);
       setPage(nextPage);
       const remaining = getLospecRateLimitRemaining();
-      if (remaining !== null && remaining < 10) setRateLimitLow(true);
+      setRateLimitLow(remaining !== null && remaining < 10);
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
       if (err instanceof LospecNoKeyError) setError(err.message);

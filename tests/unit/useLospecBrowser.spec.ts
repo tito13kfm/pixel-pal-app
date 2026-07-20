@@ -96,6 +96,31 @@ describe('useLospecBrowser', () => {
     expect(store.get('lospec:userApiKey')).toBe('new-user-key');
   });
 
+  it('rateLimitLow reflects the most recent response, clearing once the budget recovers', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'test-key');
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'X-RateLimit-Remaining': '5' }),
+        json: async () => ({ data: [], meta: { total: 0, limit: 20, offset: 0 } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'X-RateLimit-Remaining': '200' }),
+        json: async () => ({ data: [], meta: { total: 0, limit: 20, offset: 0 } }),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const { result } = renderHook(() => useLospecBrowser());
+    await act(async () => { result.current.runBrowse(); });
+    expect(result.current.rateLimitLow).toBe(true);
+    // Different tag forces a distinct cache key so the second call actually
+    // hits the network instead of serving the first call's cached page.
+    act(() => { result.current.setTag('game-boy'); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    await act(async () => { result.current.runBrowse(); });
+    expect(result.current.rateLimitLow).toBe(false);
+  });
+
   it('clearUserApiKey removes the override and clears the input', async () => {
     vi.stubEnv('VITE_LOSPEC_API_KEY', '');
     const store = new Map<string, string>();
