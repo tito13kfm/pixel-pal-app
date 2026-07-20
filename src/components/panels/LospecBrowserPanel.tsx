@@ -95,7 +95,7 @@ export function LospecBrowserPanel({
 
       {!hasApiKey && (
         <div className="text-xs rounded p-2 border-2 bg-purple-900/60 text-yellow-100 border-yellow-700/50">
-          Browsing the Lospec catalog requires an API key. You can still search by name or load a palette by slug/URL below.
+          Browsing the Lospec catalog requires an API key. You can still search by name below.
         </div>
       )}
 
