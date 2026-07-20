@@ -21,10 +21,11 @@ build B separately"), this spec does not invent a second import pipeline: the
 
 ## Research findings: the Lospec API landscape
 
-Verified 2026-07-18. Initial pass via public docs and third-party integrations;
-follow-up verification ran live probes against lospec.com from a GitHub Actions
-runner (8 spaced requests total, temporary `lospec-cors-probe` workflow, removed
-after use), because the dev sandbox's network policy blocks lospec.com.
+Verified 2026-07-18 and 2026-07-20. Initial pass via public docs and
+third-party integrations; live verification ran as spaced probes against
+lospec.com and api.lospec.com from a GitHub Actions runner (temporary
+`lospec-cors-probe` workflow, runs 1-4, removed after each use), because the
+dev sandbox's network policy blocks *.lospec.com.
 
 ### 1. Documented palette API (fetch-by-slug only)
 
@@ -48,14 +49,45 @@ browser `fetch()` works from the web build AND from the Tauri webview.
 (Note `content-type` is `application/octet-stream`; `res.json()` still parses
 it, just don't gate on the MIME type.)
 
-### 2. Official API-key program (`lospec.com/api`)
+### 2. Official developer API (`api.lospec.com`) - VERIFIED 2026-07-20
 
-Lospec runs a proper API program whose landing page (captured by the probe)
-states it covers: **"Browse and search the palette library"**, "Fetch daily
-art prompt tags", and "Get your account info and subscription tier". So an
-official browse/search endpoint EXISTS behind an API key; the full endpoint
-docs are linked from that page ("View API Documentation"; key creation
-requires logging in, accounts are OAuth-linked). Official rate limits by tier:
+Full docs: https://api.lospec.com/docs/ (Scalar UI over the OpenAPI 3.1 spec
+at `https://api.lospec.com/docs/openapi.json`; the whole spec was captured by
+probe runs 3-4, evidence in those Actions logs). The maintainer holds a free
+API key (created 2026-07). Facts below are from the OpenAPI spec verbatim.
+
+**Base URL** `https://api.lospec.com`, versioned paths under `/api/v1/`.
+**Auth**: `Authorization: Bearer <API key>` on every request (except where
+noted). Errors come as `{ "error": { "code", "message", "details" } }` with
+codes `BAD_REQUEST` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403 (tier-gated),
+`NOT_FOUND` 404, `TOO_MANY_REQUESTS` 429 (then check `X-RateLimit-Reset`).
+
+**Endpoints (all GET):**
+
+| Path | Cost | Notes |
+| ---- | ---- | ----- |
+| `/api/v1/palettes` | 1 | Paginated browse. Params: `tag` (exact), `numberOfColors`, `minColors`, `maxColors`, `sort` (`createdAt`/`downloads`/`likes`/`numberOfColors`/`publishedAt`, `-` prefix = desc, default `-publishedAt`), `limit` (1-100, default 20), `offset`, `format` (`compact` = title+colors only, `expanded` = adds creator + example image URLs) |
+| `/api/v1/palettes/{slug}` | 0.01 | Single palette, same `format` param |
+| `/api/v1/palettes/suggest/{query}` | (small) | Name search: title-prefix with edit-distance fallback, max 10 results; `format=expanded` adds colors + `userName`. **Also public WITHOUT auth** at `/palettes/suggest/:query` |
+| `/api/v1/palettes/daily` | 0.01 | Most recent "daily"-tagged palette |
+| `/api/v1/palettes/random` | 0.01 | Random palette |
+| `/api/v1/dailytags` (+`/daily`, `/{slug}`) | 1 / 0.01 | Daily art-prompt tags (not needed by this feature) |
+| `/api/v1/user`, `/api/v1/usage` | - | Key verification / usage + per-key breakdown (handy for monitoring the embedded key) |
+| `/health` | - | No auth |
+
+**Response shapes** (browse): `{ data: [...], meta: { total, limit, offset } }`.
+Each palette: `slug`, `title`, `description` (HTML), `colors[]` (6-digit hex,
+no `#`), `numberOfColors`, `tags[]`, `hashtag`, `downloads`, `likes`,
+`comments`, `featured`, `url`, `publishedAt`/`createdAt`/`updatedAt`, and with
+`format=expanded`: `user { name, url }` (attribution!) and `examples[]`
+(cdn.lospec.com image URLs, which we do NOT display, per etiquette).
+
+**Rate limits**: one hourly request budget per user, shared across all routes
+and keys; **fractional costs** mean the budget is generous (a single-palette
+fetch costs 0.01, so the free 500/hr budget is ~500 browse pages or ~50,000
+palette loads). Every response carries `X-RateLimit-Limit` / `-Remaining` /
+`-Reset` (CORS-exposed, so the client can throttle itself politely).
+Official tiers:
 
 | Tier    | Price  | Requests/hour | Max API keys |
 | ------- | ------ | ------------- | ------------ |
@@ -68,12 +100,24 @@ requires logging in, accounts are OAuth-linked). Official rate limits by tier:
 
 500 req/hr free is far above this feature's user-paced, cached call pattern.
 
-**Caveat:** PIXEL.PAL ships as a distributed desktop binary plus a static
-GitHub Pages build. Any API key we embed is effectively public. A key is still
-worth registering (it identifies the app and gives Lospec a throttling handle),
-but the design must never treat key-based quota as secret or per-user, and a
-runaway third party replaying our key could exhaust the shared 500/hr pool
-(degrade to the keyless slug endpoint when the quota is hit).
+**CORS: verified fully browser-enabled (probe, 2026-07-20).** Every
+`api.lospec.com` response carries `access-control-allow-origin: *` and
+exposes the rate-limit headers; the `OPTIONS` preflight returns 204 with
+`access-control-allow-methods: GET, OPTIONS` and
+`access-control-allow-headers: Content-Type, Authorization, Accept`. Since a
+Bearer header makes `fetch()` non-simple, that preflight allowance is exactly
+what the web build needs: **the keyed API is callable from GH Pages and the
+Tauri webview with plain `fetch()`.** No degradation path required.
+
+**Key handling:** the maintainer's key enters the build as a build-time env
+var (e.g. `VITE_LOSPEC_API_KEY`), never committed. It is effectively public
+once shipped (desktop binary + static site), which Lospec's model tolerates:
+the key identifies the app and gives them a throttling handle; it is not a
+secret and never per-user. If a third party replays it and exhausts the
+shared budget (429), the client degrades to the keyless endpoints: the
+documented `lospec.com/palette-list/{slug}.json` for loads and the public
+no-auth `/palettes/suggest/:query` for name search. `/api/v1/usage` lets the
+maintainer monitor consumption.
 
 ### 3. The site's undocumented frontend browse endpoint (fallback only)
 
@@ -126,22 +170,29 @@ feature:
 
 Two call classes, different endpoints, different politeness budgets:
 
-1. **Load by slug** → the **documented** `{slug}.json` endpoint. Cheap, stable,
-   community-blessed. Also powers a direct "paste a Lospec URL or slug" input,
-   which works even if browsing is unavailable (CORS, endpoint churn).
+1. **Load by slug** → `GET /api/v1/palettes/{slug}` (cost 0.01), with the
+   keyless documented `{slug}.json` endpoint as the zero-key fallback. Also
+   powers a direct "paste a Lospec URL or slug" input, which works even with
+   no key at all.
 2. **Browse/search** → **cached-catalog-page model, not live search**:
    - A network request fires only on an explicit user action: opening the
      panel, changing page, or applying a tag/color-count filter. **Never per
      keystroke.**
-   - Text search filters **already-cached** results client-side.
-   - Use the **official keyed API's browse/search endpoints** (confirmed to
-     exist, see findings §2). The undocumented `/palette-list/load` endpoint
-     is a desktop-only last resort (no CORS, would need the Tauri HTTP
-     plugin); keep all endpoint knowledge isolated inside one client module
-     (`src/lib/lospec.ts`) so churn is a one-file fix.
+   - Browse = `GET /api/v1/palettes?format=expanded` (findings §2): the
+     planned filters map 1:1 onto its params (`tag`, `minColors`/`maxColors`,
+     `numberOfColors`, `sort`, `limit`/`offset`), and `expanded` returns the
+     creator for attribution.
+   - Free-text search filters **already-cached** results client-side; a
+     "find by name" action can additionally hit the cheap
+     `suggest/{query}` endpoint (max 10 results, debounced ~300 ms; it even
+     has a public no-auth variant).
+   - The undocumented `/palette-list/load` frontend endpoint is now obsolete
+     for our purposes; do not use it. Keep all endpoint knowledge isolated
+     inside one client module (`src/lib/lospec.ts`) so churn is a
+     one-file fix.
    - Before shipping, open a courtesy contact with Lospec (feedback board)
-     describing the integration and asking for the sanctioned browse endpoint
-     and limits. They have a track record of supporting exactly this.
+     describing the integration and confirming the usage pattern is welcome
+     at the free tier. They have a track record of supporting exactly this.
 
 ### Rate-limit + cache design
 
@@ -160,9 +211,11 @@ GitHub's 60 req/hr limit):
   `AbortController` on superseded requests, **no parallel page prefetching**.
   Informed by the 1 req/10 s scraper precedent; we can be somewhat tighter
   because our request pattern is user-paced and page-granular, not a crawl.
-- **Identification:** send the API key (if registered). Note: browser `fetch`
-  cannot override `User-Agent`; identification via key/header is only fully
-  controllable if the Tauri HTTP plugin path is used.
+- **Identification:** every keyed request carries the app's API key in the
+  `Authorization: Bearer` header, which is exactly the identification handle
+  Lospec designed for. Use the CORS-exposed `X-RateLimit-Remaining` header to
+  self-throttle: if the shared budget runs low, pause browse fetches and tell
+  the user, rather than hitting 429s.
 - **Cache size:** cap cached catalog pages (e.g. last ~20 pages, LRU) so the
   `lospec:` prefix cannot grow unbounded in localStorage.
 
@@ -177,15 +230,14 @@ GitHub's 60 req/hr limit):
   probe results govern desktop AND web equally:
   - `{slug}.json` sends `ACAO: *` (verified): plain `fetch()` works
     everywhere, no new Tauri capability needed.
-  - The keyed API's CORS behavior is not yet verified (Open Item). If it
-    turns out browser-hostile, desktop can fall back to
-    `@tauri-apps/plugin-http` (Rust-side request, bypasses webview CORS,
-    needs an `http:default` capability entry + gives `User-Agent` control),
-    and the web build degrades gracefully: feature-detect via a single test
-    fetch, then show a "browse on lospec.com" link-out + the paste-URL/slug
-    import path (which IS CORS-safe) instead. **Never route through a
+  - `api.lospec.com` (verified 2026-07-20, findings §2): `ACAO: *` on all
+    responses AND the preflight allows the `Authorization` header, so the
+    keyed API works with plain `fetch()` from both runtimes. No Tauri HTTP
+    plugin, no capability change, no degradation path needed. (If Lospec
+    ever changes this, the fallback remains: `@tauri-apps/plugin-http` on
+    desktop, link-out + paste-slug on web. **Never route through a
     third-party CORS proxy**: that both hammers an intermediary and ships
-    user queries to an unrelated service.
+    user queries to an unrelated service.)
 
 ### Import path (reuse, don't reinvent)
 
@@ -220,17 +272,26 @@ GitHub's 60 req/hr limit):
 
 ## Open items (blockers to resolve before implementation)
 
-1. **Create the free API key + read the full endpoint docs** (user action:
-   log in / OAuth-link an account at `lospec.com/api`, create the key, open
-   "View API Documentation"). Needed: exact browse/search endpoint paths,
-   query params, auth header format, and whether keyed endpoints send CORS
-   headers (decides the web build's path, see Runtime constraints).
-2. **Lospec courtesy contact**: outcome may change endpoint choice and
-   allowed request rate; may also open the door to a sanctioned catalog
-   snapshot later. Channels: the feedback board ("Suggest a Feature") or the
-   site's Contact Us page.
+1. **Lospec courtesy contact**: confirm the usage pattern is welcome at the
+   free tier; may also open the door to a sanctioned catalog snapshot later.
+   Channels: the feedback board ("Suggest a Feature") or the site's Contact
+   Us page. Draft in the Appendix.
 
-### Resolved 2026-07-18 (GitHub-runner probe)
+That is the ONLY remaining research item. All API research is complete; the
+feature is ready to spec/build once backlog item E's sequencing allows (or
+alongside it). At implementation time: wire the maintainer-held API key in as
+a build-time env var (e.g. `VITE_LOSPEC_API_KEY`), never committed.
+
+### Resolved 2026-07-20 (GitHub-runner probe of api.lospec.com, runs 3-4)
+
+- ~~Create the free API key~~: done by the maintainer (2026-07).
+- ~~Full endpoint docs~~: OpenAPI 3.1 spec captured in full; inventory,
+  params, auth (`Authorization: Bearer`), error envelope, request costs, and
+  response shapes recorded in findings §2.
+- ~~Keyed-endpoint CORS~~: verified browser-friendly (`ACAO: *` + preflight
+  allows `Authorization`); web build fully supported, no degradation path.
+
+### Resolved 2026-07-18 (GitHub-runner probe of lospec.com, runs 1-2)
 
 - ~~CORS verification for `{slug}.json`~~: **enabled** (`ACAO: *`), browser
   `fetch()` works from GH Pages and the Tauri webview. The undocumented
