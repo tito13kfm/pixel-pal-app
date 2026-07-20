@@ -1,5 +1,4 @@
 import { useRampsStore } from '../store/rampsStore';
-export type { LospecSource } from '../store/rampsStore';
 
 /**
  * usePaletteState: thin document state-bag (App.tsx Tier B, Wave 2).
