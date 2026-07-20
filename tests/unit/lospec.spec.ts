@@ -170,8 +170,10 @@ describe('fetchLospecPalette', () => {
     env.cachedAt = 0;
     await storage.set('lospec:palette:greyt-bit', JSON.stringify(env));
 
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers() });
+    const secondFetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers() });
+    global.fetch = secondFetchMock as unknown as typeof fetch;
     const second = await fetchLospecPalette('greyt-bit');
+    expect(secondFetchMock).toHaveBeenCalledTimes(1);
     expect(second).toEqual(first);
   });
 
