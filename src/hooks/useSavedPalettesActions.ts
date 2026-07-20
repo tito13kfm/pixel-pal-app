@@ -30,12 +30,14 @@ import { DEFAULT_STYLE_PRESETS, RAMP_STYLES } from '../lib/style-presets';
 import type { RampStyle, StyleScalars } from '../lib/style-presets';
 import { DEFAULT_SPRITE_LIBRARY, HARDWARE_PALETTES } from '../lib/constants';
 import { isPreV2Palette } from '../components/V2EngineNotice';
+import type { LospecPalette } from '../lib/lospec';
 
 export interface SavedPaletteEntry {
   slug: string;
   name: string;
   savedAt: number;
   baseColors: string[];
+  lospecSource: import('../store/rampsStore').LospecSource | null;
 }
 
 export interface GplImportState {
@@ -50,6 +52,8 @@ export interface ClassicPaletteLike {
   baseColors: string[];
   names?: string[];
 }
+
+export type LospecImportMode = 'all' | 'subset';
 
 export const SAVED_PALETTE_LIMIT = 100;
 
@@ -103,6 +107,7 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
     paletteDefaultStyle, setPaletteDefaultStyle,
     rampStyleOverrides, setRampStyleOverrides,
     rampStyleScalars, setRampStyleScalars,
+    lospecSource, setLospecSource,
   } = usePaletteState();
 
   // gplImport: parsed .gpl modal state. See handleGplFile / applyGplImport.
@@ -132,6 +137,7 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
             name: parsed.name || '(unnamed)',
             savedAt: parsed.savedAt || 0,
             baseColors: parsed.baseColors,
+            lospecSource: (parsed.lospecSource && typeof parsed.lospecSource === 'object') ? parsed.lospecSource : null,
           });
         } catch (err) {
           // Individual key failed; skip it but keep going.
@@ -209,6 +215,7 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
       rampStyleOverrides,
       rampStyleScalars,
       engineVersion: 2, // frozen constant: marks this as a v2 save so load() won't fire the migration notice (#70)
+      lospecSource, // provenance if the current palette originated from a Lospec load; null otherwise
     };
     p.setSavedBusy(true);
     try {
@@ -326,6 +333,18 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
         setOverrides(cleaned);
       } else {
         setOverrides({});
+      }
+      // Restore Lospec provenance (issue #133). Validate full shape; anything
+      // malformed or absent (including every pre-#133 payload) clears it, same
+      // as resetPaletteState would.
+      if (parsed.lospecSource && typeof parsed.lospecSource === 'object'
+        && typeof parsed.lospecSource.slug === 'string'
+        && typeof parsed.lospecSource.title === 'string'
+        && typeof parsed.lospecSource.author === 'string'
+        && typeof parsed.lospecSource.url === 'string') {
+        setLospecSource(parsed.lospecSource);
+      } else {
+        setLospecSource(null);
       }
       setPinEditor(null);
       // Restore harmonyAnchor. Validate it's an integer in range of the
@@ -523,20 +542,33 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
     }
   };
 
+  // Shared core of every "replace the working palette with an imported set of
+  // bases" path (classic / gpl / lospec). Callers compute their own colors,
+  // display names, and history label; this handles the mechanical state-reset
+  // sequence exactly once. provenance defaults to null so only the Lospec path
+  // ever sets it (correct-by-construction, resetPaletteState also clears it,
+  // this just re-asserts the caller's actual intent immediately after).
+  const applyImportedBases = (colors: string[], names: string[], label: string, provenance: typeof lospecSource = null) => {
+    p.tagNextLabel(label);
+    setBaseColors(colors);
+    setAiColorNames(names);
+    p.resetPaletteState();
+    setHardwareLock(null);
+    setShuffleSeed(0);
+    setLospecSource(provenance);
+  };
+
   // Load a built-in classic palette. Unlike loadPalette this doesn't touch
   // storage; the source is the CLASSIC_PALETTES constant.
   // shuffleSeed resets to 0 so the ramps are deterministic and don't
   // depend on whatever shuffle the user happened to be on.
   const loadClassicPalette = (classic: ClassicPaletteLike) => {
     if (!classic || !Array.isArray(classic.baseColors) || classic.baseColors.length === 0) return;
-    p.tagNextLabel(`Load classic: ${classic.name}`);
-    setBaseColors(classic.baseColors);
-    setAiColorNames(classic.names || classic.baseColors.map((_, i) => `${classic.name} ${i + 1}`));
-    p.resetPaletteState();
-    // Classics weren't designed for any specific hardware constraint. Clear
-    // any active lock so the loaded classic renders as-authored.
-    setHardwareLock(null);
-    setShuffleSeed(0);
+    applyImportedBases(
+      classic.baseColors,
+      classic.names || classic.baseColors.map((_, i) => `${classic.name} ${i + 1}`),
+      `Load classic: ${classic.name}`,
+    );
     p.setExportFeedback(`Loaded "${classic.name}"`);
     setTimeout(() => p.setExportFeedback(''), 2000);
   };
@@ -585,15 +617,41 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
       chosen = uniq;
     }
     if (chosen.length === 0) return;
-    p.tagNextLabel(`Import GPL: ${gplImport.name}`);
-    setBaseColors(chosen);
-    setAiColorNames(chosen.map((_, i) => `${gplImport.name} ${i + 1}`));
-    p.resetPaletteState();
-    setHardwareLock(null);
-    setShuffleSeed(0);
+    applyImportedBases(chosen, chosen.map((_, i) => `${gplImport.name} ${i + 1}`), `Import GPL: ${gplImport.name}`);
     setGplImport(null);
     const note = mode === 'subset' ? `Imported ${chosen.length} representatives from ${gplImport.colors.length}` : `Imported ${chosen.length}${gplImport.colors.length > chosen.length ? ` (truncated from ${gplImport.colors.length}, cap is 16)` : ''}`;
     p.setExportFeedback(note);
+    setTimeout(() => p.setExportFeedback(''), 3500);
+  };
+
+  // Load a palette fetched from Lospec (issue #133). Mirrors applyGplImport's
+  // two modes exactly (same dedupe/cap-16 'all' branch, same subsetGplColors
+  // 'subset' branch) since both are "flat imported color list -> bases".
+  // Unlike gpl/classic, this path DOES carry provenance forward.
+  const loadLospecPalette = (palette: LospecPalette, mode: LospecImportMode) => {
+    if (!palette || !Array.isArray(palette.colors) || palette.colors.length === 0) return;
+    let chosen: string[];
+    if (mode === 'subset') {
+      chosen = subsetGplColors(palette.colors);
+    } else {
+      const seen = new Set<string>();
+      const uniq: string[] = [];
+      for (const hex of palette.colors) {
+        const n = hex.toLowerCase();
+        if (!seen.has(n)) { seen.add(n); uniq.push(n); }
+        if (uniq.length >= 16) break;
+      }
+      chosen = uniq;
+    }
+    if (chosen.length === 0) return;
+    applyImportedBases(
+      chosen,
+      chosen.map((_, i) => `${palette.title} ${i + 1}`),
+      `Load Lospec: ${palette.title}`,
+      { slug: palette.slug, title: palette.title, author: palette.author, url: palette.url },
+    );
+    const note = mode === 'subset' ? `Imported ${chosen.length} representatives from ${palette.colors.length}` : `Imported ${chosen.length}${palette.colors.length > chosen.length ? ` (truncated from ${palette.colors.length}, cap is 16)` : ''}`;
+    p.setExportFeedback(`Loaded "${palette.title}" from Lospec, ${note}`);
     setTimeout(() => p.setExportFeedback(''), 3500);
   };
 
@@ -703,7 +761,7 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
 
   return {
     saveCurrentPalette, loadPalette, loadClassicPalette,
-    gplImport, setGplImport, handleGplFile, applyGplImport,
+    gplImport, setGplImport, handleGplFile, applyGplImport, loadLospecPalette,
     requestDeletePalette, startRename, cancelRename, commitRename,
   };
 }
