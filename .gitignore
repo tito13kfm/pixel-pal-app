@@ -13,6 +13,11 @@ dist-ssr
 release
 *.local
 
+# Local secrets (API keys, etc). Vite loads these automatically; never commit.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
