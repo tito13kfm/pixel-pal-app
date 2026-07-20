@@ -164,3 +164,97 @@ export async function fetchLospecPalette(slug: string, signal?: AbortSignal): Pr
     url: lospecPaletteUrl(slug),
   };
 }
+
+export interface LospecBrowseParams {
+  tag?: string;
+  minColors?: number;
+  maxColors?: number;
+  numberOfColors?: number;
+  sort?: 'createdAt' | '-createdAt' | 'downloads' | '-downloads' | 'likes' | '-likes' | 'numberOfColors' | '-numberOfColors' | 'publishedAt' | '-publishedAt';
+  limit?: number;
+  offset?: number;
+}
+
+export interface LospecBrowseResult {
+  palettes: LospecPalette[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+function pageCacheKey(params: LospecBrowseParams): string {
+  const sorted = Object.keys(params).sort().map((k) => `${k}=${(params as any)[k]}`).join('&');
+  return `page:${sorted}`;
+}
+
+export async function browseLospecPalettes(params: LospecBrowseParams, signal?: AbortSignal): Promise<LospecBrowseResult> {
+  const key = getLospecApiKey();
+  if (!key) {
+    throw new LospecNoKeyError('Browsing the Lospec catalog requires an API key; try Load by slug/URL or Search by name instead.');
+  }
+  const cacheKey = pageCacheKey(params);
+  const cached = await cacheGet<LospecBrowseResult>(cacheKey);
+  if (cached && !cached.stale) return cached.data;
+  const qs = new URLSearchParams();
+  qs.set('format', 'expanded');
+  if (params.tag) qs.set('tag', params.tag);
+  if (params.minColors != null) qs.set('minColors', String(params.minColors));
+  if (params.maxColors != null) qs.set('maxColors', String(params.maxColors));
+  if (params.numberOfColors != null) qs.set('numberOfColors', String(params.numberOfColors));
+  if (params.sort) qs.set('sort', params.sort);
+  qs.set('limit', String(params.limit ?? 20));
+  qs.set('offset', String(params.offset ?? 0));
+  try {
+    const res = await throttledFetch(`${LOSPEC_KEYED_BASE}/palettes?${qs.toString()}`, {
+      headers: { Authorization: `Bearer ${key}` },
+      signal,
+    });
+    if (!res.ok) throw new Error(`Lospec browse failed (${res.status})`);
+    const data = await res.json();
+    const result: LospecBrowseResult = {
+      palettes: (data.data || []).map(mapExpandedPalette),
+      total: data.meta?.total ?? 0,
+      limit: data.meta?.limit ?? params.limit ?? 20,
+      offset: data.meta?.offset ?? params.offset ?? 0,
+    };
+    await cacheSet(cacheKey, result);
+    return result;
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') throw err;
+    if (cached) return cached.data;
+    throw err;
+  }
+}
+
+const lospecPublicSuggestUrl = (q: string) => `https://api.lospec.com/palettes/suggest/${encodeURIComponent(q)}`;
+const lospecKeyedSuggestUrl = (q: string) => `${LOSPEC_KEYED_BASE}/palettes/suggest/${encodeURIComponent(q)}?format=expanded`;
+
+export async function suggestLospecPalettes(query: string, signal?: AbortSignal): Promise<LospecPalette[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const key = getLospecApiKey();
+  const url = key ? lospecKeyedSuggestUrl(trimmed) : lospecPublicSuggestUrl(trimmed);
+  const init: RequestInit = key ? { headers: { Authorization: `Bearer ${key}` }, signal } : { signal };
+  const res = await throttledFetch(url, init);
+  if (!res.ok) throw new Error(`Lospec search failed (${res.status})`);
+  const data = await res.json();
+  const list: any[] = Array.isArray(data) ? data : (data.data || []);
+  return list.slice(0, 10).map((d) => (key
+    ? mapExpandedPalette(d)
+    : {
+      slug: d.slug,
+      title: d.title,
+      colors: (d.colors || []).map(normalizeHex),
+      numberOfColors: d.numberOfColors ?? (d.colors || []).length,
+      author: d.userName ?? '',
+      url: lospecPaletteUrl(d.slug),
+    }));
+}
+
+export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number): (...args: A) => void {
+  let handle: ReturnType<typeof setTimeout> | null = null;
+  return (...args: A) => {
+    if (handle) clearTimeout(handle);
+    handle = setTimeout(() => fn(...args), ms);
+  };
+}

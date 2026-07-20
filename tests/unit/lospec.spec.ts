@@ -11,6 +11,10 @@ import {
   CATALOG_PAGE_TTL_MS,
   PALETTE_TTL_MS,
   MAX_CACHED_PAGES,
+  browseLospecPalettes,
+  suggestLospecPalettes,
+  debounce,
+  LospecNoKeyError,
 } from '../../src/lib/lospec';
 
 function makeMockStorage() {
@@ -334,5 +338,87 @@ describe('cacheGet / cacheSet', () => {
     await storage.set(CACHE_PREFIX + 'page:corrupt', 'not-valid-json');
     const result = await cacheGet('page:corrupt');
     expect(result).toBeNull();
+  });
+});
+
+describe('browseLospecPalettes', () => {
+  beforeEach(() => { __resetLospecThrottleForTests(); (window as any).storage = makeMockStorage(); });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
+
+  it('throws LospecNoKeyError when no API key is configured', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', '');
+    await expect(browseLospecPalettes({})).rejects.toBeInstanceOf(LospecNoKeyError);
+  });
+
+  it('fetches, maps, and caches a page when a key is configured', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'k');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, headers: new Headers(),
+      json: async () => ({ data: [{ slug: 'a', title: 'A', colors: ['ff0000'], user: { name: 'Someone' }, url: 'https://lospec.com/palette-list/a' }], meta: { total: 1, limit: 20, offset: 0 } }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const result = await browseLospecPalettes({ tag: 'game-boy' });
+    expect(result.palettes).toEqual([{ slug: 'a', title: 'A', colors: ['#ff0000'], numberOfColors: 1, author: 'Someone', url: 'https://lospec.com/palette-list/a' }]);
+    expect(result.total).toBe(1);
+    expect(fetchMock.mock.calls[0][0]).toContain('tag=game-boy');
+    // second call with the same params hits cache, not fetch
+    fetchMock.mockClear();
+    const cached = await browseLospecPalettes({ tag: 'game-boy' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(cached).toEqual(result);
+  });
+
+  it('serves stale cache on fetch failure', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'k');
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true, headers: new Headers(),
+      json: async () => ({ data: [], meta: { total: 0, limit: 20, offset: 0 } }),
+    });
+    const first = await browseLospecPalettes({});
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers() });
+    // Force staleness by pretending the cache entry is old: write directly.
+    const keys = await (window as any).storage.list('lospec:page:');
+    const raw = await (window as any).storage.get(keys.keys[0]);
+    const env = JSON.parse(raw.value);
+    env.cachedAt = 0;
+    await (window as any).storage.set(keys.keys[0], JSON.stringify(env));
+    const second = await browseLospecPalettes({});
+    expect(second).toEqual(first);
+  });
+});
+
+describe('suggestLospecPalettes', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); __resetLospecThrottleForTests(); });
+
+  it('uses the public no-auth endpoint when no key is configured', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', '');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers(), json: async () => ([{ slug: 'a', title: 'A', colors: ['ff0000'], userName: 'Someone' }]) });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const result = await suggestLospecPalettes('pico');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.lospec.com/palettes/suggest/pico');
+    expect(result[0].author).toBe('Someone');
+  });
+
+  it('returns [] for an empty/whitespace query without fetching', async () => {
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    expect(await suggestLospecPalettes('   ')).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('debounce', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('collapses rapid calls into one, using the last args', () => {
+    const fn = vi.fn();
+    const debounced = debounce(fn, 300);
+    debounced('a'); debounced('b'); debounced('c');
+    vi.advanceTimersByTime(299);
+    expect(fn).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith('c');
   });
 });
