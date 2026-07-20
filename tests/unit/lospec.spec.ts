@@ -66,4 +66,33 @@ describe('fetchLospecPalette', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('https://lospec.com/palette-list/greyt-bit.json');
     expect(result.title).toBe('Greyt-bit');
   });
+
+  it('successfully maps the keyed endpoint response when the API key call succeeds', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'test-key-456');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      json: async () => ({
+        slug: 'greyt-bit',
+        title: 'Greyt-Bit',
+        colors: ['574368', 'FFFFFF', '89f26e'],
+        numberOfColors: 3,
+        user: { name: 'Sam Keddy' },
+        url: 'https://lospec.com/palette-list/greyt-bit',
+      }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const result = await fetchLospecPalette('greyt-bit');
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0][0]).toContain('api.lospec.com/api/v1/palettes/greyt-bit?format=expanded');
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer test-key-456');
+    expect(result).toEqual({
+      slug: 'greyt-bit',
+      title: 'Greyt-Bit',
+      colors: ['#574368', '#ffffff', '#89f26e'],
+      numberOfColors: 3,
+      author: 'Sam Keddy',
+      url: 'https://lospec.com/palette-list/greyt-bit',
+    });
+  });
 });
