@@ -22,4 +22,9 @@ describe('loadPanelState', () => {
     localStorage.setItem(PANEL_STORAGE_KEY, '123');
     expect(loadPanelState()).toEqual(PANEL_DEFAULTS);
   });
+
+  it('defaults lospecOpen to false', () => {
+    localStorage.removeItem(PANEL_STORAGE_KEY);
+    expect(loadPanelState().lospecOpen).toBe(false);
+  });
 });
