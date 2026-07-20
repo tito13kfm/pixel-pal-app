@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { LospecBrowserPanel } from '../../src/components/panels/LospecBrowserPanel';
 import { ThemeProvider } from '../../src/contexts';
 
@@ -90,4 +90,49 @@ test('shows a Clear action only when a user key is already saved', () => {
   expect(screen.queryByTitle(/clear.*api key/i)).not.toBeInTheDocument();
   rerender(<ThemeProvider value={theme as any}><LospecBrowserPanel {...base} savedUserApiKey="saved-key" clearUserApiKey={() => {}} /></ThemeProvider>);
   expect(screen.getByTitle(/clear.*api key/i)).toBeInTheDocument();
+});
+
+test('loads a palette by slug/URL and offers a Use All as Bases action', async () => {
+  const onLoad = vi.fn();
+  const loaded = { slug: 'x', title: 'X Palette', colors: ['#111111', '#222222'], numberOfColors: 2, author: 'Someone Else', url: 'https://lospec.com/palette-list/x' };
+  const loadBySlugOrUrl = vi.fn().mockResolvedValue(loaded);
+  wrap({ loadBySlugOrUrl, onLoad });
+
+  const input = screen.getByPlaceholderText(/slug.*url/i);
+  fireEvent.change(input, { target: { value: 'x' } });
+  fireEvent.click(screen.getByTitle(/load.*slug.*url/i));
+
+  expect(loadBySlugOrUrl).toHaveBeenCalledWith('x');
+
+  await screen.findByText('X Palette');
+  expect(screen.getByText(/Someone Else/)).toBeInTheDocument();
+  fireEvent.click(screen.getByTitle(/use all.*as bases|load all/i));
+  expect(onLoad).toHaveBeenCalledWith(expect.objectContaining({ slug: 'x' }), 'all');
+});
+
+test('does not surface a loaded-palette card when loadBySlugOrUrl resolves null', async () => {
+  const loadBySlugOrUrl = vi.fn().mockResolvedValue(null);
+  wrap({ loadBySlugOrUrl });
+
+  const input = screen.getByPlaceholderText(/slug.*url/i);
+  fireEvent.change(input, { target: { value: 'not-a-real-slug' } });
+  await act(async () => {
+    fireEvent.click(screen.getByTitle(/load.*slug.*url/i));
+  });
+
+  expect(loadBySlugOrUrl).toHaveBeenCalledWith('not-a-real-slug');
+  expect(screen.queryByTitle(/use all.*as bases|load all/i)).not.toBeInTheDocument();
+});
+
+test('renders suggestion cards with an author and a Load action', () => {
+  const onLoad = vi.fn();
+  wrap({
+    suggestions: [{ slug: 'sugg', title: 'Suggested Palette', colors: ['#333333', '#444444'], numberOfColors: 2, author: 'Suggestor', url: 'https://lospec.com/palette-list/sugg' }],
+    onLoad,
+  });
+  expect(screen.getByText('Suggested Palette')).toBeInTheDocument();
+  expect(screen.getByText(/Suggestor/)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /view on lospec/i })).toHaveAttribute('href', 'https://lospec.com/palette-list/sugg');
+  fireEvent.click(screen.getByTitle(/use all.*as bases|load all/i));
+  expect(onLoad).toHaveBeenCalledWith(expect.objectContaining({ slug: 'sugg' }), 'all');
 });
