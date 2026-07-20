@@ -20,9 +20,42 @@ const LOSPEC_KEYED_BASE = 'https://api.lospec.com/api/v1';
 const lospecPaletteUrl = (slug: string) => `https://lospec.com/palette-list/${slug}`;
 const lospecKeylessSlugUrl = (slug: string) => `${lospecPaletteUrl(slug)}.json`;
 
+let userApiKeyOverride: string | null = null;
+
+export function setUserApiKeyOverrideCache(key: string | null): void {
+  userApiKeyOverride = key && key.length > 0 ? key : null;
+}
+
+// Test-only: clears the module-level cache between tests.
+export function __resetLospecUserApiKeyForTests(): void {
+  userApiKeyOverride = null;
+}
+
+const USER_API_KEY_STORAGE_KEY = 'lospec:userApiKey';
+
+export async function loadUserApiKeyOverride(): Promise<string | null> {
+  if (typeof window === 'undefined' || !window.storage) return null;
+  const got = await window.storage.get(USER_API_KEY_STORAGE_KEY);
+  const key = got?.value || null;
+  setUserApiKeyOverrideCache(key);
+  return key;
+}
+
+export async function saveUserApiKeyOverride(key: string | null): Promise<void> {
+  if (typeof window === 'undefined' || !window.storage) return;
+  const trimmed = key?.trim() || null;
+  if (trimmed) {
+    await window.storage.set(USER_API_KEY_STORAGE_KEY, trimmed);
+  } else {
+    await window.storage.delete(USER_API_KEY_STORAGE_KEY);
+  }
+  setUserApiKeyOverrideCache(trimmed);
+}
+
 // Read via this accessor only (never scattered import.meta.env reads) so
 // tests can stub it; vitest doesn't load .env, so tests stub process.env.
 export function getLospecApiKey(): string | null {
+  if (userApiKeyOverride) return userApiKeyOverride;
   const fromImportMeta = (import.meta as any).env?.VITE_LOSPEC_API_KEY;
   const fromProcessEnv = typeof process !== 'undefined' ? process.env.VITE_LOSPEC_API_KEY : undefined;
   const key = fromImportMeta || fromProcessEnv;

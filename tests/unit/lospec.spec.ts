@@ -15,6 +15,11 @@ import {
   suggestLospecPalettes,
   debounce,
   LospecNoKeyError,
+  getLospecApiKey,
+  setUserApiKeyOverrideCache,
+  loadUserApiKeyOverride,
+  saveUserApiKeyOverride,
+  __resetLospecUserApiKeyForTests,
 } from '../../src/lib/lospec';
 
 function makeMockStorage() {
@@ -435,6 +440,52 @@ describe('suggestLospecPalettes', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
     expect(await suggestLospecPalettes('   ')).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('user API key override', () => {
+  beforeEach(() => { __resetLospecUserApiKeyForTests(); (window as any).storage = makeMockStorage(); });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it('getLospecApiKey prefers the user override over the baked-in env key', () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'baked-in-key');
+    expect(getLospecApiKey()).toBe('baked-in-key');
+    setUserApiKeyOverrideCache('user-key-123');
+    expect(getLospecApiKey()).toBe('user-key-123');
+  });
+
+  it('falls back to the baked-in key when the override cache is cleared', () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'baked-in-key');
+    setUserApiKeyOverrideCache('user-key-123');
+    setUserApiKeyOverrideCache(null);
+    expect(getLospecApiKey()).toBe('baked-in-key');
+  });
+
+  it('loadUserApiKeyOverride reads from storage and populates the cache', async () => {
+    await (window as any).storage.set('lospec:userApiKey', 'stored-key');
+    const result = await loadUserApiKeyOverride();
+    expect(result).toBe('stored-key');
+    expect(getLospecApiKey()).toBe('stored-key');
+  });
+
+  it('loadUserApiKeyOverride returns null when nothing is stored', async () => {
+    const result = await loadUserApiKeyOverride();
+    expect(result).toBeNull();
+  });
+
+  it('saveUserApiKeyOverride persists a key and updates the cache immediately', async () => {
+    await saveUserApiKeyOverride('new-key-456');
+    expect(getLospecApiKey()).toBe('new-key-456');
+    const got = await (window as any).storage.get('lospec:userApiKey');
+    expect(got.value).toBe('new-key-456');
+  });
+
+  it('saveUserApiKeyOverride(null) clears storage and the cache', async () => {
+    await saveUserApiKeyOverride('new-key-456');
+    await saveUserApiKeyOverride(null);
+    expect(getLospecApiKey()).toBeNull();
+    const got = await (window as any).storage.get('lospec:userApiKey');
+    expect(got).toBeNull();
   });
 });
 
