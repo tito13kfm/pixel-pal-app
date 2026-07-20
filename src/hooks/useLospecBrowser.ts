@@ -138,7 +138,10 @@ export function useLospecBrowser(): UseLospecBrowserResult {
 
   const loadBySlugOrUrl = useCallback(async (input: string): Promise<LospecPalette | null> => {
     const slug = parseLospecSlug(input);
-    if (!slug) return null;
+    if (!slug) {
+      setError('Not a recognized Lospec slug or URL. Try a plain slug (e.g. "pear36") or a full lospec.com/palette-list/ URL.');
+      return null;
+    }
     cancelPending();
     const controller = new AbortController();
     abortRef.current = controller;

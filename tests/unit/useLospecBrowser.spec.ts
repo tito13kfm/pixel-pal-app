@@ -39,13 +39,15 @@ describe('useLospecBrowser', () => {
     expect(fetchMock.mock.calls[0][0]).toContain('pic');
   });
 
-  it('loadBySlugOrUrl rejects unparseable input without fetching', async () => {
+  it('loadBySlugOrUrl rejects unparseable input without fetching, and surfaces a friendly error', async () => {
     const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
     const { result } = renderHook(() => useLospecBrowser());
-    const out = await result.current.loadBySlugOrUrl('!!! not a slug');
+    let out;
+    await act(async () => { out = await result.current.loadBySlugOrUrl('!!! not a slug'); });
     expect(out).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.current.error).toMatch(/not a recognized/i);
   });
 
   it('loads a stored user API key override on mount and reflects it in hasApiKey', async () => {
