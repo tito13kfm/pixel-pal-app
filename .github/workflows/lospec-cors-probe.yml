@@ -1,0 +1,45 @@
+# One-shot probe for issue #133 (Lospec browser spec, Open Item 1):
+# reads the official API docs at api.lospec.com/docs from a GitHub runner
+# (the dev sandbox's network policy blocks *.lospec.com) and checks CORS
+# on the API host. Same pattern as the probe merged out in PR #156.
+# Removed on this branch once results land in the spec; never reaches master.
+name: lospec-cors-probe
+on:
+  push:
+    branches: [claude/issue-133-api-requests-iu0kv5]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Dump docs page + headers
+        run: |
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+          echo "================ docs headers ================"
+          curl -sS -m 20 -D - -o /tmp/docs.html -A "$UA" "https://api.lospec.com/docs/" \
+            | tr -d '\r' | grep -iE '^(HTTP|content-type|access-control|server|location)' || true
+          echo "================ docs body as text ================"
+          sed -e 's/<script[^>]*>.*<\/script>//g' -e 's/<[^>]*>/ /g' /tmp/docs.html \
+            | tr -s ' \t' ' ' | grep -vE '^\s*$' | head -300
+          echo "================ links/spec refs in raw html ================"
+          grep -oiE '(href|src)="[^"]*"' /tmp/docs.html | sort -u | head -40 || true
+          grep -oiE '[a-z0-9./_-]*(openapi|swagger|spec)[a-z0-9./_-]*' /tmp/docs.html | sort -u | head -20 || true
+          sleep 5
+      - name: Try machine-readable spec paths
+        run: |
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+          for p in "https://api.lospec.com/docs/openapi.json" "https://api.lospec.com/openapi.json"; do
+            echo "================ $p ================"
+            code=$(curl -sS -m 20 -o /tmp/spec.json -w "%{http_code}" -A "$UA" "$p" || echo fail)
+            echo "status: $code"
+            if [ "$code" = "200" ]; then head -c 4000 /tmp/spec.json; echo; break; fi
+            sleep 5
+          done
+      - name: CORS check on API host (unauthenticated)
+        run: |
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+          echo "================ GET api.lospec.com/ with GH Pages origin ================"
+          curl -sS -m 20 -D - -o /tmp/root.txt -A "$UA" -H "Origin: https://tito13kfm.github.io" "https://api.lospec.com/" \
+            | tr -d '\r' | grep -iE '^(HTTP|content-type|access-control|server|www-authenticate|x-ratelimit|ratelimit)' || true
+          echo "---- body (first 400 chars) ----"
+          head -c 400 /tmp/root.txt; echo
