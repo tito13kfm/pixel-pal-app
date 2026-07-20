@@ -15,6 +15,13 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
 > Entries for `0.2.0` through `0.12.0` were backfilled from git history; the
 > corresponding [GitHub Releases](https://github.com/tito13kfm/pixel-pal-app/releases)
 > carry the build artifacts but no written notes.
+>
+> `0.23.0` and `0.24.0` were version-bumped on master with the entries below,
+> but were never tagged or released: the sessions that shipped them could not
+> push tags, and the later retro-tag attempts failed (a GitHub App token
+> cannot push a tag at an old commit whose workflow files differ from current
+> master). Their changes first shipped in the `0.25.0` release. The tag
+> lineage jumps from `v0.22.0` to `v0.25.0`.
 
 ## [Unreleased]
 
@@ -216,9 +223,11 @@ and this project tries its best to adhere to [Semantic Versioning](https://semve
   release tags from a signal branch (`release-tag/vX.Y.Z[/sha]` for tag-only,
   `release-run/vX.Y.Z` for tag + build), and the Release workflow's publish
   gates now key on the ref being a tag rather than on the push event, so a
-  dispatch at a tag ref behaves exactly like a tag push. This also unblocked
-  the v0.23.0 and v0.24.0 tags, which had been version-bumped on master but
-  never tagged or released. Draft-Release manual publish gate unchanged.
+  dispatch at a tag ref behaves exactly like a tag push. Draft-Release manual
+  publish gate unchanged. (The retro-tag attempts for v0.23.0 and v0.24.0
+  made through this workflow failed, GitHub rejects an App-token tag push at
+  an old commit whose workflow files differ from master, so those two
+  versions remain untagged; see the versioning notes at the top.)
 
 ## [0.24.0] - 2026-07-13
 
