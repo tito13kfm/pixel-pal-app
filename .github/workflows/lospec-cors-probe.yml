@@ -1,8 +1,8 @@
-# One-shot probe for issue #133 (Lospec browser spec, Open Item 1):
-# reads the official API docs at api.lospec.com/docs from a GitHub runner
-# (the dev sandbox's network policy blocks *.lospec.com) and checks CORS
-# on the API host. Same pattern as the probe merged out in PR #156.
-# Removed on this branch once results land in the spec; never reaches master.
+# One-shot probe for issue #133 (Lospec browser spec, Open Item 1), run B:
+# run A found the docs are a Scalar UI over /docs/openapi.json (ACAO: * on
+# the api host). This run captures the full OpenAPI spec + checks the CORS
+# preflight for the Authorization header (Bearer key makes fetch non-simple).
+# 3 requests total. Removed on this branch once results land in the spec.
 name: lospec-cors-probe
 on:
   push:
@@ -12,34 +12,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - name: Dump docs page + headers
+      - name: Fetch full OpenAPI spec + summarize
         run: |
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-          echo "================ docs headers ================"
-          curl -sS -m 20 -D - -o /tmp/docs.html -A "$UA" "https://api.lospec.com/docs/" \
-            | tr -d '\r' | grep -iE '^(HTTP|content-type|access-control|server|location)' || true
-          echo "================ docs body as text ================"
-          sed -e 's/<script[^>]*>.*<\/script>//g' -e 's/<[^>]*>/ /g' /tmp/docs.html \
-            | tr -s ' \t' ' ' | grep -vE '^\s*$' | head -300
-          echo "================ links/spec refs in raw html ================"
-          grep -oiE '(href|src)="[^"]*"' /tmp/docs.html | sort -u | head -40 || true
-          grep -oiE '[a-z0-9./_-]*(openapi|swagger|spec)[a-z0-9./_-]*' /tmp/docs.html | sort -u | head -20 || true
+          curl -sS -m 30 -A "$UA" -o /tmp/openapi.json "https://api.lospec.com/docs/openapi.json"
+          echo "size: $(wc -c < /tmp/openapi.json) bytes"
+          echo "================ paths + methods ================"
+          jq -r '.paths | to_entries[] | .key as $p | .value | to_entries[] | "\(.key | ascii_upcase) \($p) :: \(.value.summary)"' /tmp/openapi.json
+          echo "================ full spec (paths detail, pretty) ================"
+          jq '.paths' /tmp/openapi.json
+          echo "================ full info + components ================"
+          jq '{info: .info, components: .components, servers: .servers}' /tmp/openapi.json
           sleep 5
-      - name: Try machine-readable spec paths
+      - name: OPTIONS preflight for Authorization header
         run: |
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-          for p in "https://api.lospec.com/docs/openapi.json" "https://api.lospec.com/openapi.json"; do
-            echo "================ $p ================"
-            code=$(curl -sS -m 20 -o /tmp/spec.json -w "%{http_code}" -A "$UA" "$p" || echo fail)
-            echo "status: $code"
-            if [ "$code" = "200" ]; then head -c 4000 /tmp/spec.json; echo; break; fi
-            sleep 5
-          done
-      - name: CORS check on API host (unauthenticated)
-        run: |
-          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-          echo "================ GET api.lospec.com/ with GH Pages origin ================"
-          curl -sS -m 20 -D - -o /tmp/root.txt -A "$UA" -H "Origin: https://tito13kfm.github.io" "https://api.lospec.com/" \
-            | tr -d '\r' | grep -iE '^(HTTP|content-type|access-control|server|www-authenticate|x-ratelimit|ratelimit)' || true
-          echo "---- body (first 400 chars) ----"
-          head -c 400 /tmp/root.txt; echo
+          echo "================ OPTIONS /api/v1/palettes (preflight) ================"
+          curl -sS -m 20 -X OPTIONS -D - -o /dev/null -A "$UA" \
+            -H "Origin: https://tito13kfm.github.io" \
+            -H "Access-Control-Request-Method: GET" \
+            -H "Access-Control-Request-Headers: authorization" \
+            "https://api.lospec.com/api/v1/palettes" \
+            | tr -d '\r' | grep -iE '^(HTTP|access-control|allow|server|vary)' || true
+          sleep 5
+          echo "================ GET /api/v1/palettes unauthenticated (error shape + CORS) ================"
+          curl -sS -m 20 -D - -o /tmp/unauth.json -A "$UA" \
+            -H "Origin: https://tito13kfm.github.io" \
+            "https://api.lospec.com/api/v1/palettes?limit=1" \
+            | tr -d '\r' | grep -iE '^(HTTP|access-control|content-type|x-ratelimit|www-authenticate)' || true
+          echo "---- body ----"
+          head -c 400 /tmp/unauth.json; echo
+      - name: Upload spec as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lospec-openapi
+          path: /tmp/openapi.json
