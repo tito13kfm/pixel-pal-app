@@ -172,32 +172,47 @@ async function evictOldPages(): Promise<void> {
 }
 
 export async function fetchLospecPalette(slug: string, signal?: AbortSignal): Promise<LospecPalette> {
-  const key = getLospecApiKey();
-  if (key) {
-    try {
-      const res = await throttledFetch(`${LOSPEC_KEYED_BASE}/palettes/${slug}?format=expanded`, {
-        headers: { Authorization: `Bearer ${key}` },
-        signal,
-      });
-      if (res.ok) return mapExpandedPalette(await res.json());
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') throw err;
-      // fall through to the keyless endpoint
+  const cacheKey = `palette:${slug}`;
+  const cached = await cacheGet<LospecPalette>(cacheKey);
+  if (cached && !cached.stale) return cached.data;
+  try {
+    const key = getLospecApiKey();
+    if (key) {
+      try {
+        const res = await throttledFetch(`${LOSPEC_KEYED_BASE}/palettes/${slug}?format=expanded`, {
+          headers: { Authorization: `Bearer ${key}` },
+          signal,
+        });
+        if (res.ok) {
+          const result = mapExpandedPalette(await res.json());
+          await cacheSet(cacheKey, result);
+          return result;
+        }
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') throw err;
+        // fall through to the keyless endpoint
+      }
     }
+    const res = await throttledFetch(lospecKeylessSlugUrl(slug), { signal });
+    if (!res.ok) {
+      throw new Error(res.status === 404 ? 'Palette not found on Lospec' : `Lospec request failed (${res.status})`);
+    }
+    const data = await res.json();
+    const result: LospecPalette = {
+      slug,
+      title: data.name,
+      colors: (data.colors || []).map(normalizeHex),
+      numberOfColors: (data.colors || []).length,
+      author: data.author ?? '',
+      url: lospecPaletteUrl(slug),
+    };
+    await cacheSet(cacheKey, result);
+    return result;
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') throw err;
+    if (cached) return cached.data;
+    throw err;
   }
-  const res = await throttledFetch(lospecKeylessSlugUrl(slug), { signal });
-  if (!res.ok) {
-    throw new Error(res.status === 404 ? 'Palette not found on Lospec' : `Lospec request failed (${res.status})`);
-  }
-  const data = await res.json();
-  return {
-    slug,
-    title: data.name,
-    colors: (data.colors || []).map(normalizeHex),
-    numberOfColors: (data.colors || []).length,
-    author: data.author ?? '',
-    url: lospecPaletteUrl(slug),
-  };
 }
 
 export interface LospecBrowseParams {

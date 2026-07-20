@@ -60,7 +60,8 @@ describe('parseLospecSlug', () => {
 
 describe('fetchLospecPalette', () => {
   const realFetch = global.fetch;
-  afterEach(() => { global.fetch = realFetch; vi.restoreAllMocks(); vi.unstubAllEnvs(); });
+  beforeEach(() => { __resetLospecThrottleForTests(); (window as any).storage = makeMockStorage(); });
+  afterEach(() => { global.fetch = realFetch; vi.restoreAllMocks(); vi.unstubAllEnvs(); delete (window as any).storage; });
 
   it('uses the keyless {slug}.json endpoint when no API key is configured', async () => {
     vi.stubEnv('VITE_LOSPEC_API_KEY', '');
@@ -135,6 +136,49 @@ describe('fetchLospecPalette', () => {
       author: 'Sam Keddy',
       url: 'https://lospec.com/palette-list/greyt-bit',
     });
+  });
+
+  it('caches a successful fetch and serves it on a second call without hitting the network again', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', '');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      json: async () => ({ name: 'Greyt-bit', author: 'Sam Keddy', colors: ['574368', 'ffffff'] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const first = await fetchLospecPalette('greyt-bit');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fetchMock.mockClear();
+    const second = await fetchLospecPalette('greyt-bit');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(second).toEqual(first);
+  });
+
+  it('serves stale cache on fetch failure instead of throwing', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', '');
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers(),
+      json: async () => ({ name: 'Greyt-bit', author: 'Sam Keddy', colors: ['574368', 'ffffff'] }),
+    });
+    const first = await fetchLospecPalette('greyt-bit');
+
+    // Force staleness by rewriting the cache entry's cachedAt directly.
+    const storage = (window as any).storage;
+    const raw = await storage.get('lospec:palette:greyt-bit');
+    const env = JSON.parse(raw.value);
+    env.cachedAt = 0;
+    await storage.set('lospec:palette:greyt-bit', JSON.stringify(env));
+
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers() });
+    const second = await fetchLospecPalette('greyt-bit');
+    expect(second).toEqual(first);
+  });
+
+  it('still throws when a fetch fails and there is no cache entry at all (no regression)', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', '');
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, headers: new Headers() }) as unknown as typeof fetch;
+    await expect(fetchLospecPalette('never-cached')).rejects.toThrow(/not found/i);
   });
 });
 
