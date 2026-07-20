@@ -190,9 +190,9 @@ Two call classes, different endpoints, different politeness budgets:
      for our purposes; do not use it. Keep all endpoint knowledge isolated
      inside one client module (`src/lib/lospec.ts`) so churn is a
      one-file fix.
-   - Before shipping, open a courtesy contact with Lospec (feedback board)
-     describing the integration and confirming the usage pattern is welcome
-     at the free tier. They have a track record of supporting exactly this.
+   - No pre-contact with Lospec is needed (see Open items): the keyed API is
+     the sanctioned path and this pattern sits far inside the free tier. The
+     integration is announced via CHANGELOG + README on release.
 
 ### Rate-limit + cache design
 
@@ -270,17 +270,22 @@ GitHub's 60 req/hr limit):
 - Uploading/submitting palettes to Lospec.
 - Offline-first catalog sync.
 
-## Open items (blockers to resolve before implementation)
+## Open items
 
-1. **Lospec courtesy contact**: confirm the usage pattern is welcome at the
-   free tier; may also open the door to a sanctioned catalog snapshot later.
-   Channels: the feedback board ("Suggest a Feature") or the site's Contact
-   Us page. Draft in the Appendix.
+**None. Research is complete (2026-07-20).** The feature is ready to
+spec/build once backlog item E's sequencing allows (or alongside it). At
+implementation time: wire the maintainer-held API key in as a build-time env
+var (e.g. `VITE_LOSPEC_API_KEY`), never committed.
 
-That is the ONLY remaining research item. All API research is complete; the
-feature is ready to spec/build once backlog item E's sequencing allows (or
-alongside it). At implementation time: wire the maintainer-held API key in as
-a build-time env var (e.g. `VITE_LOSPEC_API_KEY`), never committed.
+A courtesy pre-contact with Lospec was considered and deliberately dropped
+(decision 2026-07-20): the official developer API, its key registration, and
+published rate tiers ARE the sanctioned integration path, and this feature's
+usage sits far inside the free tier. Registering the key is the handshake;
+the rate-limit machinery enforces the rest. The integration gets announced
+the normal way instead: CHANGELOG entry + README section on release, with
+attribution and link-backs in the UI itself. (If a bundled offline catalog
+snapshot is ever wanted, THAT still requires asking Lospec first, see Out of
+scope.)
 
 ### Resolved 2026-07-20 (GitHub-runner probe of api.lospec.com, runs 3-4)
 
@@ -300,24 +305,3 @@ a build-time env var (e.g. `VITE_LOSPEC_API_KEY`), never committed.
   tier: 500 requests/hour, 1 key), see findings §2.
 - ~~Does an official browse/search endpoint exist?~~: **yes**, per the API
   program's own landing page; details live in the full docs (item 1).
-
-## Appendix: courtesy-contact draft (for Open Item 2)
-
-To post on Lospec's feedback board or Contact Us page, adjust freely:
-
-> Hi! I build PIXEL.PAL, a free/open-source pixel-art palette generator
-> (desktop + web: https://github.com/tito13kfm/pixel-pal-app). I'd like to
-> add an in-app "Browse Lospec" gallery so users can search your palette
-> catalog and load a palette (with author credit and a link back to its
-> lospec.com page) instead of hand-copying hex codes.
->
-> Plan: use your API with a registered key, fetch only on explicit user
-> actions (never per keystroke), cache results locally (~24 h), keep at
-> least 2 s between requests, and always show palette name + author +
-> link-back. No bulk mirroring of the catalog and no example artwork.
->
-> Two questions: (1) is the API's palette browse/search endpoint the right
-> way to do this, and is our usage pattern okay at the free key tier?
-> (2) Would you be open to a sanctioned catalog snapshot for offline use in
-> the future? Happy to adjust to whatever you prefer. Thanks for running
-> Lospec!
