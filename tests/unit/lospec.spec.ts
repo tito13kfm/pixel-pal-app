@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parseLospecSlug, fetchLospecPalette } from '../../src/lib/lospec';
+import { parseLospecSlug, fetchLospecPalette, throttledFetch, getLospecRateLimitRemaining, __resetLospecThrottleForTests } from '../../src/lib/lospec';
 
 describe('parseLospecSlug', () => {
   it('extracts a slug from a full lospec.com URL', () => {
@@ -94,5 +94,42 @@ describe('fetchLospecPalette', () => {
       author: 'Sam Keddy',
       url: 'https://lospec.com/palette-list/greyt-bit',
     });
+  });
+});
+
+describe('throttledFetch', () => {
+  beforeEach(() => { __resetLospecThrottleForTests(); vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+  it('waits at least 2s between two calls to different URLs', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers(), json: async () => ({}) });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const p1 = throttledFetch('https://api.lospec.com/api/v1/a');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const p2 = throttledFetch('https://api.lospec.com/api/v1/b');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // still waiting
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await Promise.all([p1, p2]);
+  });
+
+  it('single-flights identical concurrent URLs (one network call, both callers resolve)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers(), json: async () => ({}) });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const [r1, r2] = await Promise.all([
+      throttledFetch('https://api.lospec.com/api/v1/same'),
+      throttledFetch('https://api.lospec.com/api/v1/same'),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(r1).toBe(r2);
+  });
+
+  it('captures X-RateLimit-Remaining from response headers', async () => {
+    const headers = new Headers({ 'X-RateLimit-Remaining': '42' });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, headers, json: async () => ({}) }) as unknown as typeof fetch;
+    await throttledFetch('https://api.lospec.com/api/v1/c');
+    expect(getLospecRateLimitRemaining()).toBe(42);
   });
 });

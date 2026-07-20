@@ -55,9 +55,85 @@ function mapExpandedPalette(d: any): LospecPalette {
   };
 }
 
-// Temporary stub. Task 4 will replace with real throttle/cache wrapper.
-async function throttledFetch(url: string, init: RequestInit = {}) {
-  return fetch(url, init);
+const MIN_REQUEST_INTERVAL_MS = 2000;
+let lastRequestAt = 0;
+let rateLimitRemaining: number | null = null;
+const inFlightByUrl = new Map<string, Promise<Response>>();
+
+export function getLospecRateLimitRemaining(): number | null {
+  return rateLimitRemaining;
+}
+
+// Test-only: module state (lastRequestAt/inFlightByUrl/rateLimitRemaining)
+// persists across tests in the same file otherwise.
+export function __resetLospecThrottleForTests(): void {
+  lastRequestAt = 0;
+  rateLimitRemaining = null;
+  inFlightByUrl.clear();
+}
+
+export async function throttledFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const existing = inFlightByUrl.get(url);
+  if (existing) return existing;
+  const run = (async () => {
+    const wait = Math.max(0, lastRequestAt + MIN_REQUEST_INTERVAL_MS - Date.now());
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastRequestAt = Date.now();
+    const res = await fetch(url, init);
+    const remaining = res.headers.get('X-RateLimit-Remaining');
+    if (remaining !== null) rateLimitRemaining = Number(remaining);
+    return res;
+  })();
+  inFlightByUrl.set(url, run);
+  try {
+    return await run;
+  } finally {
+    inFlightByUrl.delete(url);
+  }
+}
+
+const CACHE_PREFIX = 'lospec:';
+const CATALOG_PAGE_TTL_MS = 24 * 60 * 60 * 1000;
+const PALETTE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_CACHED_PAGES = 20;
+
+interface CacheEnvelope<T> { cachedAt: number; data: T }
+
+async function cacheGet<T>(key: string): Promise<{ data: T; stale: boolean } | null> {
+  if (typeof window === 'undefined' || !window.storage) return null;
+  const got = await window.storage.get(CACHE_PREFIX + key);
+  if (!got || !got.value) return null;
+  try {
+    const env: CacheEnvelope<T> = JSON.parse(got.value);
+    const ttl = key.startsWith('page:') ? CATALOG_PAGE_TTL_MS : PALETTE_TTL_MS;
+    return { data: env.data, stale: Date.now() - env.cachedAt > ttl };
+  } catch {
+    return null;
+  }
+}
+
+async function cacheSet<T>(key: string, data: T): Promise<void> {
+  if (typeof window === 'undefined' || !window.storage) return;
+  await window.storage.set(CACHE_PREFIX + key, JSON.stringify({ cachedAt: Date.now(), data }));
+  if (key.startsWith('page:')) await evictOldPages();
+}
+
+async function evictOldPages(): Promise<void> {
+  const listed = await window.storage.list(CACHE_PREFIX + 'page:');
+  if (!listed || listed.keys.length <= MAX_CACHED_PAGES) return;
+  const withTimes: { key: string; cachedAt: number }[] = [];
+  for (const key of listed.keys) {
+    const got = await window.storage.get(key);
+    if (!got?.value) continue;
+    try {
+      withTimes.push({ key, cachedAt: JSON.parse(got.value).cachedAt || 0 });
+    } catch {
+      // malformed entry; leave it for now, don't fail eviction over it
+    }
+  }
+  withTimes.sort((a, b) => a.cachedAt - b.cachedAt);
+  const toDelete = withTimes.slice(0, withTimes.length - MAX_CACHED_PAGES);
+  for (const { key } of toDelete) await window.storage.delete(key);
 }
 
 export async function fetchLospecPalette(slug: string, signal?: AbortSignal): Promise<LospecPalette> {
