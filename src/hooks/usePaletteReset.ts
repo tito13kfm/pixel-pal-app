@@ -48,7 +48,7 @@ export function usePaletteReset(p: UsePaletteResetParams) {
     setCollapsedRamps, setLockedRamps,
     setHueShiftStrength, setEditingIndex,
     setLightnessCurvePerRamp, setSatCurvePerRamp,
-    setRampStyleOverrides, setRampStyleScalars,
+    setRampStyleOverrides, setRampStyleScalars, setLospecSource,
   } = usePaletteState();
 
   const resetConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,7 +61,8 @@ export function usePaletteReset(p: UsePaletteResetParams) {
   // CVD on purpose: those are session-level settings, not per-palette state.
   // paletteDefaultStyle is preserved for the same reason (the user's working
   // style survives New/Surprise Me); the two per-ramp #69 style maps are
-  // per-palette and cleared below.
+  // per-palette and cleared below. lospecSource (the Lospec browser's loaded palette
+  // metadata) is also per-palette and cleared below, intentionally not base-indexed.
   //
   // See ARCHITECTURE.md "Cross-cutting state-maintenance rules" rule 1.
   // If you add new base-keyed or per-palette state, add its setter here
@@ -90,6 +91,7 @@ export function usePaletteReset(p: UsePaletteResetParams) {
     // after this wipe, every other replace path starts clean.
     setRampStyleOverrides({});
     setRampStyleScalars({});
+    setLospecSource(null);
   };
 
   // resetToDefaults: user-visible "wipe my session and start fresh"
