@@ -18,8 +18,9 @@
 - No second import pipeline. Every "replace the working palette with a set of colors" action (classic, gpl, lospec) shares one core sequence (`applyImportedBases`); do not duplicate the tag/setBaseColors/setAiColorNames/reset/hardwareLock/shuffleSeed sequence a third time.
 - `lospecSource` defaults to `null` and is only ever set non-null by the Lospec load path; it is cleared by `resetPaletteState` (so every other full-palette-replace path clears it for free) and participates in undo/redo snapshots (`buildSnapshot`/`applySnapshotFields`) so undoing past a Lospec load restores `null` correctly. It is NOT base-indexed, so it does **not** need re-keying in `removeRamp`/`duplicateRamp`/`reorderRamps`.
 - API key: read via one accessor function (`getLospecApiKey()` in `lospec.ts`), never scattered `import.meta.env.VITE_LOSPEC_API_KEY` reads, so tests can stub it. Vitest does not load `.env`, so tests get the keyless path unless they stub the accessor.
-- Keyless degraded mode is a designed UX state, not an accident: without a key, "Load by slug/URL" and "Search by name" still work (both have public/keyless fallbacks); "Browse/filter the catalog" does not (`/api/v1/palettes` requires auth) and the panel must say so, not silently show empty results.
-- This repo's dev sandbox blocks outbound requests to `*.lospec.com`, local live-testing of the network paths is not possible here. Verification for the network paths is: (a) mocked-`fetch` unit tests (the real gate), (b) a one-time manual build+bundle-grep check that the API key reaches the client bundle (Task 11), (c) an eventual real check only possible on the deployed GH Pages site or a machine outside this sandbox. Do not claim a live end-to-end verification that wasn't actually run.
+- User-configurable key override (added mid-plan, Task 6): a user-supplied key, entered in the panel's settings field and persisted under the flat `lospec:userApiKey` storage key (not the `lospec:page:*`/palette cache keys, so it is excluded from the 20-page LRU eviction by construction), takes precedence over the baked-in `VITE_LOSPEC_API_KEY` whenever both `getLospecApiKey()`'s in-memory override cache is populated. Everything else in this plan that reads `getLospecApiKey()` (Tasks 3-5) is unaffected and needs no changes, the override is checked first inside that one function.
+- Keyless degraded mode is a designed UX state, not an accident: without a key (baked-in or user-supplied), "Load by slug/URL" and "Search by name" still work (both have public/keyless fallbacks); "Browse/filter the catalog" does not (`/api/v1/palettes` requires auth) and the panel must say so, not silently show empty results.
+- This repo's dev sandbox blocks outbound requests to `*.lospec.com`, local live-testing of the network paths is not possible here. Verification for the network paths is: (a) mocked-`fetch` unit tests (the real gate), (b) a one-time manual build+bundle-grep check that the API key reaches the client bundle (Task 12), (c) an eventual real check only possible on the deployed GH Pages site or a machine outside this sandbox. Do not claim a live end-to-end verification that wasn't actually run.
 
 ---
 
@@ -32,7 +33,7 @@
 - Modify `src/hooks/useSavedPalettesActions.ts`, extract `applyImportedBases` core; add `loadLospecPalette`; extend `SavedPaletteEntry` + save/load payload with `lospecSource`.
 - Modify `src/lib/panel-state.ts`, add `lospecOpen` key.
 - Create `src/hooks/useLospecBrowser.ts`, panel state bag + actions.
-- Create `src/components/panels/LospecBrowserPanel.tsx`, presentational panel (structure now; visual layout pending a mockup, see Task 9).
+- Create `src/components/panels/LospecBrowserPanel.tsx`, presentational panel (structure now; visual layout pending a mockup, see Task 10). Includes the user API key override settings field (Task 6's storage, wired through Task 9's hook).
 - Modify `src/App.tsx`, wire the hook, add the `SectionCard` entry.
 - Modify `.github/workflows/deploy-web.yml`, `.github/workflows/release.yml`, inject `VITE_LOSPEC_API_KEY` from a new `LOSPEC_API_KEY` repo secret.
 - Modify `CHANGELOG.md`, `README.md`, `docs/ARCHITECTURE.md`, document the feature, the env var, and the cache prefix.
@@ -809,7 +810,157 @@ git commit -m "feat: add Lospec browse/suggest endpoints + debounce helper (issu
 
 ---
 
-### Task 6: `applyImportedBases` core + `loadLospecPalette` + provenance persistence
+### Task 6: User-configurable API key override
+
+**Added scope (user decision, mid-plan):** the baked-in `VITE_LOSPEC_API_KEY` is a single app-wide key shared by every deployed instance (one 500 req/hr budget for the whole userbase). The user asked for an optional per-user override: a power user can paste their own free Lospec key into a settings field to get their own budget instead of sharing the baked-in one. Precedence: user-supplied key (if set) wins outright over the baked-in key; if unset, falls back to the existing baked-in/keyless behavior from Task 3. This does NOT change `getLospecApiKey()`'s synchronous signature or touch any of Task 3/4/5's call sites, it adds an in-memory cache checked first, populated from local storage asynchronously by whoever calls the mount-time loader (Task 9).
+
+**Files:**
+- Modify: `src/lib/lospec.ts`
+- Test: `tests/unit/lospec.spec.ts`
+
+**Interfaces:**
+- Produces:
+  - `setUserApiKeyOverrideCache(key: string | null): void` (sync, in-memory only)
+  - `loadUserApiKeyOverride(): Promise<string | null>` (reads `window.storage`, populates the cache, returns the value for callers that want to know if a user key is configured)
+  - `saveUserApiKeyOverride(key: string | null): Promise<void>` (persists to `window.storage`, or deletes the key when passed `null`/empty, and updates the cache)
+  - `getLospecApiKey()` (existing, from Task 3) now checks the in-memory override cache FIRST, before the baked-in env value.
+  - `__resetLospecUserApiKeyForTests(): void` (test-only, clears the module cache between tests)
+
+- [ ] **Step 1: Write the failing test**
+
+Add to `tests/unit/lospec.spec.ts`:
+
+```ts
+import {
+  getLospecApiKey, setUserApiKeyOverrideCache, loadUserApiKeyOverride,
+  saveUserApiKeyOverride, __resetLospecUserApiKeyForTests,
+} from '../../src/lib/lospec';
+
+function makeMockStorage() {
+  const store = new Map<string, string>();
+  return {
+    get: async (key: string) => (store.has(key) ? { value: store.get(key)! } : null),
+    set: async (key: string, value: string) => { store.set(key, value); return { ok: true }; },
+    delete: async (key: string) => { store.delete(key); return { ok: true }; },
+    list: async (prefix: string) => ({ keys: [...store.keys()].filter((k) => k.startsWith(prefix)) }),
+  };
+}
+
+describe('user API key override', () => {
+  beforeEach(() => { __resetLospecUserApiKeyForTests(); (window as any).storage = makeMockStorage(); });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it('getLospecApiKey prefers the user override over the baked-in env key', () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'baked-in-key');
+    expect(getLospecApiKey()).toBe('baked-in-key');
+    setUserApiKeyOverrideCache('user-key-123');
+    expect(getLospecApiKey()).toBe('user-key-123');
+  });
+
+  it('falls back to the baked-in key when the override cache is cleared', () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', 'baked-in-key');
+    setUserApiKeyOverrideCache('user-key-123');
+    setUserApiKeyOverrideCache(null);
+    expect(getLospecApiKey()).toBe('baked-in-key');
+  });
+
+  it('loadUserApiKeyOverride reads from storage and populates the cache', async () => {
+    await (window as any).storage.set('lospec:userApiKey', 'stored-key');
+    const result = await loadUserApiKeyOverride();
+    expect(result).toBe('stored-key');
+    expect(getLospecApiKey()).toBe('stored-key');
+  });
+
+  it('loadUserApiKeyOverride returns null when nothing is stored', async () => {
+    const result = await loadUserApiKeyOverride();
+    expect(result).toBeNull();
+  });
+
+  it('saveUserApiKeyOverride persists a key and updates the cache immediately', async () => {
+    await saveUserApiKeyOverride('new-key-456');
+    expect(getLospecApiKey()).toBe('new-key-456');
+    const got = await (window as any).storage.get('lospec:userApiKey');
+    expect(got.value).toBe('new-key-456');
+  });
+
+  it('saveUserApiKeyOverride(null) clears storage and the cache', async () => {
+    await saveUserApiKeyOverride('new-key-456');
+    await saveUserApiKeyOverride(null);
+    expect(getLospecApiKey()).toBeNull();
+    const got = await (window as any).storage.get('lospec:userApiKey');
+    expect(got).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npm test -- lospec.spec -t "user API key override"`
+Expected: FAIL, none of these exports exist yet.
+
+- [ ] **Step 3: Write minimal implementation**
+
+In `src/lib/lospec.ts`, replace the existing `getLospecApiKey` function with:
+
+```ts
+let userApiKeyOverride: string | null = null;
+
+export function setUserApiKeyOverrideCache(key: string | null): void {
+  userApiKeyOverride = key && key.length > 0 ? key : null;
+}
+
+// Test-only: clears the module-level cache between tests.
+export function __resetLospecUserApiKeyForTests(): void {
+  userApiKeyOverride = null;
+}
+
+const USER_API_KEY_STORAGE_KEY = 'lospec:userApiKey';
+
+export async function loadUserApiKeyOverride(): Promise<string | null> {
+  if (typeof window === 'undefined' || !window.storage) return null;
+  const got = await window.storage.get(USER_API_KEY_STORAGE_KEY);
+  const key = got?.value || null;
+  setUserApiKeyOverrideCache(key);
+  return key;
+}
+
+export async function saveUserApiKeyOverride(key: string | null): Promise<void> {
+  if (typeof window === 'undefined' || !window.storage) return;
+  const trimmed = key?.trim() || null;
+  if (trimmed) {
+    await window.storage.set(USER_API_KEY_STORAGE_KEY, trimmed);
+  } else {
+    await window.storage.delete(USER_API_KEY_STORAGE_KEY);
+  }
+  setUserApiKeyOverrideCache(trimmed);
+}
+
+export function getLospecApiKey(): string | null {
+  if (userApiKeyOverride) return userApiKeyOverride;
+  const fromImportMeta = (import.meta as any).env?.VITE_LOSPEC_API_KEY;
+  const fromProcessEnv = typeof process !== 'undefined' ? process.env.VITE_LOSPEC_API_KEY : undefined;
+  const key = fromImportMeta || fromProcessEnv;
+  return typeof key === 'string' && key.length > 0 ? key : null;
+}
+```
+
+(Keep the exact `fromImportMeta`/`fromProcessEnv` guard from Task 3's fix, only the `userApiKeyOverride` check is new, added as the first line of the function body.)
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npm test -- lospec.spec`
+Expected: PASS (full file, including every earlier test in this file, since `getLospecApiKey`'s existing behavior is unchanged when no override is set).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/lib/lospec.ts tests/unit/lospec.spec.ts
+git commit -m "feat: add user-configurable Lospec API key override (issue #133)"
+```
+
+---
+
+### Task 7: `applyImportedBases` core + `loadLospecPalette` + provenance persistence
 
 **Files:**
 - Modify: `src/hooks/useSavedPalettesActions.ts`
@@ -1124,7 +1275,7 @@ git commit -m "feat: add loadLospecPalette via a shared import core; persist pro
 
 ---
 
-### Task 7: `lospecOpen` panel state
+### Task 8: `lospecOpen` panel state
 
 **Files:**
 - Modify: `src/lib/panel-state.ts`
@@ -1188,19 +1339,23 @@ git commit -m "feat: add lospecOpen panel state key (issue #133)"
 
 ---
 
-### Task 8: `useLospecBrowser` hook
+### Task 9: `useLospecBrowser` hook
 
 **Files:**
 - Create: `src/hooks/useLospecBrowser.ts`
 - Test: `tests/unit/useLospecBrowser.spec.ts`
 
 **Interfaces:**
-- Consumes: `browseLospecPalettes`, `suggestLospecPalettes`, `fetchLospecPalette`, `parseLospecSlug`, `getLospecApiKey`, `LospecNoKeyError`, `debounce`, `LospecPalette`, `LospecBrowseParams` (Tasks 3-5).
+- Consumes: `browseLospecPalettes`, `suggestLospecPalettes`, `fetchLospecPalette`, `parseLospecSlug`, `getLospecApiKey`, `loadUserApiKeyOverride`, `saveUserApiKeyOverride`, `LospecNoKeyError`, `debounce`, `LospecPalette`, `LospecBrowseParams` (Tasks 3-6).
 - Produces:
 
 ```ts
 export interface UseLospecBrowserResult {
   hasApiKey: boolean;
+  userApiKeyInput: string; setUserApiKeyInput: (v: string) => void;
+  savedUserApiKey: string | null;
+  saveUserApiKey: () => Promise<void>;
+  clearUserApiKey: () => Promise<void>;
   query: string; setQuery: (v: string) => void;
   tag: string; setTag: (v: string) => void;
   minColors: number | null; setMinColors: (v: number | null) => void;
@@ -1222,6 +1377,8 @@ export interface UseLospecBrowserResult {
 }
 export function useLospecBrowser(): UseLospecBrowserResult;
 ```
+
+`hasApiKey` starts from the synchronous baked-in check and is re-derived after a mount-time effect resolves any stored user override (Task 6's `loadUserApiKeyOverride`), since that read is async (`window.storage`) while the baked-in env check is not. This is a local storage read only, not a Lospec network call, so it does not violate the "nothing fires on mount" constraint (that constraint is about outbound requests to lospec.com/api.lospec.com).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1273,6 +1430,58 @@ describe('useLospecBrowser', () => {
     expect(out).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('loads a stored user API key override on mount and reflects it in hasApiKey', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', '');
+    const store = new Map<string, string>();
+    (window as any).storage = {
+      get: async (key: string) => (store.has(key) ? { value: store.get(key)! } : null),
+      set: async (key: string, value: string) => { store.set(key, value); return { ok: true }; },
+      delete: async (key: string) => { store.delete(key); return { ok: true }; },
+      list: async (prefix: string) => ({ keys: [...store.keys()].filter((k) => k.startsWith(prefix)) }),
+    };
+    store.set('lospec:userApiKey', 'stored-user-key');
+    const { result } = renderHook(() => useLospecBrowser());
+    await waitFor(() => expect(result.current.hasApiKey).toBe(true));
+    expect(result.current.savedUserApiKey).toBe('stored-user-key');
+  });
+
+  it('saveUserApiKey persists the input and updates hasApiKey/savedUserApiKey', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', '');
+    const store = new Map<string, string>();
+    (window as any).storage = {
+      get: async (key: string) => (store.has(key) ? { value: store.get(key)! } : null),
+      set: async (key: string, value: string) => { store.set(key, value); return { ok: true }; },
+      delete: async (key: string) => { store.delete(key); return { ok: true }; },
+      list: async (prefix: string) => ({ keys: [...store.keys()].filter((k) => k.startsWith(prefix)) }),
+    };
+    const { result } = renderHook(() => useLospecBrowser());
+    await waitFor(() => expect(result.current.hasApiKey).toBe(false));
+    act(() => { result.current.setUserApiKeyInput('new-user-key'); });
+    await act(async () => { await result.current.saveUserApiKey(); });
+    expect(result.current.hasApiKey).toBe(true);
+    expect(result.current.savedUserApiKey).toBe('new-user-key');
+    expect(store.get('lospec:userApiKey')).toBe('new-user-key');
+  });
+
+  it('clearUserApiKey removes the override and clears the input', async () => {
+    vi.stubEnv('VITE_LOSPEC_API_KEY', '');
+    const store = new Map<string, string>();
+    (window as any).storage = {
+      get: async (key: string) => (store.has(key) ? { value: store.get(key)! } : null),
+      set: async (key: string, value: string) => { store.set(key, value); return { ok: true }; },
+      delete: async (key: string) => { store.delete(key); return { ok: true }; },
+      list: async (prefix: string) => ({ keys: [...store.keys()].filter((k) => k.startsWith(prefix)) }),
+    };
+    const { result } = renderHook(() => useLospecBrowser());
+    act(() => { result.current.setUserApiKeyInput('temp-key'); });
+    await act(async () => { await result.current.saveUserApiKey(); });
+    await act(async () => { await result.current.clearUserApiKey(); });
+    expect(result.current.hasApiKey).toBe(false);
+    expect(result.current.savedUserApiKey).toBeNull();
+    expect(result.current.userApiKeyInput).toBe('');
+    expect(store.has('lospec:userApiKey')).toBe(false);
+  });
 });
 ```
 
@@ -1286,15 +1495,46 @@ Expected: FAIL, module does not exist.
 Create `src/hooks/useLospecBrowser.ts`:
 
 ```ts
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   browseLospecPalettes, suggestLospecPalettes, fetchLospecPalette,
   parseLospecSlug, getLospecApiKey, debounce, LospecNoKeyError,
+  loadUserApiKeyOverride, saveUserApiKeyOverride,
 } from '../lib/lospec';
 import type { LospecPalette, LospecBrowseParams } from '../lib/lospec';
 
 export function useLospecBrowser() {
-  const hasApiKey = getLospecApiKey() !== null;
+  const [hasApiKey, setHasApiKey] = useState(() => getLospecApiKey() !== null);
+  const [userApiKeyInput, setUserApiKeyInput] = useState('');
+  const [savedUserApiKey, setSavedUserApiKey] = useState<string | null>(null);
+
+  // Local-storage read only (not a Lospec network call) - doesn't violate
+  // the "nothing fires on mount" constraint, which is about outbound
+  // requests to lospec.com/api.lospec.com.
+  useEffect(() => {
+    let cancelled = false;
+    loadUserApiKeyOverride().then((stored) => {
+      if (cancelled) return;
+      setSavedUserApiKey(stored);
+      setHasApiKey(getLospecApiKey() !== null);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveUserApiKey = useCallback(async () => {
+    const trimmed = userApiKeyInput.trim() || null;
+    await saveUserApiKeyOverride(trimmed);
+    setSavedUserApiKey(trimmed);
+    setHasApiKey(getLospecApiKey() !== null);
+  }, [userApiKeyInput]);
+
+  const clearUserApiKey = useCallback(async () => {
+    await saveUserApiKeyOverride(null);
+    setSavedUserApiKey(null);
+    setUserApiKeyInput('');
+    setHasApiKey(getLospecApiKey() !== null);
+  }, []);
+
   const [query, setQuery] = useState('');
   const [tag, setTag] = useState('');
   const [minColors, setMinColors] = useState<number | null>(null);
@@ -1385,7 +1625,8 @@ export function useLospecBrowser() {
   }, [cancelPending]);
 
   return {
-    hasApiKey, query, setQuery, tag, setTag, minColors, setMinColors,
+    hasApiKey, userApiKeyInput, setUserApiKeyInput, savedUserApiKey, saveUserApiKey, clearUserApiKey,
+    query, setQuery, tag, setTag, minColors, setMinColors,
     maxColors, setMaxColors, sort, setSort, page, results, suggestions, total,
     loading, error, rateLimitLow, runBrowse, nextPage, prevPage, runSuggest,
     loadBySlugOrUrl, cancelPending,
@@ -1409,7 +1650,7 @@ git commit -m "feat: add useLospecBrowser hook (issue #133)"
 
 ---
 
-### Task 9: `LospecBrowserPanel` component, structure now, visual mockup before final styling
+### Task 10: `LospecBrowserPanel` component, structure now, visual mockup before final styling
 
 **This task has a hard prerequisite the plan cannot resolve on paper:** the design spec settled the API/cache/data model but explicitly left the panel's visual layout open. Per standing project convention, visual/layout decisions go through a mockup with the user (Visual Companion) before final JSX is written, do not silently invent a card grid, list, or filter-bar layout. **Before writing this task's JSX:** produce a browser-based mockup of the panel (search bar, tag/color-count/sort filters, result cards showing swatch strip + name + author + license link, pagination, a keyless-degraded banner when `hasApiKey` is false, and the "Palette data from Lospec" footer note), get the user's sign-off on the layout, THEN implement to match. The steps below cover props/structure/behavior, which do not depend on the visual outcome, write and pass these regardless of which layout the mockup lands on.
 
@@ -1418,7 +1659,7 @@ git commit -m "feat: add useLospecBrowser hook (issue #133)"
 - Test: `tests/unit/LospecBrowserPanel.spec.tsx`
 
 **Interfaces:**
-- Consumes: `UseLospecBrowserResult` shape (Task 8) minus `cancelPending` (App.tsx owns calling that on unmount/close, see Task 10), plus `onLoad: (palette: LospecPalette, mode: 'all' | 'subset') => void`.
+- Consumes: `UseLospecBrowserResult` shape (Task 9) minus `cancelPending` (App.tsx owns calling that on unmount/close, see Task 11), plus `onLoad: (palette: LospecPalette, mode: 'all' | 'subset') => void`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1433,6 +1674,10 @@ const theme = { /* same minimal shape as SavedPalettesPanel.spec.tsx's `theme` c
 
 const base = {
   hasApiKey: true,
+  userApiKeyInput: '', setUserApiKeyInput: () => {},
+  savedUserApiKey: null as string | null,
+  saveUserApiKey: async () => {},
+  clearUserApiKey: async () => {},
   query: '', setQuery: () => {},
   tag: '', setTag: () => {},
   minColors: null, setMinColors: () => {},
@@ -1483,6 +1728,25 @@ test('shows the "Palette data from Lospec" attribution footer', () => {
   wrap();
   expect(screen.getByText(/Palette data from Lospec/)).toBeInTheDocument();
 });
+
+test('renders an API key input wired to userApiKeyInput, and calling save invokes saveUserApiKey', () => {
+  const setUserApiKeyInput = vi.fn();
+  const saveUserApiKey = vi.fn();
+  wrap({ userApiKeyInput: 'draft-key', setUserApiKeyInput, saveUserApiKey });
+  const input = screen.getByLabelText(/lospec api key/i) as HTMLInputElement;
+  expect(input.value).toBe('draft-key');
+  fireEvent.change(input, { target: { value: 'new-value' } });
+  expect(setUserApiKeyInput).toHaveBeenCalledWith('new-value');
+  fireEvent.click(screen.getByTitle(/save.*api key/i));
+  expect(saveUserApiKey).toHaveBeenCalled();
+});
+
+test('shows a Clear action only when a user key is already saved', () => {
+  const { rerender } = wrap({ savedUserApiKey: null });
+  expect(screen.queryByTitle(/clear.*api key/i)).not.toBeInTheDocument();
+  rerender(<ThemeProvider value={theme as any}><LospecBrowserPanel {...base} savedUserApiKey="saved-key" clearUserApiKey={() => {}} /></ThemeProvider>);
+  expect(screen.getByTitle(/clear.*api key/i)).toBeInTheDocument();
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1492,7 +1756,7 @@ Expected: FAIL, module does not exist.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Create `src/components/panels/LospecBrowserPanel.tsx` with a props interface matching `base` above 1:1, and JSX that satisfies the four tests (structure only, the earlier mockup step governs exact visual styling, which is not what the tests check). At minimum: a search input wired to `runSuggest`/`query`, tag/min/max/sort controls wired to their setters + a "Browse" button calling `runBrowse`, a conditional banner when `!hasApiKey`, a conditional error block, a result list mapping `results` to cards (swatch strip from `colors`, `title`, `author`, a link to `url`, "Use all as bases" and "Auto-pick representatives" buttons calling `onLoad(palette, 'all' | 'subset')`), pagination buttons calling `prevPage`/`nextPage` (disabled appropriately from `page`/`total`), and a footer note containing the literal text "Palette data from Lospec".
+Create `src/components/panels/LospecBrowserPanel.tsx` with a props interface matching `base` above 1:1, and JSX that satisfies the six tests (structure only, the earlier mockup step governs exact visual styling, which is not what the tests check). At minimum: an API key settings row (a labeled input, `<label htmlFor="lospec-api-key-input">Lospec API Key</label>` paired with `<input id="lospec-api-key-input" value={userApiKeyInput} onChange={(e) => setUserApiKeyInput(e.target.value)} />` so `getByLabelText(/lospec api key/i)` resolves, a "Save" button `title="Save your Lospec API key"` calling `saveUserApiKey`, and a "Clear" button `title="Clear your saved Lospec API key"` calling `clearUserApiKey`, rendered ONLY when `savedUserApiKey` is non-null, with a one-line note that the key is optional and stored locally only), a search input wired to `runSuggest`/`query`, tag/min/max/sort controls wired to their setters + a "Browse" button calling `runBrowse`, a conditional banner when `!hasApiKey`, a conditional error block, a result list mapping `results` to cards (swatch strip from `colors`, `title`, `author`, a link to `url`, "Use all as bases" and "Auto-pick representatives" buttons calling `onLoad(palette, 'all' | 'subset')`), pagination buttons calling `prevPage`/`nextPage` (disabled appropriately from `page`/`total`), and a footer note containing the literal text "Palette data from Lospec".
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1508,14 +1772,14 @@ git commit -m "feat: add LospecBrowserPanel component (issue #133)"
 
 ---
 
-### Task 10: Wire into `App.tsx`
+### Task 11: Wire into `App.tsx`
 
 **Files:**
 - Modify: `src/App.tsx`
 - Test: `npm test` (full suite, confirm `app-mount-smoke.spec.tsx` still passes; it has no section-count assertions today per inspection, so this should be a clean add)
 
 **Interfaces:**
-- Consumes: `useLospecBrowser()` (Task 8), `LospecBrowserPanel` (Task 9), `loadLospecPalette` from `useSavedPalettesActions` (Task 6), `lospecOpen`/`setLospecOpen` from `usePanelLayout` (Task 7's key flows through the same panel-layout hook that already reads `PANEL_DEFAULTS`/`loadPanelState`).
+- Consumes: `useLospecBrowser()` (Task 9), `LospecBrowserPanel` (Task 10), `loadLospecPalette` from `useSavedPalettesActions` (Task 7), `lospecOpen`/`setLospecOpen` from `usePanelLayout` (Task 8's key flows through the same panel-layout hook that already reads `PANEL_DEFAULTS`/`loadPanelState`).
 
 - [ ] **Step 1:** Confirm `usePanelLayout.ts` destructures `PanelState` keys generically (spread from `PANEL_DEFAULTS`/`loadPanelState`) rather than naming each key by hand; if it names them by hand, add `lospecOpen`/`setLospecOpen` there following the exact pattern used for `savedOpen`/`setSavedOpen`.
 
@@ -1559,7 +1823,7 @@ Run: `npm test`
 Expected: PASS, including `app-mount-smoke.spec.tsx` unchanged.
 
 Run: `npm run build`
-Expected: PASS (`tsc --noEmit` + vite build), this is the real type-check gate for everything touched in Tasks 1-10 outside `App.tsx` (which is `@ts-nocheck`; grep is `App.tsx`'s gate, not `tsc`). Grep for the new symbols to confirm no dangling refs: `grep -n "lospecBrowser\|LospecBrowserPanel\|loadLospecPalette\|lospecOpen" src/App.tsx`.
+Expected: PASS (`tsc --noEmit` + vite build), this is the real type-check gate for everything touched in Tasks 1-11 outside `App.tsx` (which is `@ts-nocheck`; grep is `App.tsx`'s gate, not `tsc`). Grep for the new symbols to confirm no dangling refs: `grep -n "lospecBrowser\|LospecBrowserPanel\|loadLospecPalette\|lospecOpen" src/App.tsx`.
 
 - [ ] **Step 7: Commit**
 
@@ -1570,7 +1834,7 @@ git commit -m "feat: wire the Lospec Browser panel into App.tsx (issue #133)"
 
 ---
 
-### Task 11: Verify the API key actually reaches the built client bundle
+### Task 12: Verify the API key actually reaches the built client bundle
 
 This is a verification task, not a code-authoring one, do not assume Vite's `VITE_`-prefix client-env forwarding "just works" in this repo's specific `vite.config.ts` (which defines `import.meta.env.VITE_WEB` manually via `define`, a different mechanism from the built-in `.env` loading). Confirm it directly.
 
@@ -1595,7 +1859,7 @@ $key = (Get-Content .env | Select-String "VITE_LOSPEC_API_KEY=(.+)").Matches.Gro
 Select-String -Path dist/assets/*.js -Pattern ([regex]::Escape($key)) -Quiet
 ```
 
-Expected: `True`. If `False`, STOP, the env var is not reaching the client bundle, and Task 12's CI wiring would ship a silently keyless build. Investigate `vite.config.ts` before proceeding (likely needs an explicit `envPrefix`/`loadEnv` call, since the config never calls Vite's `loadEnv` helper today).
+Expected: `True`. If `False`, STOP, the env var is not reaching the client bundle, and Task 13's CI wiring would ship a silently keyless build. Investigate `vite.config.ts` before proceeding (likely needs an explicit `envPrefix`/`loadEnv` call, since the config never calls Vite's `loadEnv` helper today).
 
 - [ ] **Step 4:** Clean up the debug build (it is not meant to ship):
 
@@ -1603,11 +1867,11 @@ Expected: `True`. If `False`, STOP, the env var is not reaching the client bundl
 Remove-Item -Recurse -Force dist
 ```
 
-- [ ] **Step 5:** No commit for this task (no files change), report the verification result (pass/fail) to the user before proceeding to Task 12.
+- [ ] **Step 5:** No commit for this task (no files change), report the verification result (pass/fail) to the user before proceeding to Task 13.
 
 ---
 
-### Task 12: CI/CD, inject the API key at build time
+### Task 13: CI/CD, inject the API key at build time
 
 **Files:**
 - Modify: `.github/workflows/deploy-web.yml`
@@ -1645,7 +1909,7 @@ git commit -m "ci: inject VITE_LOSPEC_API_KEY into web/desktop release builds (i
 
 ---
 
-### Task 13: Docs
+### Task 14: Docs
 
 **Files:**
 - Modify: `CHANGELOG.md`
@@ -1659,12 +1923,14 @@ git commit -m "ci: inject VITE_LOSPEC_API_KEY into web/desktop release builds (i
   count, and name, then load a result straight into a new set of ramps
   (issue #133). Requires a build-time `VITE_LOSPEC_API_KEY`; without one, the
   browse/filter view is unavailable but loading by slug/URL and searching by
-  name still work via Lospec's public endpoints.
+  name still work via Lospec's public endpoints. Users can also enter their
+  own free Lospec API key in the panel's settings field to get their own
+  rate-limit budget instead of sharing the app's built-in one.
 ```
 
-- [ ] **Step 2:** Add a bullet under README's `## Features` section describing the Lospec browser, and a new `## Environment Variables` section (placed after `## Getting Started`) documenting `VITE_LOSPEC_API_KEY`: what it's for, that it's optional (keyless degrades gracefully), and that it's not a secret in the traditional sense once shipped (identifies the app to Lospec's rate limiter, per the design spec's licensing/key-handling section), but is still supplied via a `.env` file locally and a GitHub Actions secret in CI, never committed.
+- [ ] **Step 2:** Add a bullet under README's `## Features` section describing the Lospec browser (mention both the built-in key and the optional per-user override), and a new `## Environment Variables` section (placed after `## Getting Started`) documenting `VITE_LOSPEC_API_KEY`: what it's for, that it's optional (keyless degrades gracefully), and that it's not a secret in the traditional sense once shipped (identifies the app to Lospec's rate limiter, per the design spec's licensing/key-handling section), but is still supplied via a `.env` file locally and a GitHub Actions secret in CI, never committed. Note alongside it that any user can independently paste their own key into the panel's settings field, no build/env change required for that path, it's stored locally via `window.storage` (`lospec:userApiKey`) and takes precedence over the built-in key.
 
-- [ ] **Step 3:** Update `docs/ARCHITECTURE.md`'s `## Persistence & storage` section (~line 341) to document the `lospec:` cache prefix: TTLs (24h catalog pages, 7d single palette), the 20-page LRU cap, and that it's deliberately excluded from `SAVED_PALETTE_LIMIT` and the Saved Palettes list. Also update the `## Cross-cutting state-maintenance rules` section's rule 1 (~line 225-238) to add `lospecSource` to the list of per-palette state `resetPaletteState` clears, noting (per Task 1/2) that unlike `harmonyAnchor` it is NOT base-indexed and does not participate in rule 3's re-keying.
+- [ ] **Step 3:** Update `docs/ARCHITECTURE.md`'s `## Persistence & storage` section (~line 341) to document the `lospec:` cache prefix: TTLs (24h catalog pages, 7d single palette), the 20-page LRU cap, and that it's deliberately excluded from `SAVED_PALETTE_LIMIT` and the Saved Palettes list. Also document `lospec:userApiKey` as a separate flat (non-TTL, non-evicted) key under the same prefix holding the optional user-supplied API key override, and that `getLospecApiKey()` checks it first before the baked-in env value. Also update the `## Cross-cutting state-maintenance rules` section's rule 1 (~line 225-238) to add `lospecSource` to the list of per-palette state `resetPaletteState` clears, noting (per Task 1/2) that unlike `harmonyAnchor` it is NOT base-indexed and does not participate in rule 3's re-keying.
 
 - [ ] **Step 4:** Commit
 
@@ -1677,8 +1943,8 @@ git commit -m "docs: document the Lospec browser feature and VITE_LOSPEC_API_KEY
 
 ## Self-Review Notes
 
-- **Spec coverage:** browse/search (Tasks 5, 8, 9), load-by-slug/URL (Tasks 3, 8, 9), attribution + license link (Task 9's test + mockup requirement), provenance-on-save (Task 6), rate-limit/cache/throttle (Task 4), user-initiated-only (Task 8's `runBrowse`/`runSuggest`/`loadBySlugOrUrl` are all explicit calls, nothing fires on mount, verified by Task 8 Step 1's test), CORS/runtime constraints (no code needed, spec already verified plain `fetch()` works on both runtimes), env var wiring (Tasks 11-12), docs (Task 13). No spec requirement found without a task.
-- **No second import pipeline:** verified, `loadLospecPalette` shares `applyImportedBases` with `loadClassicPalette`/`applyGplImport` (Task 6).
+- **Spec coverage:** browse/search (Tasks 5, 9, 10), load-by-slug/URL (Tasks 3, 9, 10), attribution + license link (Task 10's test + mockup requirement), provenance-on-save (Task 7), rate-limit/cache/throttle (Task 4), user-initiated-only (Task 9's `runBrowse`/`runSuggest`/`loadBySlugOrUrl` are all explicit calls, nothing fires on mount, verified by Task 9 Step 1's test), CORS/runtime constraints (no code needed, spec already verified plain `fetch()` works on both runtimes), env var wiring (Tasks 12-13), docs (Task 14), user-configurable key override (Task 6, added mid-plan per user request). No spec requirement found without a task.
+- **No second import pipeline:** verified, `loadLospecPalette` shares `applyImportedBases` with `loadClassicPalette`/`applyGplImport` (Task 7).
 - **Placeholder scan:** no TBD/"add validation"/"similar to Task N" phrasing; every step shows real code or an exact command.
-- **Type consistency check:** `LospecPalette` (Task 3) is the single shape threaded through Tasks 5, 6, 8, 9 unchanged. `LospecSource` (Task 1) is the single provenance shape threaded through Tasks 1, 2, 6. `loadLospecPalette(palette: LospecPalette, mode: 'all' | 'subset')` signature matches its Task 6 definition, Task 9's test expectation (`onLoad` called with `(paletteObj, 'all')`), and Task 10's App.tsx wiring call.
-- **What this plan deliberately defers:** Task 9's final visual styling (needs a user-approved mockup first); adding the `LOSPEC_API_KEY` GitHub secret (user action, flagged in Task 12); any live network verification against real lospec.com/api.lospec.com (sandbox-blocked, flagged in Global Constraints and Task 11).
+- **Type consistency check:** `LospecPalette` (Task 3) is the single shape threaded through Tasks 5, 7, 9, 10 unchanged. `LospecSource` (Task 1) is the single provenance shape threaded through Tasks 1, 2, 7. `loadLospecPalette(palette: LospecPalette, mode: 'all' | 'subset')` signature matches its Task 7 definition, Task 10's test expectation (`onLoad` called with `(paletteObj, 'all')`), and Task 11's App.tsx wiring call. `getLospecApiKey()`'s signature (Task 3, still `(): string | null`) is unchanged by Task 6's override, only its internal precedence check gains a new first branch.
+- **What this plan deliberately defers:** Task 10's final visual styling (needs a user-approved mockup first); adding the `LOSPEC_API_KEY` GitHub secret (user action, flagged in Task 13); any live network verification against real lospec.com/api.lospec.com (sandbox-blocked, flagged in Global Constraints and Task 12).
