@@ -23,7 +23,9 @@ const lospecKeylessSlugUrl = (slug: string) => `${lospecPaletteUrl(slug)}.json`;
 // Read via this accessor only (never scattered import.meta.env reads) so
 // tests can stub it; vitest doesn't load .env, so tests stub process.env.
 export function getLospecApiKey(): string | null {
-  const key = (import.meta as any).env?.VITE_LOSPEC_API_KEY || process.env.VITE_LOSPEC_API_KEY;
+  const fromImportMeta = (import.meta as any).env?.VITE_LOSPEC_API_KEY;
+  const fromProcessEnv = typeof process !== 'undefined' ? process.env.VITE_LOSPEC_API_KEY : undefined;
+  const key = fromImportMeta || fromProcessEnv;
   return typeof key === 'string' && key.length > 0 ? key : null;
 }
 
