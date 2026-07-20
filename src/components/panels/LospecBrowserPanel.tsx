@@ -75,6 +75,7 @@ export function LospecBrowserPanel({
             onClick={() => saveUserApiKey()}
             title="Save your Lospec API key"
             className="px-3 py-2 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 transition-all text-xs uppercase tracking-wider"
+            style={{ boxShadow: '0 0 10px #ffff00' }}
           >
             Save
           </button>
@@ -94,7 +95,7 @@ export function LospecBrowserPanel({
       </div>
 
       {!hasApiKey && (
-        <div className="text-xs rounded p-2 border-2 bg-purple-900/60 text-yellow-100 border-yellow-700/50">
+        <div className={`text-xs rounded p-2 border-2 ${t.alertWarnBg} ${t.alertWarnText} ${t.alertWarnBorder}`}>
           Browsing the Lospec catalog requires an API key. You can still search by name below.
         </div>
       )}
@@ -106,7 +107,7 @@ export function LospecBrowserPanel({
       )}
 
       {rateLimitLow && (
-        <div className="text-xs rounded p-2 border-2 bg-yellow-900/40 text-yellow-200 border-yellow-600/50">
+        <div className={`text-xs rounded p-2 border-2 ${t.alertWarnBg} ${t.alertWarnText} ${t.alertWarnBorder}`}>
           Lospec API rate limit is running low.
         </div>
       )}
@@ -165,7 +166,8 @@ export function LospecBrowserPanel({
             onClick={runBrowse}
             disabled={loading}
             title="Browse the Lospec catalog with the current filters"
-            className="px-4 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all text-xs uppercase tracking-wider disabled:opacity-50"
+            className="px-4 py-1.5 rounded font-bold bg-orange-400 text-purple-900 border-2 border-orange-100 hover:bg-orange-300 transition-all text-xs uppercase tracking-wider disabled:opacity-50"
+            style={{ boxShadow: '0 0 10px #ff6b35' }}
           >
             {loading ? 'Loading...' : 'Browse'}
           </button>
@@ -178,39 +180,47 @@ export function LospecBrowserPanel({
           No results yet. Browse or search above.
         </div>
       ) : (
-        <div className="grid gap-2">
-          {results.map((p) => (
-            <div key={p.slug} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-black/60 rounded border-2 border-cyan-700/40 p-2">
-              <div className="flex h-10 sm:h-12 rounded overflow-hidden border flex-shrink-0 sm:w-32" style={{ minWidth: '8rem', borderColor: t.vizDataBorder }}>
-                {p.colors.map((hex, i) => (
-                  <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />
-                ))}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-cyan-100 font-bold text-sm truncate">{p.title}</div>
-                <div className="text-cyan-100/60 text-[10px]">
-                  by {p.author || 'unknown'} &middot; {p.numberOfColors} colors &middot; <a href={p.url} target="_blank" rel="noreferrer" className="underline">view on Lospec</a>
+        <>
+          {total > 0 && (
+            <div className="text-[11px] text-cyan-100/50 uppercase tracking-wider">
+              Showing {page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+            </div>
+          )}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+            {results.map((p) => (
+              <div key={p.slug} className="flex flex-col gap-2 bg-black/60 rounded border-2 border-cyan-700/40 p-3 hover:border-cyan-500/60 transition-colors">
+                <div className="flex h-16 rounded overflow-hidden border" style={{ borderColor: t.vizDataBorder }}>
+                  {p.colors.map((hex, i) => (
+                    <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />
+                  ))}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-cyan-100 font-bold text-sm truncate">{p.title}</div>
+                  <div className="text-cyan-100/60 text-[10px]">
+                    by {p.author || 'unknown'} &middot; {p.numberOfColors} colors &middot; <a href={p.url} target="_blank" rel="noreferrer" className="underline hover:text-cyan-300">view on Lospec</a>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 mt-auto">
+                  <button
+                    onClick={() => onLoad(p, 'all')}
+                    title="Use all as bases: load every color as a base ramp"
+                    className="w-full px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all text-xs uppercase tracking-wider"
+                    style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}
+                  >
+                    Use All as Bases
+                  </button>
+                  <button
+                    onClick={() => onLoad(p, 'subset')}
+                    title="Auto-pick representative colors as bases"
+                    className="w-full px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50 hover:bg-purple-800/60"
+                  >
+                    Auto-pick Representatives
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-1 flex-shrink-0">
-                <button
-                  onClick={() => onLoad(p, 'all')}
-                  title="Use all as bases: load every color as a base ramp"
-                  className="px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all text-xs uppercase tracking-wider"
-                >
-                  Use All as Bases
-                </button>
-                <button
-                  onClick={() => onLoad(p, 'subset')}
-                  title="Auto-pick representative colors as bases"
-                  className="px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50 hover:bg-purple-800/60"
-                >
-                  Auto-pick Representatives
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Pagination */}
