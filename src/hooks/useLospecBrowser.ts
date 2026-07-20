@@ -29,7 +29,6 @@ export interface UseLospecBrowserResult {
   prevPage: () => void;
   runSuggest: (q: string) => void; // debounced internally
   loadBySlugOrUrl: (input: string) => Promise<LospecPalette | null>;
-  cancelPending: () => void; // aborts any in-flight request (panel close/unmount)
 }
 
 export function useLospecBrowser(): UseLospecBrowserResult {
@@ -83,6 +82,12 @@ export function useLospecBrowser(): UseLospecBrowserResult {
     abortRef.current?.abort();
     abortRef.current = null;
   }, []);
+
+  // Owns its own unmount cleanup rather than requiring every consumer to
+  // wire this up: an in-flight fetch/AbortController must not outlive the
+  // component. Depends on cancelPending itself (stable, empty-deps
+  // useCallback), not anything that changes identity per render.
+  useEffect(() => cancelPending, [cancelPending]);
 
   const browsePage = useCallback(async (nextPage: number) => {
     cancelPending();
@@ -163,6 +168,6 @@ export function useLospecBrowser(): UseLospecBrowserResult {
     query, setQuery, tag, setTag, minColors, setMinColors,
     maxColors, setMaxColors, sort, setSort, page, results, suggestions, total,
     loading, error, rateLimitLow, runBrowse, nextPage, prevPage, runSuggest,
-    loadBySlugOrUrl, cancelPending,
+    loadBySlugOrUrl,
   };
 }

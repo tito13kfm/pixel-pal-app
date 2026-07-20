@@ -588,17 +588,9 @@ export default function PixelPalGenerator() {
   });
 
   // Lospec Browser (issue #133): catalog search/browse + palette-detail fetch
-  // live in useLospecBrowser; loadLospecPalette (above) applies the fetched
-  // colors as bases. cancelPending() must fire on unmount so an in-flight
-  // fetch/AbortController doesn't outlive the component (not only on
-  // supersession by a later request). Depend on cancelPending itself (a
-  // useCallback with an empty dep array, so a stable reference), not the
-  // lospecBrowser object: that object is a fresh literal every render, so
-  // depending on it would abort in-flight requests on every re-render
-  // (e.g. the setLoading(true) that Browse triggers), not only on unmount.
+  // live in useLospecBrowser (which owns its own unmount cleanup);
+  // loadLospecPalette (above) applies the fetched colors as bases.
   const lospecBrowser = useLospecBrowser();
-  const { cancelPending: cancelLospecPending } = lospecBrowser;
-  useEffect(() => () => { cancelLospecPending(); }, [cancelLospecPending]);
 
   // History watcher, ref-sync, and undo/redo keybinds now live in useHistory.
   // Side-by-side compare pipeline (#113): the per-slot saved-payload fetch
