@@ -19,7 +19,7 @@ import type { GamutStrategySerialized } from '../../lib/palette';
 import { DEFAULT_SPRITE_LIBRARY } from '../../lib/constants';
 import type { HardwarePalette } from '../../lib/hardware-quantize';
 
-type SpriteLibrary = Record<string, { pattern: string[]; numShades?: number }>;
+export type SpriteLibrary = Record<string, { name: string; pattern: string[]; numShades: number }>;
 
 // Per-style accent color + short label, used by the per-ramp picker, the
 // active-only preview box, and the pin editor's 'custom' branch.
@@ -48,6 +48,14 @@ const STYLE_SWATCH_BORDER: Record<RampStyle, string> = {
   muted: 'border-purple-400',
   custom: 'border-yellow-400',
 };
+
+// Pixel-sprite scale factor for a sprite pattern of width w: wider sprites
+// render smaller so they fit the fixed-size preview card.
+function spriteScale(w: number): number {
+  if (w >= 22) return 3;
+  if (w >= 18) return 4;
+  return 5;
+}
 
 interface FilteredRamp {
   hexes: string[];
@@ -335,10 +343,11 @@ export function RampsPanel(props: RampsPanelProps) {
             {isCopied && <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded text-cyan-200 text-[10px] font-bold">Copied!</div>}
             {isFailed && <div className="absolute inset-0 flex items-center justify-center bg-red-900/80 rounded text-red-100 text-[10px] font-bold leading-tight text-center px-1">Copy<br/>failed</div>}
           </button>
-          {pinnable && label !== 'base' && !baseColors.includes(hex) && (
+          {pinnable && label !== 'base' && !baseColors.some(h => h.toLowerCase() === hex.toLowerCase()) && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (baseColors.some(h => h.toLowerCase() === hex.toLowerCase())) return;
                 tagNextLabel('Add base from shade');
                 setBaseColors(prev => [...prev, hex]);
               }}
@@ -765,24 +774,24 @@ export function RampsPanel(props: RampsPanelProps) {
                 {showAllStyles ? (
                   <>
                     <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-pink-500/50" style={{ background: punchyBg, boxShadow: '0 0 12px rgba(255, 0, 255, 0.3)' }}>
-                      <PixelSprite palette={fPunchyTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <PixelSprite palette={fPunchyTop.hexes} scale={spriteScale(spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14)} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
                       <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#ff00ff'), textShadow: accentTextGlow('#ff00ff', 6) }}>Punchy</span>
                       <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
                     </div>
                     <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-cyan-500/50" style={{ background: balancedBg, boxShadow: '0 0 12px rgba(0, 255, 255, 0.3)' }}>
-                      <PixelSprite palette={fBalancedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <PixelSprite palette={fBalancedTop.hexes} scale={spriteScale(spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14)} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
                       <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#00ffff'), textShadow: accentTextGlow('#00ffff', 6) }}>Balanced</span>
                       <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
                     </div>
                     <div className="w-36 flex flex-col items-center gap-1 p-3 rounded border-2 border-purple-400/60" style={{ background: mutedBg, boxShadow: '0 0 12px rgba(168, 85, 247, 0.3)' }}>
-                      <PixelSprite palette={fMutedTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                      <PixelSprite palette={fMutedTop.hexes} scale={spriteScale(spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14)} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
                       <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent('#a855f7'), textShadow: accentTextGlow('#a855f7', 6) }}>Muted</span>
                       <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
                     </div>
                   </>
                 ) : (
                   <div className={`w-36 flex flex-col items-center gap-1 p-3 rounded border-2 ${STYLE_BORDER[activeStyle]}`} style={{ background: activeBg, boxShadow: `0 0 12px ${STYLE_ACCENT[activeStyle]}4d` }}>
-                    <PixelSprite palette={fActiveTop.hexes} scale={(() => { const w = spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14; if (w >= 32) return 3; if (w >= 22) return 3; if (w >= 18) return 4; return 5; })()} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
+                    <PixelSprite palette={fActiveTop.hexes} scale={spriteScale(spriteLibrary[spriteKey]?.pattern?.[0]?.length || 14)} spriteKey={spriteKey} spriteLibrary={spriteLibrary} />
                     <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: themedAccent(STYLE_ACCENT[activeStyle]), textShadow: accentTextGlow(STYLE_ACCENT[activeStyle], 6) }}>{STYLE_LABEL[activeStyle]}</span>
                     <span className="text-xs font-bold text-center uppercase tracking-wider break-words w-full leading-tight" style={{ color: t.colorNameText }}>{aiColorNames[i] || `Color ${i + 1}`}</span>
                   </div>
@@ -867,7 +876,10 @@ export function RampsPanel(props: RampsPanelProps) {
             {pinEditor && pinEditor.baseIndex === i && (() => {
               const j = pinEditor.shadeIndex;
               const ps = pinEditor.style;
-              const sourceRamp = ps === 'balanced' ? rampsBalanced[i] : ps === 'muted' ? rampsMuted[i] : ps === 'custom' ? rampsActive[i] : rampsPunchy[i];
+              const RAMPS_BY_STYLE: Record<string, string[][]> = {
+                balanced: rampsBalanced, muted: rampsMuted, custom: rampsActive,
+              };
+              const sourceRamp = (RAMPS_BY_STYLE[ps] || rampsPunchy)[i];
               const currentHex = (sourceRamp && sourceRamp[j]) || baseColors[i];
               const pinned = isShadePinned(i, j, ps);
               const shadeLabel = labels[j] || `shade ${j + 1}`;

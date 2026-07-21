@@ -46,7 +46,7 @@ function HarmonyPanelImpl({
   const { t } = useTheme();
 
   const HarmonySwatch = ({ hex, name, tourId }: { hex: string; name: string; tourId?: string }) => {
-    const isAdded = baseColors.includes(hex);
+    const isAdded = baseColors.some(h => h.toLowerCase() === hex.toLowerCase());
     return (
       <button
         onClick={() => addHarmonyColor(hex, name)}
@@ -69,7 +69,7 @@ function HarmonyPanelImpl({
     names: string[];
     addLabel?: string;
   }) => {
-    const allAdded = hexes.every(h => baseColors.includes(h));
+    const allAdded = hexes.every(h => baseColors.some(b => b.toLowerCase() === h.toLowerCase()));
     return (
       <div className="flex flex-col items-center p-3 bg-black/60 rounded border border-pink-500/40">
         <span title={tip} className="text-xs font-bold text-pink-200 mb-2 uppercase tracking-wider cursor-help border-b border-dashed border-pink-400/40">{title}</span>

@@ -1,10 +1,9 @@
 import { Dice5, Plus, Upload, Pipette, Sparkles, Copy, Wand2, Shuffle, Image as ImageIcon } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import { PixelSprite } from './RampsPanel';
+import type { SpriteLibrary } from './RampsPanel';
 import ShadeCountControl from '../ShadeCountControl';
 import { DEFAULT_SPRITE_LIBRARY, MOOD_PRESETS } from '../../lib/constants';
-
-type SpriteLibrary = Record<string, { name: string; pattern: string[]; numShades: number }>;
 
 interface InputPanelProps {
   mode: 'color' | 'image';
@@ -199,7 +198,7 @@ export function InputPanel(props: InputPanelProps) {
               </div>
             )}
 
-            {mode === 'image' ? null : (
+            {mode === 'color' && (
               <button onClick={handleGenerate} data-tour-id="new-palette-btn" title="Replace the palette with a new single-ramp palette built from the hex above. Destructive: wipes pins, hidden shades, ramp locks, side-by-side slots, harmony anchor, and per-ramp customizations. To keep your existing palette, click Add base instead." className="px-4 py-2 rounded font-bold bg-yellow-400 text-purple-900 border-2 border-yellow-200 hover:bg-yellow-300 hover:scale-105 transition-all flex items-center gap-2 uppercase tracking-wider text-sm" style={{ boxShadow: '0 0 10px #ffff00' }}>
                 <Sparkles size={18} />New palette
               </button>
