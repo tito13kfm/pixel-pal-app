@@ -10,7 +10,7 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 | 3 | hooks: ramp/palette actions | merged | [#165](https://github.com/tito13kfm/pixel-pal-app/pull/165) | reExtractFromImage missing 3 guards (stale error, empty-extraction, decode-failure) vs its handleImageUpload sibling; harmony/eyedropper add paths' case-sensitive duplicate check, root-caused to handleGenerate not normalizing colorInput to lowercase |
 | 4 | components: non-panel | merged | [#166](https://github.com/tito13kfm/pixel-pal-app/pull/166) | none (consistency-only: dead ternary, redundant cast, ternary-as-statement, React.FC to plain function) |
 | 5 | components: panels | merged | [#167](https://github.com/tito13kfm/pixel-pal-app/pull/167) | RampsPanel "Add base from shade" was case-sensitive AND unguarded (unlike every other add path); could append a case-mismatched duplicate base. Fixed gate + added handler-level guard. HarmonyPanel's identical cosmetic gap (clickable no-op) fixed too. |
-| 6 | lib: platform/UI-support | not started | | |
+| 6 | lib: platform/UI-support | merged | [#168](https://github.com/tito13kfm/pixel-pal-app/pull/168) | installUpdate had no error handling (unlike sibling downloadUpdate); a rejected install left the ready-to-install UI stuck with no feedback |
 | 7 | lib: export/import | not started | | |
 | 8 | core palette/style state | not started | | |
 | 9 | lib: ramp/color engine + constants | not started | | |
@@ -35,6 +35,11 @@ by an ErrorBoundary (render-only), so it's an unrecoverable white screen.
 `panel-state.ts` is in chunk 6's file list, check this specifically when
 that chunk runs.
 
+**Resolved 2026-07-21 (chunk 6):** verified independently (not just on the
+subagent's word, per advisor prompt): `loadPanelState()`
+(`lib/panel-state.ts:22-30`) wraps its `JSON.parse` in try/catch, returning
+`PANEL_DEFAULTS` on any failure. Not a bug, no fix needed.
+
 ## Second carried-forward item for chunk 6
 
 Chunk 4 found a byte-identical canvas cell-hit-testing block shared by
@@ -46,6 +51,16 @@ which is chunk 6's file. When chunk 6 runs, consider adding a
 components to it (components are out of chunk 6's scope to edit directly,
 so this may mean a small follow-up touching both chunks, or just adding the
 helper and noting it as available for a future pass).
+
+**Resolved 2026-07-21 (chunk 6): declined permanently, not carrying forward
+again.** The three call sites diverge right after the part that would be
+shared (square vs rectangular bounds check), and none of the three
+components are editable from this chunk. Adding the helper now would be an
+orphaned export with no in-chunk caller (exactly the unadopted-extraction
+pattern this sweep's rules warn about creating). If this dedup is ever
+worth doing, it should happen in a standalone change that touches
+`viz-interaction.ts` and all three components together, not as a sweep
+carry-forward.
 
 ## Carried-forward check for chunk 5
 
