@@ -9,7 +9,7 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 | 2 | hooks: UI/session/tour | merged | [#164](https://github.com/tito13kfm/pixel-pal-app/pull/164) | usePanelLayout: corrupt ui:sectionOrder in localStorage crashed mount (unguarded JSON.parse); now falls back to DEFAULT_SECTION_ORDER |
 | 3 | hooks: ramp/palette actions | merged | [#165](https://github.com/tito13kfm/pixel-pal-app/pull/165) | reExtractFromImage missing 3 guards (stale error, empty-extraction, decode-failure) vs its handleImageUpload sibling; harmony/eyedropper add paths' case-sensitive duplicate check, root-caused to handleGenerate not normalizing colorInput to lowercase |
 | 4 | components: non-panel | merged | [#166](https://github.com/tito13kfm/pixel-pal-app/pull/166) | none (consistency-only: dead ternary, redundant cast, ternary-as-statement, React.FC to plain function) |
-| 5 | components: panels | not started | | |
+| 5 | components: panels | merged | [#167](https://github.com/tito13kfm/pixel-pal-app/pull/167) | RampsPanel "Add base from shade" was case-sensitive AND unguarded (unlike every other add path); could append a case-mismatched duplicate base. Fixed gate + added handler-level guard. HarmonyPanel's identical cosmetic gap (clickable no-op) fixed too. |
 | 6 | lib: platform/UI-support | not started | | |
 | 7 | lib: export/import | not started | | |
 | 8 | core palette/style state | not started | | |
@@ -57,6 +57,26 @@ change, but weren't directly verified against a live component render:
 `HarmonyPanel.tsx:49,72` and `RampsPanel.tsx:338` (both chunk 5, components:
 panels). When that chunk runs, confirm these sites behave correctly now
 rather than re-flagging them as a fresh finding.
+
+**Resolved 2026-07-21 (chunk 5):** `RampsPanel.tsx:338` was NOT safe, it was
+the one add path in the whole codebase with no dedup guard at all (unlike
+HarmonyPanel, which was only cosmetic). Fixed both sites in PR #167. A wider
+grep (`baseColors` filtered to `filter|===|!==`, plus Set-based patterns)
+confirmed no other case-sensitive hex comparisons remain in `src/`, so the
+active bug is closed for every current reader.
+
+## Carried-forward check for chunk 8
+
+Advisor's chunk-5 review flagged that `baseColors` is still not globally
+lowercase-canonical: `applyImportedBases` (`useSavedPalettesActions.ts:551`)
+writes whatever case an imported source (Lospec, `.gpl`, a reloaded saved
+palette) used, unnormalized. This is the last uppercase source (the
+base-editor text field is already merged and out of reach for a chunk-8
+fix). Every *current* reader is now safe (see above), so this is future-
+proofing, not an active bug: when chunk 8 reviews
+`useSavedPalettesActions.ts`, make a conscious call on whether to normalize
+imports to lowercase-canonical, rather than leaving it unaddressed by
+default.
 
 ## Files with no existing unit test (as of 2026-07-21)
 
