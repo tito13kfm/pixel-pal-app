@@ -253,6 +253,7 @@ export const useRampsStore = create<RampsStoreState>((set, get) => ({
       editingIndex: null,
       pinEditor: null,
       compareAnchor: null,
+      compareResult: null,
     });
     return perm.next;
   },

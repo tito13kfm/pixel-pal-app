@@ -84,6 +84,18 @@ describe('useRampsStore', () => {
     expect(Array.isArray(perm)).toBe(true);
   });
 
+  it('reorderRamps clears the full transient editor cluster, including compareResult', () => {
+    useRampsStore.getState().setBaseColors(['#a', '#b', '#c']);
+    useRampsStore.getState().setCompareAnchor({ baseIndex: 0, shadeIndex: 0, style: 'punchy', hex: '#fff' });
+    useRampsStore.getState().setCompareResult({ aHex: '#fff', bHex: '#000', ratio: 21, tier: 'AAA' });
+    useRampsStore.getState().reorderRamps(0, 2, 'after');
+    const s = useRampsStore.getState();
+    expect(s.editingIndex).toBeNull();
+    expect(s.pinEditor).toBeNull();
+    expect(s.compareAnchor).toBeNull();
+    expect(s.compareResult).toBeNull();
+  });
+
   it('setter identity is stable across state changes (required for memo/useCallback deps)', () => {
     const before = useRampsStore.getState().setRampSize;
     useRampsStore.getState().setBaseColors(['#changed']);
