@@ -140,8 +140,15 @@ export function initTauriBridge(): void {
 
     installUpdate: async (): Promise<void> => {
       if (!pendingUpdate) return
-      await pendingUpdate.install()
-      await relaunch()
+      try {
+        await pendingUpdate.install()
+        await relaunch()
+      } catch (e) {
+        console.error('[tauri-bridge] install failed:', e)
+        pendingUpdate = null
+        const msg = e instanceof Error ? e.message : String(e)
+        updateErrorCallbacks.forEach(cb => cb(msg))
+      }
     },
 
     skipUpdate: async (version: string): Promise<void> => {

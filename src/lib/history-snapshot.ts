@@ -1,6 +1,6 @@
 export const SNAPSHOT_FIELDS = [
   'baseColors', 'aiColorNames', 'rampSize', 'shuffleSeed',
-  'overrides', 'harmonyAnchor', 'rampSizeOverrides', 'rampSatOverrides',
+  'overrides', 'harmonyAnchor', 'lospecSource', 'rampSizeOverrides', 'rampSatOverrides',
   'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
   'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
   'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',

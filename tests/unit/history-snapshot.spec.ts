@@ -12,10 +12,14 @@ const base = {
 };
 
 describe('SNAPSHOT_FIELDS', () => {
-  it('names exactly the 21 document fields', () => {
+  // Must mirror rampsStore.ts's buildSnapshot/applySnapshotFields field list
+  // exactly: SNAPSHOT_FIELDS previously drifted (omitted lospecSource) with
+  // no test failure, since this constant isn't consumed by the live
+  // undo/redo path (rampsStore owns an explicit object literal instead).
+  it('names exactly the 22 document fields, matching rampsStore.buildSnapshot', () => {
     expect(SNAPSHOT_FIELDS).toEqual([
       'baseColors', 'aiColorNames', 'rampSize', 'shuffleSeed',
-      'overrides', 'harmonyAnchor', 'rampSizeOverrides', 'rampSatOverrides',
+      'overrides', 'harmonyAnchor', 'lospecSource', 'rampSizeOverrides', 'rampSatOverrides',
       'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
       'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
       'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',

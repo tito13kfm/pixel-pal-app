@@ -20,12 +20,9 @@ export interface RemapOptions {
 //
 // Options:
 //   dither       'none' (default) | 'floyd-steinberg' | 'atkinson' | 'stucki'
-//   maxDimension positive int (default 512). If the source is larger than
-//                this on either axis, the caller is expected to downsample
-//                first (via a canvas with imageSmoothingEnabled=false); this
-//                function does not resize. Kept in the signature for forward
-//                compatibility and so the caller has a single source of
-//                truth for the cap.
+//
+// The caller is responsible for any downsampling (this function does not
+// resize); the size cap lives in computeRemapScaleOptions.
 //
 // Alpha policy (see IMAGE_REMAP_PLAN.md G5 and session 5 decision):
 //   - alpha === 0   : fully transparent. Output pixel is (0, 0, 0, 0). No
