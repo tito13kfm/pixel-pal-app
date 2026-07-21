@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CLASSIC_PALETTES } from '../lib/constants';
+import type { SavedPaletteEntry } from './useSavedPalettesActions';
 
 /**
  * Saved-palettes panel state: the persisted palette list, the save-name draft +
@@ -14,17 +15,17 @@ export function useSavedPalettes() {
   // `palettes:{slug}`. We keep an in-memory list to avoid re-listing on every
   // render. Loading the full payload happens on demand when the user clicks
   // Load. Storage operations are best-effort; failures show in `savedError`.
-  const [savedPalettes, setSavedPalettes] = useState([]);
+  const [savedPalettes, setSavedPalettes] = useState<SavedPaletteEntry[]>([]);
   const [saveName, setSaveName] = useState('');
   const [savedError, setSavedError] = useState('');
   const [savedBusy, setSavedBusy] = useState(false);
-  const [confirmDeleteSlug, setConfirmDeleteSlug] = useState(null);
+  const [confirmDeleteSlug, setConfirmDeleteSlug] = useState<string | null>(null);
   // Rename UI state. renamingSlug holds the slug whose row is in rename
   // mode (or null if no rename is active); renameDraft is the in-progress
   // text; renameError is per-row inline validation. Only one palette can
   // be in rename mode at a time. Click Rename to enter the mode, Enter or
   // the check button to commit, Escape or the X button to cancel.
-  const [renamingSlug, setRenamingSlug] = useState(null);
+  const [renamingSlug, setRenamingSlug] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [renameError, setRenameError] = useState('');
   // Two-click confirmation for the Reset to Defaults button. First click
