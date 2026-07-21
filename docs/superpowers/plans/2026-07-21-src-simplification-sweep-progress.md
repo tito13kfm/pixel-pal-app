@@ -7,7 +7,7 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 |---|-------|--------|----|--------------------|
 | 1 | contexts + store + workers | merged | [#162](https://github.com/tito13kfm/pixel-pal-app/pull/162) | none (consistency-only: reorderRamps now clears compareResult) |
 | 2 | hooks: UI/session/tour | merged | [#164](https://github.com/tito13kfm/pixel-pal-app/pull/164) | usePanelLayout: corrupt ui:sectionOrder in localStorage crashed mount (unguarded JSON.parse); now falls back to DEFAULT_SECTION_ORDER |
-| 3 | hooks: ramp/palette actions | not started | | |
+| 3 | hooks: ramp/palette actions | merged | [#165](https://github.com/tito13kfm/pixel-pal-app/pull/165) | reExtractFromImage missing 3 guards (stale error, empty-extraction, decode-failure) vs its handleImageUpload sibling; harmony/eyedropper add paths' case-sensitive duplicate check, root-caused to handleGenerate not normalizing colorInput to lowercase |
 | 4 | components: non-panel | not started | | |
 | 5 | components: panels | not started | | |
 | 6 | lib: platform/UI-support | not started | | |
@@ -34,6 +34,17 @@ bug, it's strictly worse: a throw at module-evaluation time can't be caught
 by an ErrorBoundary (render-only), so it's an unrecoverable white screen.
 `panel-state.ts` is in chunk 6's file list, check this specifically when
 that chunk runs.
+
+## Carried-forward check for chunk 5
+
+Chunk 3 fixed a case-sensitive `baseColors.includes()` duplicate check at
+its root (handleGenerate normalizing colorInput to lowercase), but a grep of
+every `baseColors.(includes|indexOf|findIndex|some)(` site in `src/` found
+two more case-sensitive reads that are now believed fixed by the root
+change, but weren't directly verified against a live component render:
+`HarmonyPanel.tsx:49,72` and `RampsPanel.tsx:338` (both chunk 5, components:
+panels). When that chunk runs, confirm these sites behave correctly now
+rather than re-flagging them as a fresh finding.
 
 ## Files with no existing unit test (as of 2026-07-21)
 
