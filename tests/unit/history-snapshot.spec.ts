@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { inferLabel, SNAPSHOT_FIELDS, formatHistoryAge } from '../../src/lib/history-snapshot';
+import { useRampsStore } from '../../src/store/rampsStore';
 
 const base = {
   baseColors: ['#ff00ff'], aiColorNames: [], aiReasoning: '', rampSize: 6,
@@ -12,15 +13,17 @@ const base = {
 };
 
 describe('SNAPSHOT_FIELDS', () => {
-  it('names exactly the 21 document fields', () => {
-    expect(SNAPSHOT_FIELDS).toEqual([
-      'baseColors', 'aiColorNames', 'rampSize', 'shuffleSeed',
-      'overrides', 'harmonyAnchor', 'rampSizeOverrides', 'rampSatOverrides',
-      'hueShiftStrengthPerRamp', 'hiddenShades', 'rampShuffleOffsets',
-      'hardwareLock', 'hueShiftStrength', 'lockedRamps', 'collapsedRamps',
-      'lightnessCurvePerRamp', 'satCurvePerRamp', 'stylePresets',
-      'paletteDefaultStyle', 'rampStyleOverrides', 'rampStyleScalars',
-    ]);
+  // Derived from the real buildSnapshot output, not a second hardcoded copy:
+  // SNAPSHOT_FIELDS previously drifted (omitted lospecSource) with no test
+  // failure, because the old assertion compared the constant against
+  // ANOTHER hardcoded array rather than the live snapshot path (rampsStore
+  // owns an explicit object literal, not this constant). Comparing against
+  // Object.keys(buildSnapshot()) means adding a field to buildSnapshot
+  // without updating SNAPSHOT_FIELDS fails this test, closing the drift for
+  // real instead of just moving it forward by one field.
+  it('names exactly the fields rampsStore.buildSnapshot produces', () => {
+    const snap = useRampsStore.getState().buildSnapshot();
+    expect([...SNAPSHOT_FIELDS].sort()).toEqual(Object.keys(snap).sort());
   });
 });
 

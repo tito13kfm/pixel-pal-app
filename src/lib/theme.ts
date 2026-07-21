@@ -180,11 +180,6 @@ export const THEME_TOKENS: Record<ThemeName, ThemeTokens> = {
     // seam borders. On Light and Neutral themes those colors are
     // white-on-white-ish and effectively invisible. Centralized here so
     // each theme picks values that read against its own background.
-    // section header buttons. The Tailwind `hover:bg-white/N` class is
-    // theme-naive (white-on-light is invisible), so the callsites pick
-    // `hover:bg-white/5` for dark and `hover:bg-black/5` for light/neutral
-    // via the `glowStrong > 0.5` test, parallel to how other chrome
-    // adapts.
     vizRingStroke: 'rgba(255,255,255,0.12)',
     vizSpokeStroke: 'rgba(255,255,255,0.08)',
     vizAxisLabel: 'rgba(255,255,255,0.55)',

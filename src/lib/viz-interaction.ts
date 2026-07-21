@@ -191,7 +191,7 @@ export function rotateCycle(
   if (len <= 1) return out;
   const k = ((offset % len) + len) % len;
   for (let i = 0; i < len; i++) {
-    const src = reverse ? (i - k + len + len) % len : (i + k) % len;
+    const src = reverse ? (i - k + len) % len : (i + k) % len;
     out[lo + i] = hexes[lo + src];
   }
   return out;
