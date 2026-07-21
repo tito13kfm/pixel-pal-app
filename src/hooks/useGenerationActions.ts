@@ -41,7 +41,10 @@ export function useGenerationActions(p: UseGenerationActionsParams) {
   const handleGenerate = () => {
     tagNextLabel(mode === 'color' ? 'New palette' : 'Shuffle');
     if (mode === 'color') {
-      setBaseColors([colorInput]); setAiColorNames([]);
+      // Normalize to lowercase to match the storage convention baseColors
+      // uses elsewhere (see addColorAsBase below): every case-insensitive
+      // duplicate check against baseColors assumes this.
+      setBaseColors([colorInput.toLowerCase()]); setAiColorNames([]);
       resetPaletteState();
       // Hard reset path: lockedRamps just got cleared. Bump shuffleSeed
       // directly rather than via bumpShuffleSeed, because the latter
