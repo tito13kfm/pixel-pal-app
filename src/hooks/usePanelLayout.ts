@@ -47,7 +47,12 @@ export function usePanelLayout() {
   const toggleVizSub = (key: string) => setVizSubOpen(m => ({ ...m, [key]: !m[key] }));
 
   const [sectionOrder, setSectionOrder] = useState(() => {
-    const loaded = JSON.parse(localStorage.getItem('ui:sectionOrder') || 'null');
+    let loaded;
+    try {
+      loaded = JSON.parse(localStorage.getItem('ui:sectionOrder') || 'null');
+    } catch {
+      return DEFAULT_SECTION_ORDER;
+    }
     if (!Array.isArray(loaded)) return DEFAULT_SECTION_ORDER;
     // Merge, don't reset: keep the saved order for keys we still know, then append
     // any DEFAULT keys the saved order is missing (cards added in a later version,
