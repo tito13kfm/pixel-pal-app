@@ -12,7 +12,7 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 | 5 | components: panels | merged | [#167](https://github.com/tito13kfm/pixel-pal-app/pull/167) | RampsPanel "Add base from shade" was case-sensitive AND unguarded (unlike every other add path); could append a case-mismatched duplicate base. Fixed gate + added handler-level guard. HarmonyPanel's identical cosmetic gap (clickable no-op) fixed too. |
 | 6 | lib: platform/UI-support | merged | [#168](https://github.com/tito13kfm/pixel-pal-app/pull/168) | installUpdate had no error handling (unlike sibling downloadUpdate); a rejected install left the ready-to-install UI stuck with no feedback |
 | 7 | lib: export/import | merged | [#169](https://github.com/tito13kfm/pixel-pal-app/pull/169) | buildPaletteText's "Unique Colors" section (.txt export) bypassed filterHidden, unlike its own per-style sections just above it; a hidden shade stayed in the count/list. Fixed by reusing the already-filtered per-style hex arrays. (.txt's overall color set still legitimately differs from .gpl/.pal/.ase, which emit only the active style; that cross-format gap is deliberate, not a bug.) |
-| 8 | core palette/style state | not started | | |
+| 8 | core palette/style state | merged | [#170](https://github.com/tito13kfm/pixel-pal-app/pull/170) | none (consistency-only: `applyImportedBases`/`loadPalette` base-color case normalization, closing the chunk-5 carried-forward item; `applyImportedBases` is a true no-op, `loadPalette` is a benign behavior change for pre-sweep uppercase saves, regression-tested) |
 | 9 | lib: ramp/color engine + constants | not started | | |
 
 ## Housekeeping outside the sweep's own chunks
@@ -92,6 +92,15 @@ proofing, not an active bug: when chunk 8 reviews
 `useSavedPalettesActions.ts`, make a conscious call on whether to normalize
 imports to lowercase-canonical, rather than leaving it unaddressed by
 default.
+
+**Resolved 2026-07-21 (chunk 8):** normalized both `applyImportedBases` and
+`loadPalette` at the root. Advisor caught that these are not equally inert:
+`applyImportedBases` is a true no-op (every current caller already
+lowercases before calling in), but `loadPalette` reads arbitrary stored
+data, so a pre-sweep save with uppercase hex genuinely changes on load
+(benign: every reader is case-insensitive, so the render is identical, no
+`engineVersion` opt-out needed). Regression-tested (confirmed red against
+the pre-fix line before restoring the fix). Closed for good.
 
 ## Files with no existing unit test (as of 2026-07-21)
 
