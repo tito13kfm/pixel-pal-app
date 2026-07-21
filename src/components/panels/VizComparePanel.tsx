@@ -117,43 +117,27 @@ export function VizComparePanel({
   const sbsLeftRemapCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sbsRightRemapCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  useEffect(() => {
-    const canvas = remapCanvasRef.current;
-    if (!canvas) return;
-    if (!remapOutput || remapOutput.width === 0) return;
-    canvas.width = remapOutput.width;
-    canvas.height = remapOutput.height;
+  const blitToCanvas = (canvas: HTMLCanvasElement | null, image: RemapImage | null) => {
+    if (!canvas || !image || image.width === 0) return;
+    canvas.width = image.width;
+    canvas.height = image.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const imgData = ctx.createImageData(remapOutput.width, remapOutput.height);
-    imgData.data.set(remapOutput.data);
+    const imgData = ctx.createImageData(image.width, image.height);
+    imgData.data.set(image.data);
     ctx.putImageData(imgData, 0, 0);
+  };
+
+  useEffect(() => {
+    blitToCanvas(remapCanvasRef.current, remapOutput);
   }, [remapOutput]);
 
   useEffect(() => {
-    const canvas = sbsLeftRemapCanvasRef.current;
-    if (!canvas) return;
-    if (!sbsLeftRemap || sbsLeftRemap.width === 0) return;
-    canvas.width = sbsLeftRemap.width;
-    canvas.height = sbsLeftRemap.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const imgData = ctx.createImageData(sbsLeftRemap.width, sbsLeftRemap.height);
-    imgData.data.set(sbsLeftRemap.data);
-    ctx.putImageData(imgData, 0, 0);
+    blitToCanvas(sbsLeftRemapCanvasRef.current, sbsLeftRemap);
   }, [sbsLeftRemap]);
 
   useEffect(() => {
-    const canvas = sbsRightRemapCanvasRef.current;
-    if (!canvas) return;
-    if (!sbsRightRemap || sbsRightRemap.width === 0) return;
-    canvas.width = sbsRightRemap.width;
-    canvas.height = sbsRightRemap.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const imgData = ctx.createImageData(sbsRightRemap.width, sbsRightRemap.height);
-    imgData.data.set(sbsRightRemap.data);
-    ctx.putImageData(imgData, 0, 0);
+    blitToCanvas(sbsRightRemapCanvasRef.current, sbsRightRemap);
   }, [sbsRightRemap]);
 
   // Fixed accent now that style is per-ramp (no global vizStyle to tint by).
@@ -389,29 +373,9 @@ export function VizComparePanel({
   const slotSavedOptions = savedPalettes.map(p => ({ value: p.slug, label: p.name }));
   const parseSlot = (raw: string) => (raw === '' ? null : raw);
 
-  const renderSlotAOptions = () => (
+  const renderSlotOptions = (includeEmpty: boolean) => (
     <>
-      <option value="working">Current working palette (live)</option>
-      {slotClassicOptions.length > 0 && (
-        <optgroup label="Classic palettes">
-          {slotClassicOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </optgroup>
-      )}
-      {slotSavedOptions.length > 0 && (
-        <optgroup label="Saved palettes">
-          {slotSavedOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </optgroup>
-      )}
-    </>
-  );
-
-  const renderSlotBOptions = () => (
-    <>
-      <option value="">(empty)</option>
+      {includeEmpty && <option value="">(empty)</option>}
       <option value="working">Current working palette (live)</option>
       {slotClassicOptions.length > 0 && (
         <optgroup label="Classic palettes">
@@ -525,7 +489,7 @@ export function VizComparePanel({
                     </div>
                   );
                 }
-                const fmtScale = (s: number) => (Number.isInteger(s) ? s + 'x' : s + 'x');
+                const fmtScale = (s: number) => s + 'x';
                 const projectedCost = estimateRemapCost(
                   Math.max(1, Math.floor(remapImageNaturalSize.w * remapDownloadScale)),
                   Math.max(1, Math.floor(remapImageNaturalSize.h * remapDownloadScale)),
@@ -593,7 +557,7 @@ export function VizComparePanel({
               title="Pick the palette to visualize (or compare in the left column)"
               className="w-full px-2 py-1.5 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-sm font-mono"
             >
-              {renderSlotAOptions()}
+              {renderSlotOptions(false)}
             </select>
           </div>
           <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
@@ -610,7 +574,7 @@ export function VizComparePanel({
               title="Pick a second palette to compare side-by-side (empty = single-column view)"
               className="w-full px-2 py-1.5 rounded bg-black/60 text-cyan-100 border-2 border-cyan-400 focus:outline-none text-sm font-mono"
             >
-              {renderSlotBOptions()}
+              {renderSlotOptions(true)}
             </select>
           </div>
         </div>

@@ -408,3 +408,27 @@ test('dragging the Chroma slider calls updateEditorOklch with the new value', ()
   fireEvent.change(screen.getByTitle(/Chroma: 0.100/), { target: { value: '0.2' } });
   expect(updateEditorOklch).toHaveBeenCalledWith({ L: 0.6, C: 0.2, H: 30 });
 });
+
+// Regression: the "Add base from shade" button gated on a case-sensitive
+// baseColors.includes(hex) with no guard in the click handler itself. An
+// uppercase base (possible via the base-editor text field or an import)
+// that equals a shade's lowercase hex still showed the button, and clicking
+// it appended a case-mismatched duplicate. Both the gate and the handler
+// are now case-insensitive.
+test('hides "Add base from shade" when an uppercase base already matches the shade case-insensitively', () => {
+  wrap({ baseColors: ['#AA3300'] });
+  expect(screen.queryByTitle('Add #AA3300 as a new base color')).not.toBeInTheDocument();
+});
+
+test('still shows "Add base from shade" for a shade not present in baseColors', () => {
+  wrap({ baseColors: ['#AA3300'] });
+  expect(screen.getByTitle('Add #FF9999 as a new base color')).toBeInTheDocument();
+});
+
+test('clicking "Add base from shade" does not duplicate when clicked before a re-render hides it', () => {
+  const setBaseColors = vi.fn();
+  wrap({ baseColors: ['#AA3300'], setBaseColors });
+  // The dark shade (#ff9999) is not yet a base, so its button is present and clickable.
+  fireEvent.click(screen.getByTitle('Add #FF9999 as a new base color'));
+  expect(setBaseColors).toHaveBeenCalledTimes(1);
+});
