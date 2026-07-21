@@ -5,7 +5,7 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 
 | # | Chunk | Status | PR | Bug fixes shipped |
 |---|-------|--------|----|--------------------|
-| 1 | contexts + store + workers | not started | | |
+| 1 | contexts + store + workers | merged | [#162](https://github.com/tito13kfm/pixel-pal-app/pull/162) | none (consistency-only: reorderRamps now clears compareResult) |
 | 2 | hooks: UI/session/tour | not started | | |
 | 3 | hooks: ramp/palette actions | not started | | |
 | 4 | components: non-panel | not started | | |
@@ -14,6 +14,15 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 | 7 | lib: export/import | not started | | |
 | 8 | core palette/style state | not started | | |
 | 9 | lib: ramp/color engine + constants | not started | | |
+
+## Housekeeping outside the sweep's own chunks
+
+While gating chunk 1, master's CI was found red for two pre-existing reasons,
+both stemming from the 2026-07-20 Lospec commit (`62f0bbf`): a hooks-lint
+dependency-array violation in `useLospecBrowser.ts`, and stale line numbers
+in `.ts-prune-baseline.txt` for two lospec.ts test-only exports. Fixed and
+merged as [#163](https://github.com/tito13kfm/pixel-pal-app/pull/163) before
+continuing.
 
 ## Files with no existing unit test (as of 2026-07-21)
 
