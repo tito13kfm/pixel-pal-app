@@ -18,6 +18,17 @@ import type { GamutStrategySerialized } from '../lib/palette';
 
 type DropPos = 'before' | 'after';
 
+// Accent color per section. The viz accent is a fixed tint now that style
+// is per-ramp (#69) rather than a single global vizStyle.
+const SECTION_ACCENT: Record<string, string> = {
+  ramps: '#00ffff',
+  harmony: '#ff00ff',
+  playground: '#00ff88',
+  viz: '#ff00ff',
+  saved: '#ffff00',
+  history: '#a855f7',
+};
+
 // Shared by both hooks: which half of the hovered card the pointer is in.
 const dropPos = (e: DragEvent): DropPos => {
   const rect = e.currentTarget.getBoundingClientRect();
@@ -59,16 +70,7 @@ export function useSectionDrag(p: UseSectionDragParams) {
     },
   });
 
-  // Accent color per section. The viz accent is a fixed tint now that style
-  // is per-ramp (#69) rather than a single global vizStyle.
-  const sectionAccent = (key: string) =>
-    key === 'ramps' ? '#00ffff'
-    : key === 'harmony' ? '#ff00ff'
-    : key === 'playground' ? '#00ff88'
-    : key === 'viz' ? '#ff00ff'
-    : key === 'saved' ? '#ffff00'
-    : key === 'history' ? '#a855f7'
-    : '#00ffff';
+  const sectionAccent = (key: string) => SECTION_ACCENT[key] ?? '#00ffff';
 
   // Glowing insertion line on the hovered edge, colored to the dragged card.
   const dropLine = (sectionKey: string) => {
