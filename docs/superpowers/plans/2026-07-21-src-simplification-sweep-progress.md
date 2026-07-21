@@ -6,7 +6,7 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 | # | Chunk | Status | PR | Bug fixes shipped |
 |---|-------|--------|----|--------------------|
 | 1 | contexts + store + workers | merged | [#162](https://github.com/tito13kfm/pixel-pal-app/pull/162) | none (consistency-only: reorderRamps now clears compareResult) |
-| 2 | hooks: UI/session/tour | not started | | |
+| 2 | hooks: UI/session/tour | merged | [#164](https://github.com/tito13kfm/pixel-pal-app/pull/164) | usePanelLayout: corrupt ui:sectionOrder in localStorage crashed mount (unguarded JSON.parse); now falls back to DEFAULT_SECTION_ORDER |
 | 3 | hooks: ramp/palette actions | not started | | |
 | 4 | components: non-panel | not started | | |
 | 5 | components: panels | not started | | |
@@ -23,6 +23,17 @@ dependency-array violation in `useLospecBrowser.ts`, and stale line numbers
 in `.ts-prune-baseline.txt` for two lospec.ts test-only exports. Fixed and
 merged as [#163](https://github.com/tito13kfm/pixel-pal-app/pull/163) before
 continuing.
+
+## Carried-forward check for chunk 6
+
+Chunk 2's bug fix (usePanelLayout's unguarded `JSON.parse` on
+`ui:sectionOrder`) prompted advisor to flag a sibling risk: `lib/panel-state.ts`'s
+`loadPanelState()` is called at module scope in `usePanelLayout.ts`
+(`const _panels = loadPanelState()`). If that function has the same unguarded-parse
+bug, it's strictly worse: a throw at module-evaluation time can't be caught
+by an ErrorBoundary (render-only), so it's an unrecoverable white screen.
+`panel-state.ts` is in chunk 6's file list, check this specifically when
+that chunk runs.
 
 ## Files with no existing unit test (as of 2026-07-21)
 
