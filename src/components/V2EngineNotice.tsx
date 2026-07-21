@@ -8,7 +8,7 @@ const DISMISS_KEY = 'v2EngineNoticeDismissed'
  * engineVersion: 2, so any payload lacking exactly 2 is a pre-v2 save.
  */
 export function isPreV2Palette(parsed: { engineVersion?: unknown } | null | undefined): boolean {
-  return !!parsed && (parsed as { engineVersion?: unknown }).engineVersion !== 2
+  return !!parsed && parsed.engineVersion !== 2
 }
 
 export function V2EngineNotice({ show }: { show: boolean }) {
