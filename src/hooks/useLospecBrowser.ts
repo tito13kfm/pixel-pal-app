@@ -77,7 +77,6 @@ export function useLospecBrowser(): UseLospecBrowserResult {
   const [error, setError] = useState('');
   const [rateLimitLow, setRateLimitLow] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const PAGE_SIZE = LOSPEC_PAGE_SIZE;
 
   const cancelPending = useCallback(() => {
     abortRef.current?.abort();
@@ -102,8 +101,8 @@ export function useLospecBrowser(): UseLospecBrowserResult {
         minColors: minColors ?? undefined,
         maxColors: maxColors ?? undefined,
         sort,
-        limit: PAGE_SIZE,
-        offset: nextPage * PAGE_SIZE,
+        limit: LOSPEC_PAGE_SIZE,
+        offset: nextPage * LOSPEC_PAGE_SIZE,
       };
       const res = await browseLospecPalettes(params, controller.signal);
       setResults(res.palettes);
