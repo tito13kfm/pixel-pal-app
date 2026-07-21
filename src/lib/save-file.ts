@@ -89,12 +89,14 @@ async function tauriSave(opts: SaveOptions): Promise<SaveResult> {
 }
 
 function browserFallback(opts: SaveOptions): SaveResult {
-  const isText = 'text' in opts.data;
-  const blob = isText
-    ? new Blob([(opts.data as { text: string }).text], { type: 'text/plain;charset=utf-8' })
-    : ('bytes' in opts.data && opts.data.bytes instanceof Blob
-        ? opts.data.bytes
-        : new Blob([(opts.data as { bytes: Uint8Array }).bytes as BlobPart]));
+  let blob: Blob;
+  if ('text' in opts.data) {
+    blob = new Blob([opts.data.text], { type: 'text/plain;charset=utf-8' });
+  } else if (opts.data.bytes instanceof Blob) {
+    blob = opts.data.bytes;
+  } else {
+    blob = new Blob([opts.data.bytes as BlobPart]);
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a') as HTMLAnchorElement;
   a.href = url;

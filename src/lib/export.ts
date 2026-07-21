@@ -5,7 +5,7 @@
 // side effects beyond returning data or calling saveFile (the async
 // exportXxx wrappers live in the useExport hook, not here).
 import { dedupeHexes } from './hex-utils';
-import { buildGpl } from './palette-export';
+import { buildGpl, dedupeEntries } from './palette-export';
 import { hexToRgb } from './color';
 import type { RampStyle } from './style-presets';
 
@@ -32,6 +32,9 @@ export function buildPaletteText(params: {
   const { baseColors, aiColorNames, rampsPunchy, rampsBalanced, rampsMuted, harmony, resolveBaseForRamp, labelsForRamp, filterHidden } = params;
   const lines = ['# PIXEL.PAL Palette Export', `# Generated ${new Date().toLocaleString()}`, ''];
 
+  const visiblePunchy: string[] = [];
+  const visibleBalanced: string[] = [];
+  const visibleMuted: string[] = [];
   baseColors.forEach((_, i) => {
     const name = aiColorNames[i] || `Color ${i + 1}`;
     const punchy = rampsPunchy[i];
@@ -44,6 +47,9 @@ export function buildPaletteText(params: {
     const fP = filterHidden(punchy, labelsP, i);
     const fB = filterHidden(balanced, labelsB, i);
     const fM = filterHidden(muted, labelsM, i);
+    visiblePunchy.push(...fP.hexes);
+    visibleBalanced.push(...fB.hexes);
+    visibleMuted.push(...fM.hexes);
     lines.push(`## ${name}`);
     lines.push('### Punchy');
     fP.hexes.forEach((hex, k) => lines.push(`${hex.toUpperCase()}  ${fP.labels[k]}`));
@@ -70,9 +76,9 @@ export function buildPaletteText(params: {
   lines.push('');
   lines.push('## Unique Colors');
   const allStyleHexes = [
-    ...rampsPunchy.flat(),
-    ...rampsBalanced.flat(),
-    ...rampsMuted.flat(),
+    ...visiblePunchy,
+    ...visibleBalanced,
+    ...visibleMuted,
     harmony.complementary,
     harmony.analogous1, harmony.analogous2,
     harmony.triadic1, harmony.triadic2,
@@ -122,15 +128,7 @@ export function collectPaletteEntries(params: {
   entries.push({ hex: harmony.square2, name: 'harmony square 2' });
   entries.push({ hex: harmony.square3, name: 'harmony square 3' });
 
-  const seenHex = new Set<string>();
-  const unique: { hex: string; name: string }[] = [];
-  for (const e of entries) {
-    const key = (e.hex || '').toLowerCase();
-    if (!key || seenHex.has(key)) continue;
-    seenHex.add(key);
-    unique.push(e);
-  }
-  return unique;
+  return dedupeEntries(entries);
 }
 
 // paletteName defaults to 'PIXEL.PAL'; callers pass a style-aware name (e.g.
