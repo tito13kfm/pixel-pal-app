@@ -39,7 +39,7 @@ export function useHarmony({ safeAnchor, activeMood, tagNextLabel, setExportFeed
   const [harmonizeBaseline, setHarmonizeBaseline] = useState<string[] | null>(null);
 
   const addHarmonyColor = useCallback((hex: string, name: string) => {
-    if (baseColors.includes(hex)) return;
+    if (baseColors.some(h => h.toLowerCase() === hex.toLowerCase())) return;
     setBaseColors(prev => [...prev, hex]);
     setAiColorNames(prev => {
       const padded = [...prev];
@@ -51,8 +51,8 @@ export function useHarmony({ safeAnchor, activeMood, tagNextLabel, setExportFeed
 
   const addHarmonyPair = useCallback((hex1: string, hex2: string, name1: string, name2: string) => {
     const toAdd: string[] = [], namesToAdd: string[] = [];
-    if (!baseColors.includes(hex1)) { toAdd.push(hex1); namesToAdd.push(name1); }
-    if (!baseColors.includes(hex2) && hex1 !== hex2) { toAdd.push(hex2); namesToAdd.push(name2); }
+    if (!baseColors.some(h => h.toLowerCase() === hex1.toLowerCase())) { toAdd.push(hex1); namesToAdd.push(name1); }
+    if (!baseColors.some(h => h.toLowerCase() === hex2.toLowerCase()) && hex1 !== hex2) { toAdd.push(hex2); namesToAdd.push(name2); }
     if (toAdd.length === 0) return;
     setBaseColors(prev => [...prev, ...toAdd]);
     setAiColorNames(prev => {
@@ -68,7 +68,7 @@ export function useHarmony({ safeAnchor, activeMood, tagNextLabel, setExportFeed
   const addHarmonyMany = useCallback((pairs: { hex: string; name: string }[]) => {
     const toAdd: string[] = [], namesToAdd: string[] = [];
     for (const { hex, name } of pairs) {
-      if (baseColors.includes(hex)) continue;
+      if (baseColors.some(h => h.toLowerCase() === hex.toLowerCase())) continue;
       if (toAdd.includes(hex)) continue;
       toAdd.push(hex);
       namesToAdd.push(name);

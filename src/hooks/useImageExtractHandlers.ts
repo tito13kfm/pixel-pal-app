@@ -93,7 +93,7 @@ export function useImageExtractHandlers(p: UseImageExtractHandlersParams) {
 
   const reExtractFromImage = () => {
     if (!imageDataUrl) return;
-    setImageLoading(true);
+    setImageLoading(true); setImageError('');
     const img = new Image();
     img.onload = () => {
       try {
@@ -109,6 +109,7 @@ export function useImageExtractHandlers(p: UseImageExtractHandlersParams) {
         ctx.drawImage(img, 0, 0, w, h);
         const imageData = ctx.getImageData(0, 0, w, h);
         const colors = extractDominantColors(imageData, imageColorCount);
+        if (colors.length === 0) { setImageError('No colors found'); setImageLoading(false); return; }
         const finalColors = colors.slice(0, imageColorCount);
         tagNextLabel('Re-extract from image');
         setBaseColors(finalColors);
@@ -118,6 +119,7 @@ export function useImageExtractHandlers(p: UseImageExtractHandlersParams) {
         setImageLoading(false);
       } catch (err) { setImageError('Failed: ' + (err as Error).message); setImageLoading(false); }
     };
+    img.onerror = () => { setImageError('Failed to load'); setImageLoading(false); };
     img.src = imageDataUrl;
   };
 
@@ -184,7 +186,7 @@ export function useImageExtractHandlers(p: UseImageExtractHandlersParams) {
     if (!eyedropperActive) return;
     const result = getPixelColorFromImage(event);
     if (!result || result.alpha < 128) return;
-    if (!baseColors.includes(result.hex)) {
+    if (!baseColors.some(h => h.toLowerCase() === result.hex.toLowerCase())) {
       tagNextLabel('Eyedropper add');
       setBaseColors(prev => [...prev, result.hex]);
       setAiColorNames(prev => {
