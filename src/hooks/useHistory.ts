@@ -105,7 +105,12 @@ export function useHistory({
       setHistoryIndex(newIndex);
     }, HISTORY_DEBOUNCE_MS);
 
-    return () => {};
+    return () => {
+      if (historyDebounceRef.current) {
+        clearTimeout(historyDebounceRef.current);
+        historyDebounceRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, snapshotInputs);
 

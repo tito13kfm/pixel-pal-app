@@ -215,7 +215,12 @@ export function useRampEditing(p: UseRampEditingParams) {
       return { ...map, [N]: deepClone(map[i]) };
     };
     setBaseColors(prev => [...prev, prev[i]]);
-    setAiColorNames(prev => [...prev, prev[i] !== undefined ? prev[i] : '']);
+    setAiColorNames(prev => {
+      const padded = [...prev];
+      while (padded.length < baseColors.length) padded.push('');
+      padded.push(prev[i] !== undefined ? prev[i] : '');
+      return padded;
+    });
     setOverrides(appendDup as (prev: Record<string, unknown>) => Record<string, unknown>);
     setRampSizeOverrides(appendDup);
     setRampSatOverrides(appendDup);

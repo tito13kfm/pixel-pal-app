@@ -80,6 +80,21 @@ export function useExport(p: UseExportParams) {
     });
   };
 
+  // Shared save+feedback tail for the four viz PNG exporters below: save the
+  // blob, then report canceled/failed/downloaded via the same feedback timing.
+  const saveVizPng = async (defaultName: string, blob: Blob) => {
+    const result = await saveFile({
+      defaultName,
+      filters: [{ name: 'PNG image', extensions: ['png'] }],
+      data: { bytes: blob },
+      folderKey: 'png',
+    });
+    if (result.canceled) p.setExportFeedback('Save canceled');
+    else if (!result.ok) p.setExportFeedback('Failed to save PNG');
+    else p.setExportFeedback('Downloaded!');
+    setTimeout(() => p.setExportFeedback(''), 2000);
+  };
+
   const exportLightnessPng = async (snap: any) => {
     try {
       const ramps = p.buildRampsForSnapshot(snap);
@@ -90,16 +105,7 @@ export function useExport(p: UseExportParams) {
         return;
       }
       const blob = await drawLightnessStripPng(sortedByL);
-      const result = await saveFile({
-        defaultName: 'pixel-pal-lightness.png',
-        filters: [{ name: 'PNG image', extensions: ['png'] }],
-        data: { bytes: blob },
-        folderKey: 'png',
-      });
-      if (result.canceled) p.setExportFeedback('Save canceled');
-      else if (!result.ok) p.setExportFeedback('Failed to save PNG');
-      else p.setExportFeedback('Downloaded!');
-      setTimeout(() => p.setExportFeedback(''), 2000);
+      await saveVizPng('pixel-pal-lightness.png', blob);
     } catch {
       p.setExportFeedback('Failed to export PNG');
       setTimeout(() => p.setExportFeedback(''), 3000);
@@ -117,16 +123,7 @@ export function useExport(p: UseExportParams) {
         return;
       }
       const blob = await drawMosaicPng(rows);
-      const result = await saveFile({
-        defaultName: 'pixel-pal-mosaic.png',
-        filters: [{ name: 'PNG image', extensions: ['png'] }],
-        data: { bytes: blob },
-        folderKey: 'png',
-      });
-      if (result.canceled) p.setExportFeedback('Save canceled');
-      else if (!result.ok) p.setExportFeedback('Failed to save PNG');
-      else p.setExportFeedback('Downloaded!');
-      setTimeout(() => p.setExportFeedback(''), 2000);
+      await saveVizPng('pixel-pal-mosaic.png', blob);
     } catch {
       p.setExportFeedback('Failed to export PNG');
       setTimeout(() => p.setExportFeedback(''), 3000);
@@ -146,16 +143,7 @@ export function useExport(p: UseExportParams) {
         return;
       }
       const blob = await drawAdjacencyMatrixPng(colors, { view: p.matrixView as MatrixView });
-      const result = await saveFile({
-        defaultName: 'pixel-pal-adjacency.png',
-        filters: [{ name: 'PNG image', extensions: ['png'] }],
-        data: { bytes: blob },
-        folderKey: 'png',
-      });
-      if (result.canceled) p.setExportFeedback('Save canceled');
-      else if (!result.ok) p.setExportFeedback('Failed to save PNG');
-      else p.setExportFeedback('Downloaded!');
-      setTimeout(() => p.setExportFeedback(''), 2000);
+      await saveVizPng('pixel-pal-adjacency.png', blob);
     } catch {
       p.setExportFeedback('Failed to export PNG');
       setTimeout(() => p.setExportFeedback(''), 3000);
@@ -173,16 +161,7 @@ export function useExport(p: UseExportParams) {
         return;
       }
       const blob = await drawDitherBlendPng(rows, { pattern: p.ditherPattern as DitherPattern });
-      const result = await saveFile({
-        defaultName: 'pixel-pal-dither.png',
-        filters: [{ name: 'PNG image', extensions: ['png'] }],
-        data: { bytes: blob },
-        folderKey: 'png',
-      });
-      if (result.canceled) p.setExportFeedback('Save canceled');
-      else if (!result.ok) p.setExportFeedback('Failed to save PNG');
-      else p.setExportFeedback('Downloaded!');
-      setTimeout(() => p.setExportFeedback(''), 2000);
+      await saveVizPng('pixel-pal-dither.png', blob);
     } catch {
       p.setExportFeedback('Failed to export PNG');
       setTimeout(() => p.setExportFeedback(''), 3000);

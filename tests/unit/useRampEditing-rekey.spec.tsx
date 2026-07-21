@@ -148,4 +148,20 @@ describe('duplicateRamp carries the per-ramp advanced settings to the copy', () 
     expect(s.rampStyleOverrides).toEqual({ 1: 'muted', 2: 'custom' });
     expect(s.rampStyleScalars).toEqual({ 2: { reach: 0.3, chromaFalloff: 0.7 } });
   });
+
+  // Regression: duplicateRamp pushed the copy's name onto the END of
+  // aiColorNames without padding first, unlike every other add path
+  // (addHarmonyColor, addColorAsBase, handleImageClick). If aiColorNames is
+  // shorter than baseColors (e.g. right after handleGenerate's 'color'
+  // branch, which resets aiColorNames to []), the pushed name landed at the
+  // wrong index instead of the new ramp's actual index.
+  it('pads aiColorNames to baseColors.length before appending the copy name, when names are shorter', () => {
+    useRampsStore.setState({ aiColorNames: [] });
+    const { hook } = setupHook();
+    act(() => { hook.result.current.duplicateRamp(1); });
+
+    const s = useRampsStore.getState();
+    expect(s.baseColors).toEqual(['#ff0000', '#00ff00', '#0000ff', '#00ff00']);
+    expect(s.aiColorNames).toEqual(['', '', '', '']);
+  });
 });

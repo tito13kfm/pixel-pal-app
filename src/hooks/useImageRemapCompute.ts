@@ -128,9 +128,7 @@ export function useImageRemapCompute(p: UseImageRemapComputeParams) {
         // invalid value.
         const opts = computeRemapScaleOptions(nw, nh, 8192);
         let pick = 1;
-        if (opts.includes(1)) {
-          pick = 1;
-        } else {
+        if (!opts.includes(1)) {
           // Largest option <= 1, or smallest option if none <= 1.
           const leOne = opts.filter(s => s <= 1);
           pick = leOne.length > 0 ? leOne[leOne.length - 1] : (opts[0] || 1);
