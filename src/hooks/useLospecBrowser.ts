@@ -3,6 +3,7 @@ import {
   browseLospecPalettes, suggestLospecPalettes, fetchLospecPalette,
   parseLospecSlug, getLospecApiKey, debounce, LospecNoKeyError,
   loadUserApiKeyOverride, saveUserApiKeyOverride, getLospecRateLimitRemaining,
+  LOSPEC_PAGE_SIZE,
 } from '../lib/lospec';
 import type { LospecPalette, LospecBrowseParams } from '../lib/lospec';
 
@@ -76,7 +77,7 @@ export function useLospecBrowser(): UseLospecBrowserResult {
   const [error, setError] = useState('');
   const [rateLimitLow, setRateLimitLow] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = LOSPEC_PAGE_SIZE;
 
   const cancelPending = useCallback(() => {
     abortRef.current?.abort();

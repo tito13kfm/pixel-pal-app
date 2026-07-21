@@ -17,6 +17,8 @@ export interface LospecPalette {
 
 export class LospecNoKeyError extends Error {}
 
+export const LOSPEC_PAGE_SIZE = 20;
+
 const LOSPEC_KEYED_BASE = 'https://api.lospec.com/api/v1';
 const lospecPaletteUrl = (slug: string) => `https://lospec.com/palette-list/${slug}`;
 const lospecKeylessSlugUrl = (slug: string) => `${lospecPaletteUrl(slug)}.json`;
@@ -24,7 +26,7 @@ const lospecKeylessSlugUrl = (slug: string) => `${lospecPaletteUrl(slug)}.json`;
 let userApiKeyOverride: string | null = null;
 
 export function setUserApiKeyOverrideCache(key: string | null): void {
-  userApiKeyOverride = key && key.length > 0 ? key : null;
+  userApiKeyOverride = key || null;
 }
 
 // Test-only: clears the module-level cache between tests.
@@ -252,7 +254,7 @@ export async function browseLospecPalettes(params: LospecBrowseParams, signal?: 
   if (params.maxColors != null) qs.set('maxColors', String(params.maxColors));
   if (params.numberOfColors != null) qs.set('numberOfColors', String(params.numberOfColors));
   if (params.sort) qs.set('sort', params.sort);
-  qs.set('limit', String(params.limit ?? 20));
+  qs.set('limit', String(params.limit ?? LOSPEC_PAGE_SIZE));
   qs.set('offset', String(params.offset ?? 0));
   try {
     const res = await throttledFetch(`${LOSPEC_KEYED_BASE}/palettes?${qs.toString()}`, {
@@ -264,7 +266,7 @@ export async function browseLospecPalettes(params: LospecBrowseParams, signal?: 
     const result: LospecBrowseResult = {
       palettes: (data.data || []).map(mapExpandedPalette),
       total: data.meta?.total ?? 0,
-      limit: data.meta?.limit ?? params.limit ?? 20,
+      limit: data.meta?.limit ?? params.limit ?? LOSPEC_PAGE_SIZE,
       offset: data.meta?.offset ?? params.offset ?? 0,
     };
     await cacheSet(cacheKey, result);
