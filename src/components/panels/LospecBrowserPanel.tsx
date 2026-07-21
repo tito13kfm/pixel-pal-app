@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTheme } from '../../contexts';
+import { LOSPEC_PAGE_SIZE } from '../../lib/lospec';
 import type { LospecPalette, LospecBrowseParams } from '../../lib/lospec';
 
 export interface LospecBrowserPanelProps {
@@ -28,7 +29,47 @@ export interface LospecBrowserPanelProps {
   onLoad: (palette: LospecPalette, mode: 'all' | 'subset') => void;
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = LOSPEC_PAGE_SIZE;
+
+function PaletteCard({ palette, onUse, className = '' }: {
+  palette: LospecPalette;
+  onUse: (mode: 'all' | 'subset') => void;
+  className?: string;
+}) {
+  const { t } = useTheme();
+  return (
+    <div className={`flex flex-col gap-2 bg-black/60 rounded border-2 border-cyan-700/40 p-3 hover:border-cyan-500/60 transition-colors${className ? ` ${className}` : ''}`}>
+      <div className="flex h-16 rounded overflow-hidden border" style={{ borderColor: t.vizDataBorder }}>
+        {palette.colors.map((hex, i) => (
+          <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />
+        ))}
+      </div>
+      <div className="min-w-0">
+        <div className="text-cyan-100 font-bold text-sm truncate">{palette.title}</div>
+        <div className="text-cyan-100/60 text-[10px]">
+          by {palette.author || 'unknown'} &middot; {palette.numberOfColors} colors &middot; <a href={palette.url} target="_blank" rel="noreferrer" className="underline hover:text-cyan-300">view on Lospec</a>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1 mt-auto">
+        <button
+          onClick={() => onUse('all')}
+          title="Use all as bases: load every color as a base ramp"
+          className="w-full px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all text-xs uppercase tracking-wider"
+          style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}
+        >
+          Use All as Bases
+        </button>
+        <button
+          onClick={() => onUse('subset')}
+          title="Auto-pick representative colors as bases"
+          className="w-full px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50 hover:bg-purple-800/60"
+        >
+          Auto-pick Representatives
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function LospecBrowserPanel({
   hasApiKey,
@@ -149,36 +190,7 @@ export function LospecBrowserPanel({
         {suggestions.length > 0 && (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
             {suggestions.map((s) => (
-              <div key={s.slug} className="flex flex-col gap-2 bg-black/60 rounded border-2 border-cyan-700/40 p-3 hover:border-cyan-500/60 transition-colors">
-                <div className="flex h-16 rounded overflow-hidden border" style={{ borderColor: t.vizDataBorder }}>
-                  {s.colors.map((hex, i) => (
-                    <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />
-                  ))}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-cyan-100 font-bold text-sm truncate">{s.title}</div>
-                  <div className="text-cyan-100/60 text-[10px]">
-                    by {s.author || 'unknown'} &middot; {s.numberOfColors} colors &middot; <a href={s.url} target="_blank" rel="noreferrer" className="underline hover:text-cyan-300">view on Lospec</a>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1 mt-auto">
-                  <button
-                    onClick={() => handleSuggestionLoad(s, 'all')}
-                    title="Use all as bases: load every color as a base ramp"
-                    className="w-full px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all text-xs uppercase tracking-wider"
-                    style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}
-                  >
-                    Use All as Bases
-                  </button>
-                  <button
-                    onClick={() => handleSuggestionLoad(s, 'subset')}
-                    title="Auto-pick representative colors as bases"
-                    className="w-full px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50 hover:bg-purple-800/60"
-                  >
-                    Auto-pick Representatives
-                  </button>
-                </div>
-              </div>
+              <PaletteCard key={s.slug} palette={s} onUse={(mode) => handleSuggestionLoad(s, mode)} />
             ))}
           </div>
         )}
@@ -200,36 +212,7 @@ export function LospecBrowserPanel({
           </button>
         </div>
         {loadedPalette && (
-          <div className="flex flex-col gap-2 bg-black/60 rounded border-2 border-cyan-700/40 p-3 hover:border-cyan-500/60 transition-colors max-w-xs">
-            <div className="flex h-16 rounded overflow-hidden border" style={{ borderColor: t.vizDataBorder }}>
-              {loadedPalette.colors.map((hex, i) => (
-                <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />
-              ))}
-            </div>
-            <div className="min-w-0">
-              <div className="text-cyan-100 font-bold text-sm truncate">{loadedPalette.title}</div>
-              <div className="text-cyan-100/60 text-[10px]">
-                by {loadedPalette.author || 'unknown'} &middot; {loadedPalette.numberOfColors} colors &middot; <a href={loadedPalette.url} target="_blank" rel="noreferrer" className="underline hover:text-cyan-300">view on Lospec</a>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1 mt-auto">
-              <button
-                onClick={() => onLoad(loadedPalette, 'all')}
-                title="Use all as bases: load every color as a base ramp"
-                className="w-full px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all text-xs uppercase tracking-wider"
-                style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}
-              >
-                Use All as Bases
-              </button>
-              <button
-                onClick={() => onLoad(loadedPalette, 'subset')}
-                title="Auto-pick representative colors as bases"
-                className="w-full px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50 hover:bg-purple-800/60"
-              >
-                Auto-pick Representatives
-              </button>
-            </div>
-          </div>
+          <PaletteCard palette={loadedPalette} onUse={(mode) => onLoad(loadedPalette, mode)} className="max-w-xs" />
         )}
         <div className="flex flex-wrap gap-2 items-center">
           <input
@@ -291,36 +274,7 @@ export function LospecBrowserPanel({
           )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
             {results.map((p) => (
-              <div key={p.slug} className="flex flex-col gap-2 bg-black/60 rounded border-2 border-cyan-700/40 p-3 hover:border-cyan-500/60 transition-colors">
-                <div className="flex h-16 rounded overflow-hidden border" style={{ borderColor: t.vizDataBorder }}>
-                  {p.colors.map((hex, i) => (
-                    <div key={i} className="flex-1" style={{ background: hex }} title={hex.toUpperCase()} />
-                  ))}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-cyan-100 font-bold text-sm truncate">{p.title}</div>
-                  <div className="text-cyan-100/60 text-[10px]">
-                    by {p.author || 'unknown'} &middot; {p.numberOfColors} colors &middot; <a href={p.url} target="_blank" rel="noreferrer" className="underline hover:text-cyan-300">view on Lospec</a>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1 mt-auto">
-                  <button
-                    onClick={() => onLoad(p, 'all')}
-                    title="Use all as bases: load every color as a base ramp"
-                    className="w-full px-3 py-1.5 rounded font-bold bg-cyan-400 text-purple-900 border-2 border-cyan-100 hover:bg-cyan-300 transition-all text-xs uppercase tracking-wider"
-                    style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 0.4)' }}
-                  >
-                    Use All as Bases
-                  </button>
-                  <button
-                    onClick={() => onLoad(p, 'subset')}
-                    title="Auto-pick representative colors as bases"
-                    className="w-full px-3 py-1.5 rounded font-bold border-2 transition-all text-xs uppercase tracking-wider bg-purple-900/60 text-cyan-100 border-cyan-700/50 hover:bg-purple-800/60"
-                  >
-                    Auto-pick Representatives
-                  </button>
-                </div>
-              </div>
+              <PaletteCard key={p.slug} palette={p} onUse={(mode) => onLoad(p, mode)} />
             ))}
           </div>
         </>
