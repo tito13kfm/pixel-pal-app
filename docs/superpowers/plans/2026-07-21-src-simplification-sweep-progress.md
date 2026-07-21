@@ -8,7 +8,7 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 | 1 | contexts + store + workers | merged | [#162](https://github.com/tito13kfm/pixel-pal-app/pull/162) | none (consistency-only: reorderRamps now clears compareResult) |
 | 2 | hooks: UI/session/tour | merged | [#164](https://github.com/tito13kfm/pixel-pal-app/pull/164) | usePanelLayout: corrupt ui:sectionOrder in localStorage crashed mount (unguarded JSON.parse); now falls back to DEFAULT_SECTION_ORDER |
 | 3 | hooks: ramp/palette actions | merged | [#165](https://github.com/tito13kfm/pixel-pal-app/pull/165) | reExtractFromImage missing 3 guards (stale error, empty-extraction, decode-failure) vs its handleImageUpload sibling; harmony/eyedropper add paths' case-sensitive duplicate check, root-caused to handleGenerate not normalizing colorInput to lowercase |
-| 4 | components: non-panel | not started | | |
+| 4 | components: non-panel | merged | [#166](https://github.com/tito13kfm/pixel-pal-app/pull/166) | none (consistency-only: dead ternary, redundant cast, ternary-as-statement, React.FC to plain function) |
 | 5 | components: panels | not started | | |
 | 6 | lib: platform/UI-support | not started | | |
 | 7 | lib: export/import | not started | | |
@@ -34,6 +34,18 @@ bug, it's strictly worse: a throw at module-evaluation time can't be caught
 by an ErrorBoundary (render-only), so it's an unrecoverable white screen.
 `panel-state.ts` is in chunk 6's file list, check this specifically when
 that chunk runs.
+
+## Second carried-forward item for chunk 6
+
+Chunk 4 found a byte-identical canvas cell-hit-testing block shared by
+`AdjacencyMatrix.tsx`, `CrossAdjacencyMatrix.tsx`, and `CrossRampDither.tsx`
+(3 sites, clears the extraction threshold). Declined to extract in chunk 4
+because the natural shared home is a new helper in `lib/viz-interaction.ts`,
+which is chunk 6's file. When chunk 6 runs, consider adding a
+`cellFromEvent(e, cell, header)` helper there and wiring the three
+components to it (components are out of chunk 6's scope to edit directly,
+so this may mean a small follow-up touching both chunks, or just adding the
+helper and noting it as available for a future pass).
 
 ## Carried-forward check for chunk 5
 
