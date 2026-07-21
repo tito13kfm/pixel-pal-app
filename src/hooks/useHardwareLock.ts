@@ -8,7 +8,7 @@
 import { usePaletteState } from './usePaletteState';
 import { HARDWARE_PALETTES } from '../lib/constants';
 import { quantizeToHardware } from '../lib/hardware-quantize';
-import { applyOverrides, resolveBaseForRamp, resolveSizeForRamp, generateRamp } from '../lib/ramp-helpers';
+import { applyOverrides, resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp, generateRamp } from '../lib/ramp-helpers';
 import type { GamutStrategySerialized } from '../lib/palette';
 
 // The resolved hardware palette object (a HARDWARE_PALETTES entry) when
@@ -27,7 +27,7 @@ export function useHardwareLock(p: UseHardwareLockParams) {
   const {
     baseColors, hardwareLock, setHardwareLock, setOverrides,
     rampSize, rampSizeOverrides, rampSatOverrides,
-    hueShiftStrength, shuffleSeed, rampShuffleOffsets,
+    hueShiftStrength, hueShiftStrengthPerRamp, shuffleSeed, rampShuffleOffsets,
     lightnessCurvePerRamp, satCurvePerRamp, stylePresets,
   } = usePaletteState();
 
@@ -98,8 +98,12 @@ export function useHardwareLock(p: UseHardwareLockParams) {
       for (let i = 0; i < baseColors.length; i++) {
         const effBase = resolveBaseForRamp(baseColors[i], i, rampSatOverrides);
         const effSize = resolveSizeForRamp(i, rampSizeOverrides, rampSize);
+        // Must resolve per-ramp same as buildRamp (ramp-pipeline.ts), or a
+        // ramp with a hue-shift override bakes pins against a ramp the user
+        // never saw on screen.
+        const effHueShift = resolveHueShiftForRamp(i, hueShiftStrengthPerRamp, hueShiftStrength);
         for (const style of STYLES) {
-          const raw = generateRamp(effBase, effSize, style, hueShiftStrength, i, {
+          const raw = generateRamp(effBase, effSize, style, effHueShift, i, {
             gamutPerRamp, stylePresets, shuffleSeed, rampShuffleOffsets, lightnessCurvePerRamp, satCurvePerRamp,
           });
           // The store types overrides opaquely (Record<string, unknown>);
