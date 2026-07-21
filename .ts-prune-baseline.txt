@@ -14,5 +14,5 @@ src/lib/viz-interaction.ts:172 - CycleRange
 # Test-only reset helpers (issue #133): used by tests/unit/lospec.spec.ts and
 # tests/unit/useLospecBrowser.spec.ts to clear module-level state between
 # tests, not consumed by any src/ file, ts-prune only scans production code.
-src/lib/lospec.ts:31 - __resetLospecUserApiKeyForTests
-src/lib/lospec.ts:103 - __resetLospecThrottleForTests
+src/lib/lospec.ts:33 - __resetLospecUserApiKeyForTests
+src/lib/lospec.ts:105 - __resetLospecThrottleForTests
