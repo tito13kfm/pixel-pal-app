@@ -11,7 +11,7 @@ docs/superpowers/plans/2026-07-21-src-simplification-sweep.md.
 | 4 | components: non-panel | merged | [#166](https://github.com/tito13kfm/pixel-pal-app/pull/166) | none (consistency-only: dead ternary, redundant cast, ternary-as-statement, React.FC to plain function) |
 | 5 | components: panels | merged | [#167](https://github.com/tito13kfm/pixel-pal-app/pull/167) | RampsPanel "Add base from shade" was case-sensitive AND unguarded (unlike every other add path); could append a case-mismatched duplicate base. Fixed gate + added handler-level guard. HarmonyPanel's identical cosmetic gap (clickable no-op) fixed too. |
 | 6 | lib: platform/UI-support | merged | [#168](https://github.com/tito13kfm/pixel-pal-app/pull/168) | installUpdate had no error handling (unlike sibling downloadUpdate); a rejected install left the ready-to-install UI stuck with no feedback |
-| 7 | lib: export/import | not started | | |
+| 7 | lib: export/import | merged | [#169](https://github.com/tito13kfm/pixel-pal-app/pull/169) | buildPaletteText's "Unique Colors" section (.txt export) bypassed filterHidden, unlike its own per-style sections just above it; a hidden shade stayed in the count/list. Fixed by reusing the already-filtered per-style hex arrays. (.txt's overall color set still legitimately differs from .gpl/.pal/.ase, which emit only the active style; that cross-format gap is deliberate, not a bug.) |
 | 8 | core palette/style state | not started | | |
 | 9 | lib: ramp/color engine + constants | not started | | |
 
