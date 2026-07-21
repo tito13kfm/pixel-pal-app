@@ -130,4 +130,15 @@ describe('useSavedPalettesActions', () => {
     await act(async () => { await hook.result.current.loadPalette('legacy'); });
     expect(useRampsStore.getState().lospecSource).toBeNull();
   });
+
+  it('loading a pre-sweep save with uppercase-hex baseColors normalizes them to lowercase', async () => {
+    // Before this sweep chunk, the base-editor text field accepted A-F, so an
+    // old save can hold e.g. #AABBCC verbatim. Every reader is already
+    // case-insensitive (chunk 5), so this is a benign normalization, not a
+    // look change: same render, just a canonical-case string going forward.
+    const { hook } = setup();
+    await (window as any).storage.set('palettes:oldcase', JSON.stringify({ name: 'OldCase', baseColors: ['#AABBCC', '#112233'], savedAt: 1 }));
+    await act(async () => { await hook.result.current.loadPalette('oldcase'); });
+    expect(useRampsStore.getState().baseColors).toEqual(['#aabbcc', '#112233']);
+  });
 });

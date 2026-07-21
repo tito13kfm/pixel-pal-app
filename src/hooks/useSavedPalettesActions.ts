@@ -265,7 +265,7 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
         });
       }
       p.tagNextLabel(`Load: ${parsed.name || slug}`);
-      setBaseColors(parsed.baseColors);
+      setBaseColors(parsed.baseColors.map((c: string) => c.toLowerCase()));
       setAiColorNames(Array.isArray(parsed.aiColorNames) ? parsed.aiColorNames : []);
       if (isValidRampSize(parsed.rampSize)) setRampSize(parsed.rampSize);
       // hueShiftStrength: number in [0.0, 2.0]. Missing field (pre-E
@@ -550,7 +550,7 @@ export function useSavedPalettesActions(p: UseSavedPalettesActionsParams) {
   // this just re-asserts the caller's actual intent immediately after).
   const applyImportedBases = (colors: string[], names: string[], label: string, provenance: typeof lospecSource = null) => {
     p.tagNextLabel(label);
-    setBaseColors(colors);
+    setBaseColors(colors.map(c => c.toLowerCase()));
     setAiColorNames(names);
     p.resetPaletteState();
     setHardwareLock(null);

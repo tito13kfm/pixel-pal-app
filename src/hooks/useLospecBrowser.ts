@@ -46,6 +46,9 @@ export function useLospecBrowser(): UseLospecBrowserResult {
       if (cancelled) return;
       setSavedUserApiKey(stored);
       setHasApiKey(getLospecApiKey() !== null);
+    }).catch(() => {
+      // Storage read failed; leave savedUserApiKey/hasApiKey at their
+      // current values rather than crash the mount effect.
     });
     return () => { cancelled = true; };
   }, []);
