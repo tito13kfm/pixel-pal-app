@@ -350,7 +350,7 @@ export function PixelPlayground({ ramps, theme }: PixelPlaygroundProps) {
         ref={canvasRef}
         width={CANVAS_W * SCALE}
         height={CANVAS_H * SCALE}
-        style={{ imageRendering: 'pixelated', cursor: tool === 'eyedropper' ? 'crosshair' : 'crosshair', display: 'block', flexShrink: 0 }}
+        style={{ imageRendering: 'pixelated', cursor: 'crosshair', display: 'block', flexShrink: 0 }}
         className="border border-black/30 rounded"
         onPointerDown={handleMouseDown}
         onPointerMove={handleMouseMove}

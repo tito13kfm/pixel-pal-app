@@ -1,4 +1,3 @@
-import React from 'react';
 import { CurveEditor } from './CurveEditor';
 import { LIGHTNESS_PRESETS, SAT_PRESETS } from '../lib/curve';
 import type { CurvePoints } from '../lib/curve';
@@ -23,10 +22,10 @@ interface RampAdvancedPanelProps {
 
 const GAMUTS: GamutStrategySerialized[] = ['auto', 'clip', 'chroma-preserve'];
 
-export const RampAdvancedPanel: React.FC<RampAdvancedPanelProps> = ({
+export function RampAdvancedPanel({
   open, lightnessCurve, satCurve, gamut, hueShift, hueShiftOverridden, sizeLocked, dataTourId,
   onToggle, onLightnessCurveChange, onSatCurveChange, onGamutChange, onHueShiftChange, onHueShiftReset,
-}) => {
+}: RampAdvancedPanelProps) {
   return (
     <div style={{ marginTop: 8, borderTop: '1px dashed rgba(255,255,255,0.15)', paddingTop: 6 }}>
       <button
@@ -116,4 +115,4 @@ export const RampAdvancedPanel: React.FC<RampAdvancedPanelProps> = ({
       )}
     </div>
   );
-};
+}

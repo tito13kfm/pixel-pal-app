@@ -112,7 +112,7 @@ export function TourOverlay({
     if (detectorBaseline.current === false && now === true) {
       detectorBaseline.current = true
       const last = guide ? step === guide.steps.length - 1 : false
-      advanceTimer.current = setTimeout(() => { last ? onExit() : onSetStep(step + 1) }, 400)
+      advanceTimer.current = setTimeout(() => { if (last) onExit(); else onSetStep(step + 1) }, 400)
     }
   }, [appState, open, current, guide, step, onExit, onSetStep])
 
