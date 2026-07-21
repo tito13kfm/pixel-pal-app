@@ -402,11 +402,11 @@ export function drawCrossRampDither(
 const DITHER_ROW_H = 40;    // px row height
 const DITHER_SOLID_W = 44;  // px solid shade cell width
 const DITHER_BLEND_W = 28;  // px blend cell width
-const DITHER_SUB = 8;       // checker/bayer subdivisions per blend cell
 
 // Per ramp row: solid shade · dither blend(shadeᵢ, shadeᵢ₊₁) · solid shade …
-// Blend cells render the pattern at a visible-pixel scale (DITHER_SUB blocks),
-// NOT a shrunk-to-solid midpoint; the texture is the point of the feature.
+// Blend-cell resolution is derived from blendW/rowH below (cols/rows), NOT a
+// fixed subdivision count; `opts.sub` is accepted for caller compatibility
+// but unused.
 export function drawDitherBlend(
   ctx: CanvasRenderingContext2D,
   rows: string[][],
@@ -415,7 +415,6 @@ export function drawDitherBlend(
   const rowH = opts.rowH ?? DITHER_ROW_H;
   const solidW = opts.solidW ?? DITHER_SOLID_W;
   const blendW = opts.blendW ?? DITHER_BLEND_W;
-  const sub = opts.sub ?? DITHER_SUB;
   ctx.imageSmoothingEnabled = false;
 
   rows.forEach((row, r) => {
@@ -472,7 +471,6 @@ export function drawDitherBlendPng(
   const solidW = 48;
   const blendW = 30;
   const rowH = 48;
-  const sub = 8;
   const maxCells = rows.reduce((m, row) => Math.max(m, row.length), 0);
   const width = Math.max(1, maxCells * solidW + Math.max(0, maxCells - 1) * blendW);
   const height = Math.max(1, rows.length * rowH);
@@ -481,6 +479,6 @@ export function drawDitherBlendPng(
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return Promise.reject(new Error('Canvas 2D context unavailable'));
-  drawDitherBlend(ctx, rows, { pattern: opts.pattern, rowH, solidW, blendW, sub });
+  drawDitherBlend(ctx, rows, { pattern: opts.pattern, rowH, solidW, blendW });
   return canvasToPngBlob(canvas);
 }

@@ -27,6 +27,29 @@ describe('buildPaletteText', () => {
     expect(text).toContain('FF00FF  slot1');
     expect(text).toContain('## Unique Colors');
   });
+
+  // Regression: the per-style sections (### Punchy/Balanced/Muted) apply
+  // filterHidden, matching collectPaletteEntries (the .gpl/.pal/.ase path),
+  // but the "Unique Colors" summary read the raw ramp arrays directly,
+  // bypassing filterHidden entirely. A shade hidden by the user still
+  // appeared in the Unique Colors trailer of a .txt export even though the
+  // same palette exported as .gpl/.pal/.ase correctly omitted it.
+  it('excludes a hidden shade from Unique Colors, matching the per-style sections', () => {
+    const hideWhite = (ramp: string[], labels: string[]) => {
+      const hexes = ramp.filter(h => h !== '#ffffff');
+      return { hexes, labels: labels.filter((_, i) => ramp[i] !== '#ffffff') };
+    };
+    const text = buildPaletteText({
+      baseColors: ['#ff00ff'],
+      aiColorNames: ['Magenta'],
+      rampsPunchy: [['#000000', '#ff00ff', '#ffffff']],
+      rampsBalanced: [['#010101', '#fe00fe', '#fefefe']],
+      rampsMuted: [['#020202', '#fd00fd', '#fdfdfd']],
+      harmony, resolveBaseForRamp, labelsForRamp, filterHidden: hideWhite,
+    });
+    const uniqueSection = text.slice(text.indexOf('## Unique Colors'));
+    expect(uniqueSection).not.toContain('FFFFFF');
+  });
 });
 
 describe('collectPaletteEntries', () => {

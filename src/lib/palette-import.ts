@@ -125,16 +125,6 @@ export const parseGpl = (text: string): GplPalette | null => {
       const r = parseInt(nums[0], 10);
       const g = parseInt(nums[1], 10);
       const b = parseInt(nums[2], 10);
-      // Some files have RGBA without declaring Channels. Detect by looking
-      // at whether the fourth token is also a clamped int 0-255 and the
-      // first non-numeric token comes after position 4.
-      if (!hasRgba && nums.length >= 4) {
-        const a = parseInt(nums[3], 10);
-        if (!Number.isNaN(a) && a >= 0 && a <= 255) {
-          // Could be RGBA or RGB with a numeric name like "255". Ambiguous.
-          // Conservative call: assume RGB and let the 4th token be name-ish.
-        }
-      }
       if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) continue;
       if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) continue;
       colors.push(rgbToHex(r, g, b));
