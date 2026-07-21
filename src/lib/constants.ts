@@ -232,9 +232,8 @@ export const CLASSIC_PALETTES = [
 // These are the FULL hardware palettes (not the curated subsets in
 // CLASSIC_PALETTES). Each entry's colors[] is the full set of legal hex
 // values the hardware could display. The quantize function snaps any input
-// hex to the nearest color in this list using HSL distance with lightness
-// weighted 1.5x (lightness drift is more perceptually obvious than hue drift
-// at small differences). Sources:
+// hex to the nearest color in this list by ΔE_OK (perceptual OKLab distance,
+// see hardware-quantize.ts). Sources:
 //   NES: NESdev wiki master palette (the 2C02 PPU palette, 54 unique colors
 //     after removing the 2 black duplicates at $0D and $1D).
 //   Game Boy DMG: the classic 4-shade green of the original 1989 hardware.

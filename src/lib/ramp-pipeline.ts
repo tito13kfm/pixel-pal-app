@@ -97,9 +97,9 @@ export function buildRamp(snapshot: RampSnapshot, style: string, baseIndex: numb
     size,
     hueShiftStrength: effectiveHueShift,
     hueJitter,
-    lightnessCurve: (effectiveLightnessCurves[i] ?? effectiveLightnessCurves[String(i)] ?? LIGHTNESS_PRESETS.eased) as CurvePoints,
-    satCurve: ((satCurvePerRamp as Record<number, unknown>)[i] ?? (satCurvePerRamp as Record<string, unknown>)[String(i)] ?? SAT_PRESETS.flat) as CurvePoints,
-    gamut: ((gamutPerRamp as Record<number, unknown>)[i] ?? (gamutPerRamp as Record<string, unknown>)[String(i)]) as GamutStrategy,
+    lightnessCurve: (effectiveLightnessCurves[i] ?? LIGHTNESS_PRESETS.eased) as CurvePoints,
+    satCurve: ((satCurvePerRamp as Record<number, unknown>)[i] ?? SAT_PRESETS.flat) as CurvePoints,
+    gamut: (gamutPerRamp as Record<number, unknown>)[i] as GamutStrategy,
   });
 
   // pinRamp: substitute per-style pinned shade indices.
