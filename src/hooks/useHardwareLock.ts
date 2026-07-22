@@ -9,6 +9,7 @@ import { usePaletteState } from './usePaletteState';
 import { HARDWARE_PALETTES } from '../lib/constants';
 import { quantizeToHardware } from '../lib/hardware-quantize';
 import { applyOverrides, resolveBaseForRamp, resolveSizeForRamp, resolveHueShiftForRamp, generateRamp } from '../lib/ramp-helpers';
+import { resolveActiveStyle } from '../lib/style-presets';
 import type { GamutStrategySerialized } from '../lib/palette';
 
 // The resolved hardware palette object (a HARDWARE_PALETTES entry) when
@@ -29,6 +30,7 @@ export function useHardwareLock(p: UseHardwareLockParams) {
     rampSize, rampSizeOverrides, rampSatOverrides,
     hueShiftStrength, hueShiftStrengthPerRamp, shuffleSeed, rampShuffleOffsets,
     lightnessCurvePerRamp, satCurvePerRamp, stylePresets,
+    rampStyleOverrides, paletteDefaultStyle,
   } = usePaletteState();
 
   // toggleHardwareLock: switches the hardware lock on/off. If already locked
@@ -102,7 +104,11 @@ export function useHardwareLock(p: UseHardwareLockParams) {
         // ramp with a hue-shift override bakes pins against a ramp the user
         // never saw on screen.
         const effHueShift = resolveHueShiftForRamp(i, hueShiftStrengthPerRamp, hueShiftStrength);
-        for (const style of STYLES) {
+        const activeStyle = resolveActiveStyle(rampStyleOverrides, i, paletteDefaultStyle);
+        const stylesToBake: readonly ('punchy' | 'balanced' | 'muted' | 'custom')[] = activeStyle === 'custom'
+          ? [...STYLES, 'custom'] as const
+          : STYLES;
+        for (const style of stylesToBake) {
           const raw = generateRamp(effBase, effSize, style, effHueShift, i, {
             gamutPerRamp, stylePresets, shuffleSeed, rampShuffleOffsets, lightnessCurvePerRamp, satCurvePerRamp,
           });

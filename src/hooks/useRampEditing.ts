@@ -386,7 +386,7 @@ export function useRampEditing(p: UseRampEditingParams) {
   // setOverride: write or update the pinned hex for (baseIndex, shadeIndex, style).
   const setOverride = (baseIndex: number, shadeIndex: number, style: string, hex: string) => {
     if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
-    if (!['punchy', 'balanced', 'muted'].includes(style)) return;
+    if (!['punchy', 'balanced', 'muted', 'custom'].includes(style)) return;
     const norm = hex.toLowerCase();
     setOverrides(prev0 => {
       const prev = prev0 as OverridesMap;

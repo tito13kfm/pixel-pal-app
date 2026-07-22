@@ -141,8 +141,8 @@ export function labelsForRamp(sortedRamp: string[], baseHex: string): string[] {
 export function applyOverrides(
   ramp: string[],
   baseIndex: number,
-  overrideMap: Record<number, Record<number, { punchy?: string; balanced?: string; muted?: string }>>,
-  style: 'punchy' | 'balanced' | 'muted'
+  overrideMap: Record<number, Record<number, { punchy?: string; balanced?: string; muted?: string; custom?: string }>>,
+  style: 'punchy' | 'balanced' | 'muted' | 'custom'
 ): string[] {
   const pinsForBase = overrideMap[baseIndex];
   if (!pinsForBase) return ramp;
@@ -240,7 +240,7 @@ export interface GenerateRampClosureState {
 export function generateRamp(
   baseHex: string,
   numColors: number,
-  style: 'punchy' | 'balanced' | 'muted',
+  style: 'punchy' | 'balanced' | 'muted' | 'custom',
   hueShiftStrength: number,
   rampIdx: number | undefined,
   closureState: GenerateRampClosureState

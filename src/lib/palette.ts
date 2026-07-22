@@ -20,7 +20,7 @@ export interface SavedPalettePayload {
   spriteKey?: string
   shuffleSeed?: number
   customSprites?: Record<string, unknown>
-  overrides?: Record<string, Record<string, { punchy?: string; balanced?: string; muted?: string }>>
+  overrides?: Record<string, Record<string, { punchy?: string; balanced?: string; muted?: string; custom?: string }>>
   harmonyAnchor?: number
   rampSizeOverrides?: Record<string, number>
   rampSatOverrides?: Record<string, number>
